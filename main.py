@@ -1138,6 +1138,24 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Consistent multiplier for PvP/Bot series
         multiplier = 1.95
         
+        # Build current selection details
+        mode_val = params.get('mode')
+        rolls_val = params.get('rolls')
+        pts_val = params.get('pts')
+        
+        details = []
+        if mode_val:
+            if game_mode == "coinflip":
+                details.append(f"• Side: <b>{mode_val.capitalize()}</b>")
+            else:
+                details.append(f"• Mode: <b>{'Normal' if mode_val == 'normal' else 'Crazy'}</b>")
+        if rolls_val:
+            details.append(f"• Rolls: <b>{rolls_val}</b>")
+        if pts_val:
+            details.append(f"• Target Score: <b>{pts_val}</b>")
+            
+        details_text = "\n".join(details) + "\n\n" if details else ""
+
         # Check if we should skip to game start (last step completed)
         if step == "start_game":
             # Extract collected params
@@ -1180,6 +1198,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
                 f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
+                f"{details_text}"
                 f"Choose the amount of rolls:"
             )
             keyboard.append([
@@ -1193,6 +1212,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
                 f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
+                f"{details_text}"
                 f"Choose the amount of points:"
             )
             keyboard.append([
