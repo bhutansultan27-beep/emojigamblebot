@@ -2547,7 +2547,21 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Handle withdraw command. In groups, redirect to PM. In PM, show withdraw instructions."""
         user = update.effective_user
         chat = update.effective_chat
+        user_data = self.db.get_user(user.id)
         
+        # Check for arguments: /withdraw <amount> <address>
+        if context.args:
+            try:
+                amount = float(context.args[0])
+                if amount > user_data['balance']:
+                    await update.message.reply_text(
+                        f"Insufficient balance\n Current balance: ${user_data['balance']:,.2f}",
+                        parse_mode="HTML"
+                    )
+                    return
+            except ValueError:
+                pass
+
         if chat.type in ["group", "supergroup"]:
             # Same behavior as deposit: notify in group and send PM
             try:
