@@ -3903,14 +3903,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
                 
-                # Delete Match Accepted message if it exists
+                # Delete Match Accepted message button if it exists
                 match_msg_id = challenge.get('match_accepted_msg_id')
                 if match_msg_id:
                     try:
-                        await context.bot.delete_message(chat_id=chat_id, message_id=match_msg_id)
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=match_msg_id, reply_markup=None)
                         challenge['match_accepted_msg_id'] = None
                     except Exception as e:
-                        logger.warning(f"Failed to delete Match Accepted message: {e}")
+                        logger.warning(f"Failed to remove Match Accepted button: {e}")
 
                 # Remove the "Send emoji" button if it exists
                 # User requested to leave the buttons there
