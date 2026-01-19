@@ -3711,11 +3711,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
                 # Remove the "Send emoji" button if it exists
-                if challenge.get('message_id'):
-                    try:
-                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=challenge['message_id'], reply_markup=None)
-                    except:
-                        pass
+                # User requested to leave the buttons there
+                # if challenge.get('message_id'):
+                #     try:
+                #         await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=challenge['message_id'], reply_markup=None)
+                #     except:
+                #         pass
 
                 await self.process_generic_v2_roll(update, context, cid, dice_value, emoji)
                 return
@@ -6209,8 +6210,9 @@ To deposit, send LTC to the address below:
                 
                 # Send a NEW message for the cashout result instead of editing
                 try:
-                    # First, remove buttons from the current game message to prevent double-clicks
-                    await query.edit_message_reply_markup(reply_markup=None)
+                    # User requested to leave the buttons there
+                    # await query.edit_message_reply_markup(reply_markup=None)
+                    pass
                     
                     # Then send the new result message
                     sent_msg = await context.bot.send_message(
