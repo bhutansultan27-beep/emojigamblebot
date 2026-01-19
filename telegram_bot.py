@@ -2543,9 +2543,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         except Exception as e:
             logger.error(f"Error starting blackjack: {e}")
             # Refund
+            user_data = self.db.get_user(user_id) # Re-fetch to be safe
             user_data['balance'] += wager
             self.db.update_user(user_id, user_data)
-            await update.effective_message.reply_text("❌ Error starting game. Your bet has been refunded.")
+            await update.effective_message.reply_text(f"❌ Error starting game: {str(e)}. Your bet has been refunded.")
     
     async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
         """Display the current Blackjack game state with action buttons"""
@@ -2647,6 +2648,13 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
             # Clean up session
             del self.blackjack_sessions[user_id]
+
+            # Play Again and Double Bet buttons
+            total_bet = sum(h['bet'] for h in state['player_hands'])
+            keyboard.append([
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"bj_play_again_{user_id}_{total_bet:.2f}"),
+                InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
+            ])
         
         # Send or edit message
         if update.callback_query:
