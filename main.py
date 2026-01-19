@@ -4931,7 +4931,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # Message as requested from screenshot (without emojis except back)
             withdraw_info_text = (
                 f"Enter withdrawal amount\n"
-                f"Withdrawal fee: $0.01 + 3.00%\n\n"
+                f"Withdrawal fee: $0.01 + 2.00%\n\n"
                 f"Current balance: ${user_data['balance']:,.2f}"
             )
             
