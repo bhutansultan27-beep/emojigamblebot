@@ -2293,11 +2293,26 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.db.update_house_balance(-profit)
             
             user_username = user_data.get('username', f'User{user_id}')
-            await update.message.reply_text(
-                f"<b>{user_username}</b> won <b>${payout:,.2f}</b>! ({multiplier}x)",
-                parse_mode="HTML",
-                reply_to_message_id=update.message.message_id
+            win_text = (
+                f"🏆 <b>Game over!</b>\n\n"
+                f"{user_username} won <b>${payout:,.2f}</b>!"
             )
+            
+            # Add replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            # Use same editing logic as /dice
+            reply_to_id = update.message.message_id
+            sent_msg = await update.message.reply_text(
+                win_text,
+                reply_markup=InlineKeyboardMarkup(kb),
+                parse_mode="HTML",
+                reply_to_message_id=reply_to_id
+            )
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
             self.db.update_user(user_id, {
                 'total_wagered': user_data['total_wagered'] + wager,
@@ -2306,14 +2321,25 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             })
             self.db.update_house_balance(wager)
             
-            # Change losing message to match /dice (emoji gambling bot style)
-            # Use the emoji gambling bot user ID as seen in other snippets
-            bot_mention = '<a href="tg://user?id=8575155625">emojigamblebot</a>'
-            await update.message.reply_text(
-                f"❌ {bot_mention} won <b>${wager:,.2f}</b>!",
-                parse_mode="HTML",
-                reply_to_message_id=update.message.message_id
+            loss_text = (
+                f"🏆 <b>Game over!</b>\n\n"
+                f"Bot won <b>${wager:,.2f}</b>!"
             )
+            
+            # Add replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            reply_to_id = update.message.message_id
+            sent_msg = await update.message.reply_text(
+                loss_text,
+                reply_markup=InlineKeyboardMarkup(kb),
+                parse_mode="HTML",
+                reply_to_message_id=reply_to_id
+            )
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         
         self.db.record_game({
             'type': 'dice_predict',
