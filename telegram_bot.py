@@ -2661,6 +2661,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
             ])
         
+        # Build reply markup
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        
         # Send or edit message
         if update.callback_query:
             sent_msg = await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode="Markdown")
@@ -2681,40 +2684,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push')) if state['game_over'] else 'pending'
             })
             return
-        
-        # Build action buttons for current hand
-        keyboard = []
-        current_hand = state['player_hands'][state['current_hand_index']]
-        
-        if current_hand['is_current_turn']:
-            actions = current_hand.get('actions', {})
-            
-            # Always show Hit and Stand
-            keyboard.append([
-                InlineKeyboardButton("Hit", callback_data=f"bj_{user_id}_hit"),
-                InlineKeyboardButton("Stand", callback_data=f"bj_{user_id}_stand")
-            ])
-            
-            # Double Down button
-            if actions.get('can_double'):
-                keyboard.append([InlineKeyboardButton("Double Down", callback_data=f"bj_{user_id}_double")])
-            
-            # Split button
-            if actions.get('can_split'):
-                keyboard.append([InlineKeyboardButton("Split", callback_data=f"bj_{user_id}_split")])
-            
-            # Surrender button
-            if actions.get('can_surrender'):
-                keyboard.append([InlineKeyboardButton("Surrender", callback_data=f"bj_{user_id}_surrender")])
-        
-        # Insurance button
-        if state['is_insurance_available']:
-            keyboard.append([InlineKeyboardButton("Take Insurance", callback_data=f"bj_{user_id}_insurance")])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-        
-        await update.effective_message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
-    
+
     async def tip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send money to another player."""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
