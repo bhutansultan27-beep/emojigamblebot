@@ -1161,8 +1161,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-                f"Multiplier: <b>{multiplier:.2f}x</b>\n"
-                f"<i>Minimum balance required: $1.00</i>\n\n"
+                f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
                 f"Choose your game mode:"
             )
             if game_mode == "coinflip":
@@ -1414,8 +1413,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         text = (
             f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
             f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-            f"Multiplier: <b>{multiplier:.2f}x</b>\n"
-            f"<i>Minimum balance required: $1.00</i>\n\n"
+            f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
             f"Make your selection:"
         )
         
