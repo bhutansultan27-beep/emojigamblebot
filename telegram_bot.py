@@ -1746,11 +1746,27 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         selection_list = sorted(list(selections))
         selection_text = f"Selected: <b>{', '.join([s.capitalize() for s in selection_list])}</b>" if selections else "Selected: <b>None</b>"
         
+        house_edge = 0.005
         if selections:
-            if len(selections) == 3 and game_mode == "dice":
-                multiplier = 1.95
-            else:
-                multiplier = round(6.0 / len(selections), 2)
+            if game_mode in ["dice", "darts", "bowling"]:
+                total_outcomes = 6
+                selected_count = len(selections)
+                multiplier = (total_outcomes / selected_count) * (1 - house_edge)
+                if selected_count == 3 and game_mode == "dice":
+                    multiplier = 1.95
+            elif game_mode == "basketball":
+                outcomes_map = {"score": 3, "miss": 1, "stuck": 1}
+                total_slots = 6
+                selected_slots = sum(outcomes_map.get(s, 0) for s in selections)
+                multiplier = (total_slots / selected_slots) * (1 - house_edge) if selected_slots > 0 else 0
+            elif game_mode == "soccer":
+                outcomes_map = {"goal": 3, "miss": 1, "bar": 1}
+                total_slots = 6
+                selected_slots = sum(outcomes_map.get(s, 0) for s in selections)
+                multiplier = (total_slots / selected_slots) * (1 - house_edge) if selected_slots > 0 else 0
+            elif game_mode == "coinflip":
+                multiplier = (2 / len(selections)) * (1 - house_edge)
+            
             multiplier_text = f"Multiplier: <b>{multiplier:.2f}x</b>"
         else:
             multiplier_text = "Multiplier: <b>Choose your prediction</b>"

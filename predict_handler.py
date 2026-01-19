@@ -101,11 +101,36 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             if outcome in selections:
                 win = True
 
-        # Calculate multiplier
-        if len(selections) == 3 and game_mode == "dice":
-            multiplier = 1.95
-        else:
-            multiplier = 6.0 / len(selections)
+        # Calculate multiplier with 0.5% house edge
+        # Multiplier = (Total Outcomes / Selected Outcomes) * (1 - House Edge)
+        house_edge = 0.005
+        
+        if game_mode in ["dice", "darts", "bowling"]:
+            total_outcomes = 6
+        elif game_mode == "basketball":
+            # Probability based on dice values (1: miss, 2: stuck, 3-5: score)
+            # miss: 1/6, stuck: 1/6, score: 3/6
+            outcomes_map = {"miss": 1, "stuck": 1, "score": 3}
+            total_outcomes = 6
+            selected_outcome_slots = sum(outcomes_map[s] for s in selections)
+            multiplier = (total_outcomes / selected_outcome_slots) * (1 - house_edge)
+        elif game_mode == "soccer":
+            # Probability based on dice values (1: miss, 2: bar, 3-5: goal)
+            # miss: 1/6, bar: 1/6, goal: 3/6
+            outcomes_map = {"miss": 1, "bar": 1, "goal": 3}
+            total_outcomes = 6
+            selected_outcome_slots = sum(outcomes_map[s] for s in selections)
+            multiplier = (total_outcomes / selected_outcome_slots) * (1 - house_edge)
+        elif game_mode == "coinflip":
+            # heads: 3/6, tails: 3/6 (mapped from 1-6 dice)
+            total_outcomes = 2
+            multiplier = (total_outcomes / len(selections)) * (1 - house_edge)
+            
+        if game_mode in ["dice", "darts", "bowling"]:
+            multiplier = (6 / len(selections)) * (1 - house_edge)
+            # Special case for 3-number dice prediction often used in casino games
+            if len(selections) == 3 and game_mode == "dice":
+                multiplier = 1.95 # Traditional payout
 
         await asyncio.sleep(4) # Wait for animation
 
