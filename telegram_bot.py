@@ -5602,6 +5602,36 @@ To deposit, send LTC to the address below:
                     pass
                 return
 
+            if data.startswith("v2_cancel_"):
+                cid = data.replace("v2_cancel_", "")
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    # Refund players
+                    wager = challenge.get('wager', 0)
+                    if cid.startswith("v2_bot_"):
+                        pid = challenge.get('player')
+                        if pid and challenge.get('wager_deducted'):
+                            user_data = self.db.get_user(pid)
+                            user_data['balance'] += wager
+                            self.db.update_user(pid, user_data)
+                    elif cid.startswith("v2_pvp_"):
+                        p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                        if p1 and challenge.get('p1_deducted'):
+                            user_data = self.db.get_user(p1)
+                            user_data['balance'] += wager
+                            self.db.update_user(p1, user_data)
+                        if p2 and challenge.get('p2_deducted'):
+                            user_data = self.db.get_user(p2)
+                            user_data['balance'] += wager
+                            self.db.update_user(p2, user_data)
+                    
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
+                else:
+                    await query.answer("❌ Game no longer exists!", show_alert=True)
+                return
+
             if data.startswith("emoji_setup_") or data.startswith("v2_send_emoji_"):
                 from roll_handler import handle_roll
                 await handle_roll(self, update, context)
@@ -5896,6 +5926,36 @@ To deposit, send LTC to the address below:
                     pass
                 return
 
+            if data.startswith("v2_cancel_"):
+                cid = data.replace("v2_cancel_", "")
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    # Refund players
+                    wager = challenge.get('wager', 0)
+                    if cid.startswith("v2_bot_"):
+                        pid = challenge.get('player')
+                        if pid and challenge.get('wager_deducted'):
+                            user_data = self.db.get_user(pid)
+                            user_data['balance'] += wager
+                            self.db.update_user(pid, user_data)
+                    elif cid.startswith("v2_pvp_"):
+                        p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                        if p1 and challenge.get('p1_deducted'):
+                            user_data = self.db.get_user(p1)
+                            user_data['balance'] += wager
+                            self.db.update_user(p1, user_data)
+                        if p2 and challenge.get('p2_deducted'):
+                            user_data = self.db.get_user(p2)
+                            user_data['balance'] += wager
+                            self.db.update_user(p2, user_data)
+                    
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
+                else:
+                    await query.answer("❌ Game no longer exists!", show_alert=True)
+                return
+
             if data.startswith("emoji_setup_"):
                 parts = data.split("_")
                 # Parts: emoji_setup, game_mode, wager, step, [pts, rolls, mode, opponent]
@@ -6026,6 +6086,36 @@ To deposit, send LTC to the address below:
                     await query.answer()
                 except:
                     pass
+                return
+
+            if data.startswith("v2_cancel_"):
+                cid = data.replace("v2_cancel_", "")
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    # Refund players
+                    wager = challenge.get('wager', 0)
+                    if cid.startswith("v2_bot_"):
+                        pid = challenge.get('player')
+                        if pid and challenge.get('wager_deducted'):
+                            user_data = self.db.get_user(pid)
+                            user_data['balance'] += wager
+                            self.db.update_user(pid, user_data)
+                    elif cid.startswith("v2_pvp_"):
+                        p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                        if p1 and challenge.get('p1_deducted'):
+                            user_data = self.db.get_user(p1)
+                            user_data['balance'] += wager
+                            self.db.update_user(p1, user_data)
+                        if p2 and challenge.get('p2_deducted'):
+                            user_data = self.db.get_user(p2)
+                            user_data['balance'] += wager
+                            self.db.update_user(p2, user_data)
+                    
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
+                else:
+                    await query.answer("❌ Game no longer exists!", show_alert=True)
                 return
 
             if data.startswith("emoji_setup_"):
