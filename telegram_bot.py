@@ -4417,7 +4417,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 except Exception as e:
                     logger.warning(f"Failed to remove button from final cashout message: {e}")
 
-            # Series End logic
+                # Series End logic
             if challenge['p_pts'] >= target_pts:
                 payout = w * 1.95
                 u = self.db.get_user(user_id)
@@ -4436,6 +4436,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
+                # Series End: We still send a new message as usual, but the callback handler will now remove buttons
                 reply_to_id = challenge.get('message_id')
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
