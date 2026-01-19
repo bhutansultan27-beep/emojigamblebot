@@ -207,6 +207,6 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             )
             bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         
-        # Clear selections for next game
-        bot_instance._predict_selections[user_id] = set()
+        # Clear selections for next game - DISABLED to persist selections for replay
+        # bot_instance._predict_selections[user_id] = set()
         return
