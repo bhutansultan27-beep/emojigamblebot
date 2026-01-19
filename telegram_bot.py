@@ -5938,7 +5938,7 @@ To deposit, send LTC to the address below:
                 bold_username = f"<b>{username}</b>"
                 bold_amount = f"<b>${cashout_val:.2f}</b>"
                 
-                await query.edit_message_text(f"💸 {bold_username} cashed out {bold_amount}!")
+                await query.edit_message_text(f"💸 {bold_username} cashed out {bold_amount}!", parse_mode="HTML")
                 del self.pending_pvp[cid]
                 
                 # Update global state for pending_pvp
