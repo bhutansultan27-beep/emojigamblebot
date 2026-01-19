@@ -2540,8 +2540,30 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         await self.balance_command(update, context)
 
     async def withdraw_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Redirect to balance menu."""
-        await self.balance_command(update, context)
+        """Handle withdraw command. In groups, redirect to PM. In PM, show withdraw instructions."""
+        user = update.effective_user
+        chat = update.effective_chat
+        
+        if chat.type in ["group", "supergroup"]:
+            # Same behavior as deposit: notify in group and send PM
+            try:
+                await update.message.reply_text(
+                    f"Hey {self.get_mention(user.id, user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
+                    parse_mode="HTML"
+                )
+                
+                # Send private message
+                await self.app.bot.send_message(
+                    chat_id=user.id,
+                    text="To withdraw, please use the /withdraw command here in our private chat.",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.error(f"Error in group withdraw command: {e}")
+                await update.message.reply_text("❌ Please start a private chat with me first so I can send you withdrawal instructions.")
+        else:
+            # In private chat, redirect to balance menu or show withdraw instructions
+            await self.balance_command(update, context)
 
     async def pending_deposits_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all pending deposits (Admin only)."""
