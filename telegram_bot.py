@@ -429,7 +429,7 @@ class AntariaCasinoBot:
                 db.session.commit()
             
             await update.message.reply_text(f"✅ Expiration time set to {seconds} seconds.")
-        except ValueError:
+        except (ValueError, IndexError):
             await update.message.reply_text("❌ Invalid number of seconds.")
 
     async def check_expired_challenges(self, context: ContextTypes.DEFAULT_TYPE):
