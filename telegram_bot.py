@@ -1580,6 +1580,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1604,6 +1609,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play darts game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1628,6 +1638,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play basketball game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1652,6 +1667,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play soccer game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1676,6 +1696,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play bowling game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1700,6 +1725,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play coinflip game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+            
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1962,6 +1992,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -1986,6 +2021,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play darts game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -2010,6 +2050,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play basketball game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -2034,6 +2079,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play soccer game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -2058,6 +2108,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play bowling game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -2255,6 +2310,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play coinflip game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+            
+        # Save command message ID for cleanup
+        if update.message:
+            context.user_data['last_dice_cmd_id'] = update.message.message_id
+            
         amount = 1.0
         if context.args:
             try:
@@ -6277,6 +6337,12 @@ To deposit, send LTC to the address below:
                     await query.message.delete()
                     if query.message.reply_to_message:
                         await query.message.reply_to_message.delete()
+                    else:
+                        # Try to delete original command from user_data
+                        cmd_id = context.user_data.get('last_dice_cmd_id')
+                        if cmd_id:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_id)
+                            context.user_data.pop('last_dice_cmd_id', None)
                 except Exception as e:
                     logger.error(f"Error in setup_cancel: {e}")
                 return
