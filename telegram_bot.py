@@ -2592,28 +2592,31 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             actions = current_hand.get('actions', {})
             
             row1 = [
-                InlineKeyboardButton("🎯 Hit", callback_data=f"bj_hit_{user_id}"),
-                InlineKeyboardButton("🛑 Stand", callback_data=f"bj_stand_{user_id}")
+                InlineKeyboardButton("Hit", callback_data=f"bj_hit_{user_id}"),
+                InlineKeyboardButton("Stand", callback_data=f"bj_stand_{user_id}")
             ]
             keyboard.append(row1)
             
             row2 = []
             if actions.get('can_double'):
-                row2.append(InlineKeyboardButton("💰 Double", callback_data=f"bj_double_{user_id}"))
+                row2.append(InlineKeyboardButton("Double", callback_data=f"bj_double_{user_id}"))
             if actions.get('can_split'):
-                row2.append(InlineKeyboardButton("✂️ Split", callback_data=f"bj_split_{user_id}"))
+                row2.append(InlineKeyboardButton("Split", callback_data=f"bj_split_{user_id}"))
             if row2:
                 keyboard.append(row2)
                 
             row3 = []
-            if actions.get('can_surrender'):
-                row3.append(InlineKeyboardButton("🏳️ Surrender", callback_data=f"bj_surrender_{user_id}"))
             if state['is_insurance_available']:
-                row3.append(InlineKeyboardButton("🛡️ Insurance", callback_data=f"bj_insurance_{user_id}"))
+                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}"))
             if row3:
                 keyboard.append(row3)
-        
-        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        else:
+            # Game over buttons: Play Again and Double Bet
+            total_bet = sum(h['bet'] for h in state['player_hands'])
+            keyboard.append([
+                InlineKeyboardButton("Play Again", callback_data=f"bj_play_again_{user_id}_{total_bet:.2f}"),
+                InlineKeyboardButton("Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
+            ])
         
         # Insurance info
         if state['is_insurance_available']:
