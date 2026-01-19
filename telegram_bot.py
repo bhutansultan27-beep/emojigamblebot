@@ -6265,13 +6265,13 @@ To deposit, send LTC to the address below:
                     user_data['games_won'] += 1
                     self.db.update_user(user_id, user_data)
                     self.db.update_house_balance(-profit)
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"✅ @{user_data['username']}\nwon ${profit:.2f}", parse_mode="Markdown")
+                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{user_data['username']}</b> won <b>${profit:.2f}</b>", parse_mode="HTML")
                 else:
                     user_data['total_wagered'] += wager
                     user_data['games_played'] += 1
                     self.db.update_user(user_id, user_data)
                     self.db.update_house_balance(wager)
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"❌ [emojigamblebot](tg://user?id=8575155625) won ${wager:.2f}", reply_markup=reply_markup)
+                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>emojigamblebot</b> won <b>${wager:.2f}</b>", reply_markup=reply_markup, parse_mode="HTML")
                 self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
                 self.db.record_game({'type': 'slots_bot', 'player_id': user_id, 'wager': wager, 'slot_value': slot_value, 'result': 'win' if profit > 0 else 'loss', 'payout': profit})
                 return
@@ -6387,7 +6387,7 @@ To deposit, send LTC to the address below:
                         'games_won': user_data['games_won'] + 1
                     })
                     self.db.update_house_balance(-profit)
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"@{user_data['username']} won ${profit:.2f}", reply_markup=reply_markup)
+                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{user_data['username']}</b> won <b>${profit:.2f}</b>", reply_markup=reply_markup, parse_mode="HTML")
                     self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
                 else:
                     self.db.update_user(user_id, {
@@ -6396,7 +6396,7 @@ To deposit, send LTC to the address below:
                         'games_played': user_data['games_played'] + 1
                     })
                     self.db.update_house_balance(wager)
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"@{user_data['username']} lost ${wager:.2f}", reply_markup=reply_markup)
+                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>emojigamblebot</b> won <b>${wager:.2f}</b>", reply_markup=reply_markup, parse_mode="HTML")
                     self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
                 
                 # Record game
