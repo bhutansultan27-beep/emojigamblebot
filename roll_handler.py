@@ -127,10 +127,14 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         
         # Bot rolls
         b_tot = 0
+        challenge['b_rolls'] = [] # Track bot rolls
         for _ in range(challenge['rolls']):
             try:
                 d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                b_tot += (1 if d.dice.value >= 4 else 0) if emoji in ["⚽", "🏀"] else d.dice.value
+                val = d.dice.value
+                score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
+                b_tot += score
+                challenge['b_rolls'].append(score)
             except Exception as e:
                 logger.error(f"Error sending bot dice: {e}")
         
@@ -150,6 +154,9 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         
         # NORMAL mode: Highest wins
         # INVERTED mode: Lowest wins
+        
+        p_tot = sum(challenge['p_rolls'])
+        b_tot = sum(challenge.get('b_rolls', [b_tot]))
         
         if game_mode_type == "inverted": # Crazy mode: Lowest wins
             if p_tot < b_tot: 
