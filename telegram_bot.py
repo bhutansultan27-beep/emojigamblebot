@@ -3267,7 +3267,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
+            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=msg_id,
             parse_mode="Markdown"
         )
@@ -3312,7 +3312,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
+            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3357,7 +3357,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
+            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3403,7 +3403,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
+            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3449,7 +3449,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
+            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -4690,7 +4690,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             f"🎲 <b>Match accepted!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>Bot</b>\n\n"
-            # f"<b>{p1_name}</b>, your turn!"
+            f"<b>{p1_name}</b>, your turn!"
         )
         kb = []
         
