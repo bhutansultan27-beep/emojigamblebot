@@ -165,6 +165,28 @@ class DatabaseManager:
 
 # --- 2. Antaria Casino Bot Class ---
 class AntariaCasinoBot:
+    async def post_init(self, application: Application):
+        """Set up bot commands menu"""
+        from telegram import BotCommand
+        commands = [
+            BotCommand("start", "Start the bot and see help"),
+            BotCommand("balance", "Check your current balance"),
+            BotCommand("bonus", "Claim your daily bonus"),
+            BotCommand("dice", "Play Dice game"),
+            BotCommand("blackjack", "Play Blackjack"),
+            BotCommand("roulette", "Play Roulette"),
+            BotCommand("coinflip", "Play Coinflip"),
+            BotCommand("stats", "Check your game statistics"),
+            BotCommand("leaderboard", "View top players"),
+            BotCommand("history", "View your transaction history"),
+            BotCommand("referral", "Get your referral link"),
+            BotCommand("tip", "Tip another user"),
+            BotCommand("deposit", "Deposit funds"),
+            BotCommand("withdraw", "Withdraw funds")
+        ]
+        await application.bot.set_my_commands(commands)
+        logger.info("Bot commands menu initialized")
+
     def __init__(self, token: str):
         self.token = token
         # Initialize the internal database manager
@@ -205,7 +227,7 @@ class AntariaCasinoBot:
         if not token or token == "YOUR_BOT_TOKEN_HERE":
             raise ValueError("Invalid or missing Telegram Bot Token")
             
-        self.app = Application.builder().token(token).build()
+        self.app = Application.builder().token(token).post_init(self.post_init).build()
         self.app.bot_data['casino_bot'] = self # Store reference for access from handlers if needed
         # Add job queue check
         if not self.app.job_queue:
