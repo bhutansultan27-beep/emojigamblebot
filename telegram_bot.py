@@ -2652,9 +2652,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             del self.blackjack_sessions[user_id]
 
             # Play Again and Double Bet buttons (styled to match dice losing message)
+            original_bet = getattr(game, 'initial_bet', total_bet)
             keyboard.append([
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"bj_play_again_{user_id}_{total_bet:.2f}"),
-                InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"bj_play_again_{user_id}_{original_bet:.2f}"),
+                InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{original_bet*2:.2f}")
             ])
         
         # Build reply markup
