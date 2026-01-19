@@ -1742,7 +1742,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
             context.user_data["active_predict_menu"] = sent_msg.message_id
         else:
-            sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
+            sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
             context.user_data["active_predict_menu"] = sent_msg.message_id
     
