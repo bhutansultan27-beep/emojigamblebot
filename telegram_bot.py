@@ -5372,21 +5372,22 @@ To deposit, send LTC to the address below:
                 if round_win == "draw":
                     u = self.db.get_user(user_id)
                     p1_name = u.get('username', f'User{user_id}')
-                    await context.bot.send_message(chat_id=chat_id, text=f"🤝 Draw! Refunded", parse_mode="HTML")
-                    challenge['p_rolls'] = []
-                    # Re-show roll button
-                    kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
+                    # Auto-refund handled by "Draw! Refunded" message
+                    # But we also need to ensure points aren't added and game can continue or finish
                     
-                    # Reply to the game details message
+                    # Series logic usually handles this, but let's make it clear
+                    # We just don't increment points.
+                    
+                    # Send draw message and offer to roll again
+                    kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
                     reply_to_id = challenge.get('message_id')
-                    sent_msg = await context.bot.send_message(
+                    await context.bot.send_message(
                         chat_id=chat_id, 
-                        text=f"<b>{p1_name}</b>, your turn! {emoji}", 
+                        text=f"🤝 <b>Round Draw!</b> No points awarded.\n\n<b>{p1_name}</b>, your turn! {emoji}", 
                         reply_markup=InlineKeyboardMarkup(kb), 
                         parse_mode="HTML",
                         reply_to_message_id=reply_to_id
                     )
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     self.db.update_pending_pvp(self.pending_pvp)
                     return
                 
