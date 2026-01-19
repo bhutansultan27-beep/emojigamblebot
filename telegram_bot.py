@@ -9,16 +9,21 @@ import sys
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
-# External dependencies (assuming they are installed via pip install python-telegram-bot)
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    MessageHandler,
-    filters
-)
+# External dependencies
+try:
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        CallbackQueryHandler,
+        ContextTypes,
+        MessageHandler,
+        filters
+    )
+except ImportError:
+    import telegram
+    print(f"DEBUG: telegram location: {telegram.__file__}")
+    raise
 
 # Set up logging
 logging.basicConfig(

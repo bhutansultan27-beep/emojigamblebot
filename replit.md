@@ -3,8 +3,10 @@
 ## Overview
 A Telegram casino bot that allows users to play various games like dice, blackjack, roulette, and coinflip. Uses PostgreSQL for database persistence and Flask-SQLAlchemy for ORM.
 
-## Project Structure
-- `main.py` - Main bot application with all command handlers and game logic
+## Recent Changes
+- Fixed Telegram Bot import conflicts by properly managing `python-telegram-bot` installation.
+- Configured workflows for both Flask web server and Telegram Bot.
+- Updated `telegram_bot.py` to handle v20+ imports safely.
 - `models.py` - SQLAlchemy database models (User, Game, Transaction, GlobalState)
 - `blackjack.py` - Blackjack game logic
 - `predict_handler.py` - Prediction/match betting handler
