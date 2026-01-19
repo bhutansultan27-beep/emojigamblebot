@@ -1302,7 +1302,54 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
                 f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
-                f"Target: <b>{pts}</b>\n"
+                f"Game Details:\n"
+                f"• Mode: <b>{'Normal' if mode == 'normal' else 'Crazy'}</b>\n"
+                f"• Rolls: <b>{rolls}</b>\n"
+                f"• Target Score: <b>{pts}</b>\n"
+                f"• Bet: <b>${wager:.2f}</b>\n\n"
+                f"Ready to start?"
+            )
+            
+            keyboard.append([
+                InlineKeyboardButton("🤖 vs Bot", callback_data=f"v2_bot_{game_mode}_{wager:.2f}_{rolls}_{mode}_{pts}"),
+                InlineKeyboardButton("👥 vs Player", callback_data=f"v2_pvp_{game_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
+            ])
+            
+            # Bet adjustment buttons
+            keyboard.append([
+                InlineKeyboardButton("Half Bet", callback_data=f"emoji_setup_{game_mode}_{wager/2:.2f}_final_{pts}_{rolls}_{mode}"),
+                InlineKeyboardButton(f"Bet: ${wager:.2f}", callback_data="none"),
+                InlineKeyboardButton("Double Bet", callback_data=f"emoji_setup_{game_mode}_{wager*2:.2f}_final_{pts}_{rolls}_{mode}")
+            ])
+            
+            # Step adjustment buttons
+            keyboard.append([
+                InlineKeyboardButton("⬅️", callback_data=f"emoji_setup_{prev_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}"),
+                InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
+                InlineKeyboardButton("➡️", callback_data=f"emoji_setup_{next_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}")
+            ])
+            
+            keyboard.append([
+                InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{rolls}_{mode}"),
+                InlineKeyboardButton("✅ Start", callback_data=f"v2_bot_{game_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
+            ])
+
+        # Final rendering
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if new_message or not query:
+            sent_msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+            self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+        else:
+            await query.edit_message_text(
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
                 f"Mode: <b>{mode.capitalize()}</b>\n"
                 f"Rolls: <b>{rolls}</b>\n\n"
                 f"Ready to start?"
