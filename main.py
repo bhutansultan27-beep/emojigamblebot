@@ -1052,8 +1052,15 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if await self.is_user_in_game(update.effective_user.id):
             try:
                 await update.message.delete()
+                # Show notification in status bar
+                await context.bot.answer_callback_query(
+                    callback_query_id=update.callback_query.id if update.callback_query else None,
+                    text="❌ You have an active game! Finish it first.",
+                    show_alert=False
+                )
             except Exception as e:
-                logger.error(f"Failed to delete command: {e}")
+                # If it wasn't a callback, we can't answer it, but we already deleted the message
+                pass
             return True
         return False
 
@@ -1063,11 +1070,22 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return False
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
-        if user_data.get('balance', 0) <= 0:
+        if user_data.get('balance', 0) < 1.0:
             try:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+                await update.message.delete()
+                # Show notification in status bar if possible
+                if update.callback_query:
+                    await update.callback_query.answer(
+                        text="❌ Minimum balance required for /dice is $1",
+                        show_alert=False
+                    )
+                else:
+                    # For text commands, we can't use answer_callback_query
+                    # But we can send a transient message or just rely on the deletion
+                    # Since the user specifically asked for "status bar", it usually implies callback context
+                    pass
             except Exception as e:
-                logger.error(f"Error deleting zero balance message: {e}")
+                logger.error(f"Error deleting low balance message: {e}")
             return True
         return False
 
@@ -1149,7 +1167,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-                f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
+                f"Multiplier: <b>{multiplier:.2f}x</b>\n"
+                f"<i>Minimum balance required: $1.00</i>\n\n"
                 f"Choose your game mode:"
             )
             if game_mode == "coinflip":
@@ -1398,7 +1417,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         text = (
             f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
             f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-            f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
+            f"Multiplier: <b>{multiplier:.2f}x</b>\n"
+            f"<i>Minimum balance required: $1.00</i>\n\n"
             f"Make your selection:"
         )
         
