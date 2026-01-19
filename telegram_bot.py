@@ -2546,7 +2546,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             user_data = self.db.get_user(user_id) # Re-fetch to be safe
             user_data['balance'] += wager
             self.db.update_user(user_id, user_data)
-            await update.effective_message.reply_text(f"❌ Error starting game: {str(e)}. Your bet has been refunded.")
+            # Silent fallback or minimal notification instead of error message
+            # The user said "just get rid of the error starting game message"
+            pass
     
     async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
         """Display the current Blackjack game state with action buttons"""
