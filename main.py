@@ -167,7 +167,7 @@ class DatabaseManager:
 class AntariaCasinoBot:
     async def post_init(self, application: Application):
         """Set up bot commands menu"""
-        from telegram import BotCommand
+        from telegram import BotCommand, BotCommandScopeDefault
         commands = [
             BotCommand("start", "Start the bot and see help"),
             BotCommand("balance", "Check your current balance"),
@@ -184,8 +184,9 @@ class AntariaCasinoBot:
             BotCommand("deposit", "Deposit funds"),
             BotCommand("withdraw", "Withdraw funds")
         ]
-        await application.bot.set_my_commands(commands)
-        logger.info("Bot commands menu initialized")
+        # Set for all users (Default scope)
+        await application.bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+        logger.info("Bot commands menu initialized for all users")
 
     def __init__(self, token: str):
         self.token = token
