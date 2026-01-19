@@ -1298,14 +1298,22 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             mode = params.get("mode")
             rolls = params.get("rolls")
             pts = params.get("pts")
+            
+            if game_mode == "coinflip":
+                mode_display = mode.capitalize()
+            else:
+                mode_display = "Normal" if mode == "normal" else "Crazy"
+            
             text = (
-                f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
+                f"{current_emoji} <b>{game_mode.replace('_', ' ').title()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-                f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
-                f"Target: <b>{pts}</b>\n"
-                f"Mode: <b>{mode.capitalize()}</b>\n"
-                f"Rolls: <b>{rolls}</b>\n\n"
-                f"Ready to start?"
+                f"Multiplier: <b>{self._calculate_emoji_multiplier(rolls, pts):.2f}x</b>\n\n"
+                f"<b>Game Details:</b>\n"
+                f"• Mode: <b>{mode_display}</b>\n"
+                f"• Rolls: <b>{rolls}</b>\n"
+                f"• Target Score: <b>{pts}</b>\n"
+                f"• Bet: <b>${wager:,.2f}</b>\n"
+                f"\nReady to start?"
             )
         
         # Opponent selection row (Only in groups)
@@ -1369,43 +1377,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll")])
 
         if step == "final":
-            mode = params.get("mode")
-            rolls = params.get("rolls")
-            pts = params.get("pts")
-            opponent = params.get("opponent", "bot")
+            pts_val = params.get("pts")
+            rolls_val = params.get("rolls")
+            mode_val = params.get("mode")
+            opponent_val = params.get("opponent", "bot")
             
-            if game_mode == "coinflip":
-                mode_display = mode.capitalize()
-            else:
-                mode_display = "Normal" if mode == "normal" else "Crazy"
-            opponent_display = "vs Rukia" if opponent == "bot" else "vs Player"
+            start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_game_{pts_val}_{rolls_val}_{mode_val}"
             
-            text = (
-                f"{current_emoji} <b>{game_mode.replace('_', ' ').title()}</b>\n\n"
-                f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
-                f"Multiplier: <b>{self._calculate_emoji_multiplier(rolls, pts):.2f}x</b>\n\n"
-                f"<b>Game Details:</b>\n"
-                f"• Mode: <b>{mode_display}</b>\n"
-                f"• Rolls: <b>{rolls}</b>\n"
-                f"• Target Score: <b>{pts}</b>\n"
-                f"• Bet: <b>${wager:,.2f}</b>\n"
-            )
-            
-            is_private = update.effective_chat.type == "private"
-            
-            text += f"\nReady to start?"
-            
-        # Action row
-        pts_val = params.get("pts") if params else None
-        rolls_val = params.get("rolls") if params else None
-        mode_val = params.get("mode") if params else "normal"
-        opponent_val = params.get("opponent", "bot") if params else "bot"
-        
-        start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_game_{pts_val}_{rolls_val}_{mode_val}"
-        
-        if step == "final":
             back_btn = InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{params.get('rolls', 1)}_{params.get('mode', 'normal')}")
-            # Ensure the "START GAME" button doesn't delete the message but rather transitions to the "Send emoji" prompt
             keyboard.append([
                 back_btn,
                 InlineKeyboardButton("✅ Start", callback_data=start_callback)
@@ -1413,18 +1392,17 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        if update.callback_query:
-            # We use edit_message_text here, which is fine, but we need to ensure the next step (start_generic_v2_bot) 
-            # behaves as requested: "dont delete the buttons under the / dice game menu details. just send the message"
-            sent_msg = await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        # Final decision on sending vs editing
+        if new_message:
+            sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="HTML")
+        elif query:
+            sent_msg = await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
         
         self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         
-        # Store message ID if this is a bot game so we can track replies
-        if opponent_val == "bot":
-            # Find the challenge and update it
+        if params and params.get('opponent') == "bot":
             for cid, challenge in self.pending_pvp.items():
                 if cid.startswith("v2_bot_") and challenge.get('player') == update.effective_user.id:
                     challenge['msg_id'] = sent_msg.message_id
@@ -6564,7 +6542,8 @@ To deposit, send LTC to the address below:
                         
                         # If it's a full "Play Again" / "Double" callback (v2_bot_game_wager_rolls_mode_pts)
                         if len(parts) >= 7:
-                            # Remove buttons from the result message after clicking
+                            # Force a new message by ensuring the handler uses send_message
+                            # We still remove buttons from the old message
                             try:
                                 await query.edit_message_reply_markup(reply_markup=None)
                             except:
@@ -6573,9 +6552,8 @@ To deposit, send LTC to the address below:
                             rolls = int(parts[4])
                             mode = parts[5]
                             pts = int(parts[6])
-                            # Go directly to final confirmation step with these settings
-                            # Change: Use a fresh message instead of editing the existing one
-                            # Ensure new_message=True is passed to avoid editing the result message
+                            
+                            # Force a new message by passing new_message=True
                             await self._show_emoji_game_setup(update, context, wager, game, "final", {"rolls": rolls, "mode": mode, "pts": pts}, new_message=True)
                             return
                         # Special edit buttons: v2_bot_edit_{field}_{game}_{wager}_{rolls}_{mode}_{pts}
