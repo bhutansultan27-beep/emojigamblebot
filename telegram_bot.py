@@ -3260,7 +3260,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "chat_id": chat_id,
             "msg_id": msg_id,
             "emoji_wait": datetime.now().isoformat(),
-            "waiting_for_emoji": True,
+            "waiting_for_emoji": False,
             "created_at": datetime.now().isoformat()
         }
         
@@ -3307,7 +3307,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "player": user_id,
             "chat_id": chat_id,
             "emoji_wait": datetime.now().isoformat(),
-            "waiting_for_emoji": True,
+            "waiting_for_emoji": False,
             "created_at": datetime.now().isoformat()
         }
         
@@ -3355,7 +3355,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "player": user_id,
             "chat_id": chat_id,
             "emoji_wait": datetime.now().isoformat(),
-            "waiting_for_emoji": True,
+            "waiting_for_emoji": False,
             "created_at": datetime.now().isoformat()
         }
         
