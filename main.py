@@ -4866,10 +4866,24 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!"
                     await query.edit_message_text(text=notification_text, parse_mode="HTML")
                     
+                    # In private chat, just show instructions and delete the balance message
+                    user_data = self.db.get_user(user_id)
+                    withdraw_text = f"""
+💸 **LTC Withdrawal Request**
+
+Your balance **${user_data['balance']:,.2f}**
+
+To withdraw, use:
+`/withdraw <amount> <your_ltc_address>`
+
+Example: `/withdraw 50 LTC1abc123...`
+
+⚠️ Withdrawals are processed manually by admin.
+"""
                     # Send private message
                     await self.app.bot.send_message(
                         chat_id=user_id,
-                        text="To withdraw, please use the /withdraw command here in our private chat.",
+                        text=withdraw_text,
                         parse_mode="Markdown"
                     )
                     
@@ -4928,10 +4942,29 @@ Example: `/withdraw 50 LTC1abc123...`
                     notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!"
                     await query.edit_message_text(text=notification_text, parse_mode="HTML")
                     
+                    # Fetch live LTC rate
+                    ltc_usd_rate = await self.get_live_rate("litecoin")
+                    user_data = self.db.get_user(user_id)
+                    
+                    # Get LTC address from environment
+                    ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+                    
+                    deposit_text = f"""
+💳 **LTC Deposit Request**
+
+Your balance **${user_data['balance']:,.2f}**
+
+To deposit, send LTC to the address below:
+`{ltc_address}`
+
+💰 Current Rate: **1 LTC = ${ltc_usd_rate:,.2f}**
+
+⚠️ Deposits are processed manually by admin after confirmation.
+"""
                     # Send private message
                     await self.app.bot.send_message(
                         chat_id=user_id,
-                        text="To deposit, please use the /deposit command here in our private chat.",
+                        text=deposit_text,
                         parse_mode="Markdown"
                     )
                     
@@ -4962,8 +4995,27 @@ Example: `/withdraw 50 LTC1abc123...`
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
-                # In private chat
-                pass
+                # In private chat, show deposit info (existing logic would be here)
+                # For now, let's implement it here as well since it was likely using balance_command redirection
+                ltc_usd_rate = await self.get_live_rate("litecoin")
+                user_data = self.db.get_user(user_id)
+                ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+                
+                deposit_text = f"""
+💳 **LTC Deposit Request**
+
+Your balance **${user_data['balance']:,.2f}**
+
+To deposit, send LTC to the address below:
+`{ltc_address}`
+
+💰 Current Rate: **1 LTC = ${ltc_usd_rate:,.2f}**
+
+⚠️ Deposits are processed manually by admin after confirmation.
+"""
+                await query.answer()
+                await query.edit_message_text(deposit_text, parse_mode="Markdown")
+                return
 
         """Handles all inline button presses."""
         query = update.callback_query
