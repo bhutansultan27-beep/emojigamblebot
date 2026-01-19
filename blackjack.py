@@ -135,8 +135,14 @@ class BlackjackGame:
         if self.player_hands[0]['hand'].is_blackjack():
             self.player_hands[0]['status'] = 'Blackjack'
             # If dealer upcard is Ace, check hole card before resolving
-            if self.dealer_hand.cards[0].rank == 'A':
-                return "Dealer shows an Ace. You have Blackjack! Checking for Push (Dealer Blackjack)..."
+            if self.dealer_hand.cards[0].rank == 'A' or self.dealer_hand.cards[0].value == 10:
+                # Dealer could have blackjack too
+                if self.dealer_hand.is_blackjack():
+                    self._resolve_game()
+                    return "Push - Both have Blackjack! Game over."
+                else:
+                    self._resolve_game()
+                    return "Blackjack! Game over."
             else:
                 self._resolve_game()
                 return "Blackjack! Game over."

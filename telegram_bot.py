@@ -2653,7 +2653,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 self.db.add_transaction(user_id, "blackjack_win", total_payout, f"Blackjack Win (Bet: {total_bet:.2f})")
             
             # Clean up session
-            del self.blackjack_sessions[user_id]
+            if user_id in self.blackjack_sessions:
+                del self.blackjack_sessions[user_id]
 
             # Play Again and Double Bet buttons (styled to match dice losing message)
             original_bet = getattr(game, 'initial_bet', total_bet)
