@@ -1755,11 +1755,13 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 if selected_count == 3 and game_mode == "dice":
                     multiplier = 1.95
             elif game_mode == "basketball":
+                # Probability based on values 1-5: miss(1), stuck(1), score(3)
                 outcomes_map = {"score": 3, "miss": 1, "stuck": 1}
                 total_slots = 5
                 selected_slots = sum(outcomes_map.get(s, 0) for s in selections)
                 multiplier = (total_slots / selected_slots) * (1 - house_edge) if selected_slots > 0 else 0
             elif game_mode == "soccer":
+                # Probability based on values 1-5: goal(3), miss(1), bar(1)
                 outcomes_map = {"goal": 3, "miss": 1, "bar": 1}
                 total_slots = 5
                 selected_slots = sum(outcomes_map.get(s, 0) for s in selections)

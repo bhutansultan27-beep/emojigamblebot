@@ -114,6 +114,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         elif game_mode == "basketball":
             # Probability based on values 1-5
             # miss: 1/5, stuck: 1/5, score: 3/5
+            # multiplier = (5 / 3) * 0.995 = 1.666... * 0.995 = 1.658...
             outcomes_map = {"miss": 1, "stuck": 1, "score": 3}
             total_slots = 5
             selected_outcome_slots = sum(outcomes_map[s] for s in selections if s in outcomes_map)
@@ -121,6 +122,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         elif game_mode == "soccer":
             # Probability based on values 1-5
             # miss: 1/5, bar: 1/5, goal: 3/5
+            # multiplier = (5 / 3) * 0.995 = 1.666... * 0.995 = 1.658...
             outcomes_map = {"miss": 1, "bar": 1, "goal": 3}
             total_slots = 5
             selected_outcome_slots = sum(outcomes_map[s] for s in selections if s in outcomes_map)
