@@ -1740,11 +1740,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if update.callback_query:
             sent_msg = await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-            context.user_data["active_predict_menu"] = sent_msg.message_id
         else:
-            sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-            context.user_data["active_predict_menu"] = sent_msg.message_id
     
     async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play darts game setup"""
@@ -2056,31 +2054,15 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
 
     async def dr_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Shortcut to show the 🎱 Predict menu"""
-        # Delete user command message
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-            
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        user_id = update.effective_user.id
-        # Delete old menu if exists
-        old_menu_id = context.user_data.get("active_predict_menu")
-        if old_menu_id:
-            try:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=old_menu_id)
-            except:
-                pass
-                
         user_data = self.ensure_user_registered(update)
         # Default wager $1.00 or balance if lower
         wager = min(1.0, user_data.get('balance', 0))
         if wager < 1.0 and user_data.get('balance', 0) >= 1.0:
             wager = 1.0
         elif user_data.get('balance', 0) < 1.0:
-            # check_balance_and_delete already handles this case but we keep it for safety
+            await update.message.reply_text(f"❌ Minimum bet is $1.00. Your balance: ${user_data['balance']:.2f}")
             return
             
         await self._setup_predict_interface(update, context, wager, "dice")
