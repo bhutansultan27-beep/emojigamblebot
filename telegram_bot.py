@@ -2505,6 +2505,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Parse wager
         wager_str = context.args[0].lower()
         wager = 0.0
+        # Get user_id early for safe error handling
+        user_id = update.effective_user.id
+        
         if wager_str == "all":
             wager = user_data['balance']
         else:
@@ -2543,11 +2546,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         except Exception as e:
             logger.error(f"Error starting blackjack: {e}")
             # Refund
-            user_data = self.db.get_user(user_id) # Re-fetch to be safe
-            user_data['balance'] += wager
-            self.db.update_user(user_id, user_data)
+            u_data = self.db.get_user(user_id)
+            if u_data:
+                u_data['balance'] += wager
+                self.db.update_user(user_id, u_data)
             # Silent fallback or minimal notification instead of error message
-            # The user said "just get rid of the error starting game message"
             pass
     
     async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -5386,18 +5389,23 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         data = query.data
         
         # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
-        if data.startswith("bj_"):
+        # EXCLUDE play_again which is handled separately below
+        if data.startswith("bj_") and not data.startswith("bj_play_again_"):
             parts = data.split("_")
             if len(parts) >= 3:
-                action = parts[1]
                 # Handling both formats: bj_action_userid and bj_userid_action
                 try:
-                    # Try to see if it's the new format bj_action_userid
+                    # Try to see if it's the new format bj_action_userid (parts[2] is userid)
                     target_user_id = int(parts[2])
+                    action = parts[1]
                 except ValueError:
-                    # Fallback to old format if parts[1] was userid
-                    target_user_id = int(parts[1])
-                    action = parts[2]
+                    try:
+                        # Fallback to old format if parts[1] was userid
+                        target_user_id = int(parts[1])
+                        action = parts[2]
+                    except ValueError:
+                        # Probably malformed or another format, let it fall through or return
+                        return
                 
                 if user_id != target_user_id:
                     await query.answer("❌ This is not your game!", show_alert=True)
