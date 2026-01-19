@@ -1755,13 +1755,13 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 if selected_count == 3 and game_mode == "dice":
                     multiplier = 1.95
             elif game_mode == "basketball":
-                outcomes_map = {"score": 3, "miss": 1, "stuck": 1}
-                total_slots = 6
+                outcomes_map = {"score": 2, "miss": 3}
+                total_slots = 5
                 selected_slots = sum(outcomes_map.get(s, 0) for s in selections)
                 multiplier = (total_slots / selected_slots) * (1 - house_edge) if selected_slots > 0 else 0
             elif game_mode == "soccer":
-                outcomes_map = {"goal": 3, "miss": 1, "bar": 1}
-                total_slots = 6
+                outcomes_map = {"goal": 2, "miss": 3}
+                total_slots = 5
                 selected_slots = sum(outcomes_map.get(s, 0) for s in selections)
                 multiplier = (total_slots / selected_slots) * (1 - house_edge) if selected_slots > 0 else 0
             elif game_mode == "coinflip":
@@ -1787,14 +1787,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 prediction_buttons.append(InlineKeyboardButton(label, callback_data=f"setup_predict_select_{wager:.2f}_{i}_{game_mode}"))
             prediction_rows = [prediction_buttons[:3], prediction_buttons[3:]]
         elif game_mode == "basketball":
-            options = ["score", "miss", "stuck"]
+            options = ["score", "miss"]
             prediction_buttons = []
             for opt in options:
                 label = f"{opt.capitalize()} ✅" if opt in selections else opt.capitalize()
                 prediction_buttons.append(InlineKeyboardButton(label, callback_data=f"setup_predict_select_{wager:.2f}_{opt}_{game_mode}"))
             prediction_rows = [prediction_buttons]
         elif game_mode == "soccer":
-            options = ["goal", "miss", "bar"]
+            options = ["goal", "miss"]
             prediction_buttons = []
             for opt in options:
                 label = f"{opt.capitalize()} ✅" if opt in selections else opt.capitalize()
