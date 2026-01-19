@@ -5725,8 +5725,15 @@ To deposit, send LTC to the address below:
                 # Mark it here too to be absolutely sure
                 self.clicked_buttons.add(button_key)
                 parts = data.split("_")
+                
                 # Format: v2_bot_{game}_{wager}_{rolls}_{mode}_{pts}
-                if len(parts) >= 7:
+                if len(parts) >= 7 and parts[1] == "bot":
+                    # Remove the button immediately when user clicks "Send emoji"
+                    try:
+                        await query.edit_message_reply_markup(reply_markup=None)
+                    except Exception as e:
+                        logger.debug(f"Error removing reply markup: {e}")
+                        
                     g_mode = parts[2]
                     wager = float(parts[3])
                     rolls = int(parts[4])
@@ -5741,6 +5748,12 @@ To deposit, send LTC to the address below:
                 # Format: v2_send_emoji_bot_{g_mode}_{wager}_{rolls}_{mode}_{pts}
                 # OR v2_send_emoji_{cid}
                 if len(parts) > 3 and parts[2] == "bot":
+                    # Remove the button immediately
+                    try:
+                        await query.edit_message_reply_markup(reply_markup=None)
+                    except Exception as e:
+                        logger.debug(f"Error removing reply markup: {e}")
+                        
                     g_mode = parts[3]
                     wager = float(parts[4])
                     rolls = int(parts[5])
