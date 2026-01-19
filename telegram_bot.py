@@ -1113,9 +1113,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
 
         await self._show_emoji_game_setup(update, context, amount, "dice")
 
-    async def _show_emoji_game_setup(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_mode: str, step: str = "mode", params: Dict = None):
+    async def _show_emoji_game_setup(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_mode: str, step: str = "mode", params: Dict = None, new_message: bool = False):
         """Display the setup menu for emoji games (mode, rolls, points)"""
         user_id = update.effective_user.id
+        chat_id = update.effective_chat.id
+        query = update.callback_query
         user_data = self.db.get_user(user_id)
         params = params or {}
         
@@ -5885,7 +5887,8 @@ To deposit, send LTC to the address below:
                             mode = parts[5]
                             pts = int(parts[6])
                             # Go directly to final confirmation step with these settings
-                            await self._show_emoji_game_setup(update, context, wager, game, "final", {"rolls": rolls, "mode": mode, "pts": pts})
+                            # Change: Use a fresh message instead of editing the existing one
+                            await self._show_emoji_game_setup(update, context, wager, game, "final", {"rolls": rolls, "mode": mode, "pts": pts}, new_message=True)
                             return
                         # Special edit buttons: v2_bot_edit_{field}_{game}_{wager}_{rolls}_{mode}_{pts}
                         elif len(parts) >= 8 and parts[2] == "edit":
