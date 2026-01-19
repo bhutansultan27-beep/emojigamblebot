@@ -1039,8 +1039,12 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             pending_pvp = pending_pvp_state.value if pending_pvp_state else {}
             
             for cid, challenge in pending_pvp.items():
+                # For V2 bot games, only block if the game has actually started (waiting_for_emoji is True)
                 if cid.startswith("v2_bot_") and challenge.get('player') == user_id:
-                    return True
+                    if challenge.get('waiting_for_emoji'):
+                        return True
+                
+                # For PvP games, both players are blocked if the challenge is active
                 if cid.startswith("v2_pvp_") and (challenge.get('challenger') == user_id or challenge.get('opponent') == user_id):
                     return True
         
