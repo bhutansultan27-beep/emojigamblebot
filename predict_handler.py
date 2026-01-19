@@ -22,7 +22,8 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         parts = data.split("_")
         wager = float(parts[3])
         game_mode = parts[4]
-        await bot_instance._setup_predict_interface(update, context, wager, game_mode)
+        # Force a new message by setting update.callback_query to None for the interface call
+        await bot_instance._setup_predict_interface(update, context, wager, game_mode, force_new=True)
         return
 
     if data.startswith("setup_predict_select_"):

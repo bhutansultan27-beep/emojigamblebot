@@ -1717,7 +1717,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 pass
         await self._show_game_prediction_menu(update, context, amount, "coinflip")
 
-    async def _setup_predict_interface(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_mode: str = "dice"):
+    async def _setup_predict_interface(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_mode: str = "dice", force_new: bool = False):
         """Display the prediction interface as shown in the screenshot"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
@@ -1827,7 +1827,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         ])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
-        if update.callback_query:
+        if update.callback_query and not force_new:
             sent_msg = await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
@@ -6383,7 +6383,8 @@ To deposit, send LTC to the address below:
                 parts = data.split("_")
                 wager = float(parts[3])
                 game_mode = parts[4] if len(parts) > 4 else "dice"
-                await self._setup_predict_interface(update, context, wager, game_mode)
+                # Force a new message instead of editing
+                await self._setup_predict_interface(update, context, wager, game_mode, force_new=True)
                 return
             
             elif data == "setup_cancel":
