@@ -4899,31 +4899,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         data = query.data
 
-        # Handle prediction button clicks differently to allow toggling
-        is_predict_setup = any(data.startswith(prefix) for prefix in ["setup_predict_select_", "setup_mode_predict_"])
-        
-        if is_predict_setup:
-            # Check if game has already started for this message
-            already_started = any(
-                k[0] == chat.id and k[1] == query.message.message_id and k[2].startswith("predict_start_")
-                for k in self.clicked_buttons
-            )
-            if already_started:
-                await query.answer("❌ Game already started!", show_alert=True)
-                return
-            # We NEVER add to clicked_buttons for setup buttons to allow toggling
-        elif data.startswith("predict_start_"):
-            if (chat.id, query.message.message_id, data) in self.clicked_buttons:
-                await query.answer("⌛ Game starting...", show_alert=True)
-                return
-            self.clicked_buttons.add((chat.id, query.message.message_id, data))
-        else:
-            # Standard locking for all other buttons
-            if (chat.id, query.message.message_id, data) in self.clicked_buttons:
-                await query.answer("❌ This button has already been clicked.", show_alert=True)
-                return
-            self.clicked_buttons.add((chat.id, query.message.message_id, data))
-
         # Handle Withdraw button from balance menu
         if data == "withdraw_mock":
             user_data = self.db.get_user(user_id)
