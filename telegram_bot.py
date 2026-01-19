@@ -1350,10 +1350,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-                f"Mode: <b>{mode.capitalize()}</b>\n"
-                f"Rolls: <b>{rolls}</b>\n\n"
-                f"Ready to start?"
-            )
         
         # Opponent selection row (Only in groups)
         is_private = update.effective_chat.type == "private"
