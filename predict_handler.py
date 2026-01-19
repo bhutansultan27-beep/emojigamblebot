@@ -12,6 +12,19 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
     user_id = query.from_user.id
     chat_id = query.message.chat_id
 
+    if data.startswith("setup_mode_predict_"):
+        # Remove buttons from the result message
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+            
+        parts = data.split("_")
+        wager = float(parts[3])
+        game_mode = parts[4]
+        await bot_instance._setup_predict_interface(update, context, wager, game_mode)
+        return
+
     if data.startswith("setup_predict_select_"):
         # We don't check for clicked_buttons here because we want selections to be togglable
         parts = data.split("_")
@@ -156,15 +169,20 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 f"{user_username} won <b>${payout:,.2f}</b>!"
             )
             
-            await context.bot.send_message(
+            # Replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
                 text=win_text,
+                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
-            
-            # Show new interface instead of adding buttons to result
-            await bot_instance._setup_predict_interface(update, context, wager, game_mode)
+            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
             bot_instance.db.update_house_balance(wager)
             
@@ -173,15 +191,20 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 f"Bot won <b>${wager:,.2f}</b>!"
             )
             
-            await context.bot.send_message(
+            # Replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
                 text=loss_text,
+                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
-            
-            # Show new interface instead of adding buttons to result
-            await bot_instance._setup_predict_interface(update, context, wager, game_mode)
+            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         
         # Clear selections for next game
         bot_instance._predict_selections[user_id] = set()
