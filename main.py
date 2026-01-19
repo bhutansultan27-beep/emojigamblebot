@@ -4862,15 +4862,15 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
             
             keyboard = [
+                [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
                 [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
                  InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
                 [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
                  InlineKeyboardButton("USDC", callback_data="wit_usdc")],
-                [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
-                 InlineKeyboardButton("Solana", callback_data="wit_sol")],
-                [InlineKeyboardButton("BNB", callback_data="wit_bnb"),
-                 InlineKeyboardButton("Monero", callback_data="wit_xmr")],
-                [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+                 InlineKeyboardButton("BNB", callback_data="wit_bnb")],
+                [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
+                 InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
                 [InlineKeyboardButton("⬅️ Back", callback_data="balance_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
