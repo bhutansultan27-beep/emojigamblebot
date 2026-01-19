@@ -299,6 +299,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("tip", self.tip_command))
         self.app.add_handler(CommandHandler("deposit", self.deposit_command))
         self.app.add_handler(CommandHandler("withdraw", self.withdraw_command))
+        self.app.add_handler(CommandHandler("endgames", self.endgames_command))
         self.app.add_handler(CommandHandler("sk", self.sk))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("fake_matches", self.fake_matches_command))
