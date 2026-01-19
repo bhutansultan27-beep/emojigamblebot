@@ -135,7 +135,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             except Exception as e:
                 pass
 
-        await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
+        # await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
         
         # Bot rolls
         b_tot = 0
@@ -195,8 +195,8 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             challenge['p_rolls'] = []
             # Re-show roll button
             kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
-            sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{p1_name}</b>, your turn! {emoji}", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-            bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+            # sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{p1_name}</b>, your turn! {emoji}", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            # bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
             return
         
@@ -268,7 +268,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Rukia: {challenge['b_pts']}\n\n"
-                f"<b>{p1_name}</b>, your turn! {emoji}"
+                # f"<b>{p1_name}</b>, your turn! {emoji}"
             )
             cashout_val = bot_instance.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
             cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0

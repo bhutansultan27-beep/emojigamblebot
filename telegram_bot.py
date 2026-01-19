@@ -3267,7 +3267,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
             reply_to_message_id=msg_id,
             parse_mode="Markdown"
         )
@@ -3312,7 +3312,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3357,7 +3357,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3403,7 +3403,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3449,7 +3449,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3532,7 +3532,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         # Tell challenger to send their emoji first
         await query.edit_message_text(
-            f"@{challenger_user['username']} your turn",
+            # f"@{challenger_user['username']} your turn",
             parse_mode="Markdown"
         )
         
@@ -3625,7 +3625,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         # Tell challenger to send their emoji first
         await query.edit_message_text(
-            f"@{challenger_user['username']} your turn",
+            # f"@{challenger_user['username']} your turn",
             parse_mode="Markdown"
         )
         
@@ -3774,11 +3774,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         except Exception as e:
                             logger.warning(f"Failed to remove button from old cashout message: {e}")
 
-                    await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!")
-                    
                     b_tot = 0
                     for _ in range(challenge['rolls']):
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.5)
                         d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
                         bv = d.dice.value
                         if emoji in ["⚽", "🏀"]:
@@ -3881,7 +3879,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             f"<b>Score</b>\n\n"
                             f"{user_username}: {challenge['p_pts']}\n"
                             f"Rukia: {challenge['b_pts']}\n\n"
-                            f"<b>{user_username}</b>, your turn!"
+                            # f"<b>{user_username}</b>, your turn!"
                         )
                         
                         cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
@@ -3967,7 +3965,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.db.data['pending_pvp'] = self.pending_pvp
                 
                 acceptor_user = self.db.get_user(challenge['opponent'])
-                await context.bot.send_message(chat_id=chat_id, text=f"@{acceptor_user['username']} your turn", parse_mode="Markdown")
+                # await context.bot.send_message(chat_id=chat_id, text=f"@{acceptor_user['username']} your turn", parse_mode="Markdown")
                 return
             
             # Check if waiting for acceptor's emoji (or bot vs player)
@@ -4164,12 +4162,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     except Exception as e:
                         logger.warning(f"Failed to remove button from old cashout message: {e}")
 
-                # Bot turn starts
-                await context.bot.send_message(chat_id=chat_id, text=f"<b>Bot</b>, your turn!", parse_mode="HTML")
-                
                 challenge['b_rolls'] = []
                 for _ in range(challenge['rolls']):
-                    await asyncio.sleep(4)
+                    await asyncio.sleep(0.5)
                     d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
                     bv = d.dice.value
                     bs = (1 if bv >= 4 else 0) if emoji in ["⚽", "🏀"] else bv
@@ -4289,7 +4284,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Bot: {challenge['b_pts']}\n\n"
-                f"<b>{p1_name}</b>, your turn!"
+                # f"<b>{p1_name}</b>, your turn!"
             )
             challenge['p_rolls'] = []
             challenge['b_rolls'] = []
@@ -4695,7 +4690,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             f"🎲 <b>Match accepted!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>Bot</b>\n\n"
-            f"<b>{p1_name}</b>, your turn!"
+            # f"<b>{p1_name}</b>, your turn!"
         )
         kb = []
         
@@ -5578,7 +5573,7 @@ To deposit, send LTC to the address below:
                     except Exception as e:
                         logger.warning(f"Failed to remove button from old cashout message: {e}")
 
-                await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
+                # await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
                 
                 # Bot rolls
                 challenge['b_rolls'] = [] # Clear bot rolls for the round
@@ -5645,7 +5640,8 @@ To deposit, send LTC to the address below:
                     reply_to_id = challenge.get('message_id')
                     await context.bot.send_message(
                         chat_id=chat_id, 
-                        text=f"🤝 <b>Round Draw!</b> No points awarded.\n\n<b>{p1_name}</b>, your turn! {emoji}", 
+                        text=f"🤝 <b>Round Draw!</b> No points awarded.", 
+                        # \n\n<b>{p1_name}</b>, your turn! {emoji}", 
                         reply_markup=InlineKeyboardMarkup(kb), 
                         parse_mode="HTML",
                         reply_to_message_id=reply_to_id
@@ -5715,7 +5711,7 @@ To deposit, send LTC to the address below:
                         f"<b>Score</b>\n\n"
                         f"{p1_name}: {challenge['p_pts']}\n"
                         f"Rukia: {challenge['b_pts']}\n\n"
-                        f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+                        # f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
                     )
                     cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
                     cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
@@ -5828,7 +5824,7 @@ To deposit, send LTC to the address below:
                             # Use bold tags for user name as before, but ensure formatting is preserved
                             # Adding multiple lines of invisible characters to force message width
                             invisible_padding = "󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡"
-                            new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
+                            # new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
                             kb = [[
                                 InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel"),
                                 InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_bot_{g_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
@@ -5859,7 +5855,7 @@ To deposit, send LTC to the address below:
                         try:
                             emoji = self.emoji_map.get(g_mode, "🎲")
                             invisible_padding = "󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡"
-                            new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
+                            # new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
                             kb = [[
                                 InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel"),
                                 InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_bot_{g_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
