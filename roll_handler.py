@@ -195,13 +195,31 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_house_balance(w)
                 u = bot_instance.db.get_user(user_id)
                 p1_name = u.get('username', f'User{user_id}')
-                p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
+                
                 loss_text = (
-                    f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                    f"🏆 <b>Game over!</b>\n\n"
+                    f"<b>Score:</b>\n"
+                    f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
+                    f"<b>Bot</b> • {challenge['b_pts']}\n\n"
+                    f"<b>Bot wins ${w * 1.95:,.2f}!</b>"
                 )
+                
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
-                sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                
+                # Check for cashout message or game details message to reply to
+                reply_id = challenge.get('message_id') # Original game details msg
+                # If we have a more recent 'msg_id' (like the cashout prompt), use that
+                if challenge.get('msg_id'):
+                    reply_id = challenge['msg_id']
+
+                sent_msg = await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=loss_text, 
+                    reply_markup=InlineKeyboardMarkup(kb), 
+                    parse_mode="HTML",
+                    reply_to_message_id=reply_id
+                )
                 bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             
             del bot_instance.pending_pvp[cid]
