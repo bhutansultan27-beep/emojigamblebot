@@ -124,6 +124,17 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
 
         p_tot = sum(challenge['p_rolls'])
+
+        # Delete old cashout message before bot speaks
+        old_msg_id = challenge.get('cashout_msg_id')
+        if old_msg_id:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                challenge['cashout_msg_id'] = None
+                bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
+            except Exception as e:
+                pass
+
         await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
         
         # Bot rolls

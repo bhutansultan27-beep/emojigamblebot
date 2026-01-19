@@ -3765,6 +3765,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             db.session.commit()
                     
                     p_tot = sum(challenge['p_rolls'][-challenge['rolls']:])
+                    # Delete old cashout message before bot speaks
+                    old_msg_id = challenge.get('cashout_msg_id')
+                    if old_msg_id:
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                            challenge['cashout_msg_id'] = None
+                            self.db.update_pending_pvp(self.pending_pvp)
+                        except Exception as e:
+                            logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+
                     await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!")
                     
                     b_tot = 0
@@ -4146,6 +4156,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 challenge['bot_is_rolling'] = True
                 self.db.update_pending_pvp(self.pending_pvp)
                 
+                # Delete old cashout message before bot speaks
+                old_msg_id = challenge.get('cashout_msg_id')
+                if old_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                        challenge['cashout_msg_id'] = None
+                        self.db.update_pending_pvp(self.pending_pvp)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+
                 # Bot turn starts
                 await context.bot.send_message(chat_id=chat_id, text=f"<b>Bot</b>, your turn!", parse_mode="HTML")
                 
@@ -5552,6 +5572,16 @@ To deposit, send LTC to the address below:
                     return
 
                 p_tot = sum(challenge['p_rolls'])
+                # Delete old cashout message before bot speaks
+                old_msg_id = challenge.get('cashout_msg_id')
+                if old_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                        challenge['cashout_msg_id'] = None
+                        self.db.update_pending_pvp(self.pending_pvp)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+
                 await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
                 
                 # Bot rolls
