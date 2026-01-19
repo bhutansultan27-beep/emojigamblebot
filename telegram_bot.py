@@ -2470,8 +2470,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
             
         # Ensure user is registered
-        user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
         
         # Check if user already has an active game
         if user_id in self.blackjack_sessions:
@@ -2505,8 +2505,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Parse wager
         wager_str = context.args[0].lower()
         wager = 0.0
-        # Get user_id early for safe error handling
-        user_id = update.effective_user.id
         
         if wager_str == "all":
             wager = user_data['balance']
@@ -2524,9 +2522,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if wager < 0.01:
             await update.effective_message.reply_text("❌ Min: $0.01")
             return
-        
-        # Re-fetch user data to ensure latest balance before deduction
-        user_data = self.db.get_user(user_id)
         
         if wager > user_data['balance']:
             await update.effective_message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
