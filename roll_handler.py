@@ -92,12 +92,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         await query.answer()
-        # Remove the button
-        # User requested to leave the buttons there
-        # try:
-        #     await query.edit_message_reply_markup(reply_markup=None)
-        # except Exception as e:
-        #     logger.error(f"Error removing reply markup: {e}")
+        # Remove the button immediately when starting rolls
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception as e:
+            logger.error(f"Error removing reply markup: {e}")
         
         emoji = challenge['emoji']
         # Send emojis for user based on number of rolls

@@ -4891,6 +4891,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # Answer the query
             await query.answer()
             
+            # Remove buttons from the game setup message immediately
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except Exception as e:
+                logger.debug(f"Error removing reply markup from setup message: {e}")
+
             # Send the new "Match accepted" message as a NEW message
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id, 
