@@ -4472,7 +4472,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 chat_id=chat_id, 
                 text=msg_text, 
                 reply_markup=InlineKeyboardMarkup(kb), 
-                parse_mode="HTML"
+                parse_mode="HTML",
+                reply_to_message_id=query.message.message_id
             )
             # Register ownership for the NEW message
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
