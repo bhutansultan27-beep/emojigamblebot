@@ -5261,6 +5261,19 @@ To deposit, send LTC to the address below:
                 # Mark it here too to be absolutely sure
                 self.clicked_buttons.add(button_key)
                 parts = data.split("_")
+                # Format: v2_bot_{game}_{wager}_{rolls}_{mode}_{pts}
+                if len(parts) >= 7:
+                    g_mode = parts[2]
+                    wager = float(parts[3])
+                    rolls = int(parts[4])
+                    mode = parts[5]
+                    pts = int(parts[6])
+                    
+                    # Call the bot start function which handles the actual game logic
+                    # IMPORTANT: start_generic_v2_bot now uses send_message instead of edit_message
+                    await self.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
+                    return
+
                 # Format: v2_send_emoji_bot_{g_mode}_{wager}_{rolls}_{mode}_{pts}
                 # OR v2_send_emoji_{cid}
                 if len(parts) > 3 and parts[2] == "bot":
