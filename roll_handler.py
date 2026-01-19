@@ -250,12 +250,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Rukia: {challenge['b_pts']}\n\n"
-                f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+                f"<b>{p1_name}</b>, your turn! {emoji}"
             )
             cashout_val = bot_instance.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
             cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
             kb = [
-                [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
                 [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
             ]
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
