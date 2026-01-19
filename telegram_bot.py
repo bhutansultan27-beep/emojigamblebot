@@ -6084,16 +6084,28 @@ To deposit, send LTC to the address below:
                 w = challenge['wager']
                 rolls = challenge['rolls']
                 mode = challenge['mode']
+                game = challenge.get('game', 'dice')
                 
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                # Edit the existing message instead of sending a new one
+                # Send a NEW message for the cashout result instead of editing
                 try:
-                    await query.edit_message_text(text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                    # First, remove buttons from the current game message to prevent double-clicks
+                    await query.edit_message_reply_markup(reply_markup=None)
+                    
+                    # Then send the new result message
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=cashout_text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML",
+                        reply_to_message_id=challenge.get('message_id')
+                    )
+                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 except Exception as e:
-                    logger.error(f"Error editing cashout message: {e}")
-                    # Fallback if edit fails
+                    logger.error(f"Error handling cashout message: {e}")
+                    # Fallback
                     await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
                 
                 del self.pending_pvp[cid]
