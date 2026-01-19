@@ -2563,7 +2563,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         else:
             message += f"(Showing: {state['dealer']['value']})\n\n"
         
-        # Display all player hands
+        # 2. Display all player hands
         for hand in state['player_hands']:
             hand_status = ""
             if len(state['player_hands']) > 1:
@@ -2585,6 +2585,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         keyboard = []
         if not state['game_over']:
             # Normal Actions
+            current_hand = state['player_hands'][state['current_hand_index']]
+            actions = current_hand.get('actions', {})
+            
             row1 = [
                 InlineKeyboardButton("🎯 Hit", callback_data=f"bj_hit_{user_id}"),
                 InlineKeyboardButton("🛑 Stand", callback_data=f"bj_stand_{user_id}")
@@ -2592,17 +2595,20 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             keyboard.append(row1)
             
             row2 = []
-            if state['can_double']:
+            if actions.get('can_double'):
                 row2.append(InlineKeyboardButton("💰 Double", callback_data=f"bj_double_{user_id}"))
-            if state['can_split']:
+            if actions.get('can_split'):
                 row2.append(InlineKeyboardButton("✂️ Split", callback_data=f"bj_split_{user_id}"))
             if row2:
                 keyboard.append(row2)
                 
-            row3 = [InlineKeyboardButton("🏳️ Surrender", callback_data=f"bj_surrender_{user_id}")]
+            row3 = []
+            if actions.get('can_surrender'):
+                row3.append(InlineKeyboardButton("🏳️ Surrender", callback_data=f"bj_surrender_{user_id}"))
             if state['is_insurance_available']:
                 row3.append(InlineKeyboardButton("🛡️ Insurance", callback_data=f"bj_insurance_{user_id}"))
-            keyboard.append(row3)
+            if row3:
+                keyboard.append(row3)
         
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
         
@@ -5404,6 +5410,44 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         # Check button ownership if applicable
         owner_id = self.button_ownership.get((query.message.chat_id, query.message.message_id))
+        
+        # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
+        if data.startswith("bj_"):
+            parts = data.split("_")
+            if len(parts) >= 3:
+                action = parts[1]
+                target_user_id = int(parts[2])
+                
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your game!", show_alert=True)
+                    return
+                
+                if user_id not in self.blackjack_sessions:
+                    # Special case: bj_bot_{amount} is handled later
+                    if action != "bot":
+                        await query.answer("❌ No active game found.")
+                        return
+                else:
+                    game = self.blackjack_sessions[user_id]
+                    msg = ""
+                    if action == "hit":
+                        msg = game.hit()
+                    elif action == "stand":
+                        msg = game.stand()
+                    elif action == "double":
+                        msg = game.double_down()
+                    elif action == "split":
+                        msg = game.split()
+                    elif action == "surrender":
+                        msg = game.surrender()
+                    elif action == "insurance":
+                        msg = game.take_insurance()
+                    
+                    if msg:
+                        await query.answer(msg)
+                        await self._display_blackjack_state(update, context, user_id)
+                        return
+
         if owner_id and owner_id != user_id:
             await query.answer("❌ This menu isn't for you.", show_alert=True)
             return
