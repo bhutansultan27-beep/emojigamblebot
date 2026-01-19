@@ -14,8 +14,11 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
 
     if data.startswith("setup_mode_predict_edit_"):
         parts = data.split("_")
-        wager = float(parts[4])
-        game_mode = parts[5]
+        try:
+            wager = float(parts[4])
+        except (ValueError, IndexError):
+            wager = 10.0
+        game_mode = parts[5] if len(parts) > 5 else "dice"
         await bot_instance._setup_predict_interface(update, context, wager, game_mode, force_new=False)
         return
 
@@ -27,8 +30,11 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             pass
             
         parts = data.split("_")
-        wager = float(parts[3])
-        game_mode = parts[4]
+        try:
+            wager = float(parts[3])
+        except (ValueError, IndexError):
+            wager = 10.0
+        game_mode = parts[4] if len(parts) > 4 else "dice"
         # Force a new message by setting update.callback_query to None for the interface call
         await bot_instance._setup_predict_interface(update, context, wager, game_mode, force_new=True)
         return
