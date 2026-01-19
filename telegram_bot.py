@@ -1580,13 +1580,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-        
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -1611,13 +1604,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play darts game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -1642,13 +1628,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play basketball game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -1673,13 +1652,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play soccer game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -1704,13 +1676,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play bowling game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -1735,13 +1700,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play coinflip game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2004,13 +1962,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-        
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2035,13 +1986,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play darts game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2066,13 +2010,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play basketball game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2097,13 +2034,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play soccer game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2128,13 +2058,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play bowling game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2332,13 +2255,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play coinflip game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         amount = 1.0
         if context.args:
             try:
@@ -2357,13 +2273,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         """Play roulette game"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
-            
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
         
@@ -2438,12 +2347,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
             
-        # Delete user command
-        try:
-            await update.effective_message.delete()
-        except:
-            pass
-
         # Ensure user is registered
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
