@@ -5218,9 +5218,11 @@ To deposit, send LTC to the address below:
         await query.answer()
         
         # Mark button as clicked for game buttons
-        # Removed "setup_predict_select_" and game start buttons to allow multiple clicks as requested
+        # Ensure /dice and related menu buttons NEVER trigger "this button has already been clicked"
         if any(data.startswith(prefix) for prefix in ["v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "emoji_setup_", "setup_bet_", "flip_bot_"]):
-            self.clicked_buttons.add(button_key)
+            # Check if it's NOT a prediction or setup mode button
+            if not any(data.startswith(p) for p in ["setup_predict_select_", "setup_mode_predict_"]):
+                self.clicked_buttons.add(button_key)
         
         try:
             if data == "none":
