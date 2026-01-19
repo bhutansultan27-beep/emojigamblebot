@@ -1759,7 +1759,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 total_outcomes = 6
                 selected_count = len(selections)
                 multiplier = (total_outcomes / selected_count) * (1 - house_edge)
-                if selected_count == 3 and game_mode == "dice":
+                if selected_count == 3:
                     multiplier = 1.95
             elif game_mode == "basketball":
                 # Probability based on values 1-5: miss(2), stuck(1), score(2)

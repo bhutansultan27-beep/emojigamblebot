@@ -146,8 +146,8 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         if game_mode in ["dice", "darts", "bowling"]:
             total_outcomes = 6
             multiplier = (total_outcomes / len(selections)) * (1 - house_edge)
-            # Special case for 3-number dice prediction often used in casino games
-            if len(selections) == 3 and game_mode == "dice":
+            # Special case for 3-number prediction often used in casino games
+            if len(selections) == 3:
                 multiplier = 1.95 # Traditional payout
         elif game_mode == "basketball":
             # Probability based on values 1-5: miss(2), stuck(1), score(2)
