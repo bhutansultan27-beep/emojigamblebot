@@ -4197,6 +4197,10 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         rolls = challenge['rolls']
         mode = challenge['mode']
         emoji = challenge['emoji']
+        
+        # Source of truth for totals
+        p_tot = sum(challenge.get('p_rolls', []))
+        b_tot = sum(challenge.get('b_rolls', []))
 
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
             # Series End logic
@@ -4209,7 +4213,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 
                 p1_name = u.get('username', f'User{user_id}')
                 p1_mention = f'<a href="tg://user?id={user_id}"><b>{p1_name}</b></a>'
-                win_text = f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                win_text = (
+                    f"🏆 <b>Game over!</b>\n"
+                    f"Score:\n"
+                    f"{p1_name} • {challenge['p_pts']}\n"
+                    f"Bot • {challenge['b_pts']}\n\n"
+                    f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
@@ -4220,7 +4230,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.db.update_house_balance(w)
                 u = self.db.get_user(user_id)
                 p1_name = u.get('username', f'User{user_id}')
-                loss_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                loss_text = (
+                    f"🏆 <b>Game over!</b>\n"
+                    f"Score:\n"
+                    f"{p1_name} • {challenge['p_pts']}\n"
+                    f"Bot • {challenge['b_pts']}\n\n"
+                    f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
@@ -4231,18 +4247,20 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             del self.pending_pvp[cid]
         else:
             # Next Round
-            challenge['p_rolls'] = []
-            challenge['b_rolls'] = []
-            challenge['cur_rolls'] = 0
-            challenge['waiting_for_emoji'] = True
             u = self.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
             text = (
+                f"Round Result: {p_tot} vs {b_tot}.\n\n"
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Rukia: {challenge['b_pts']}\n\n"
                 f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
             )
+            challenge['p_rolls'] = []
+            challenge['b_rolls'] = []
+            challenge['cur_rolls'] = 0
+            challenge['waiting_for_emoji'] = True
+            
             cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
             cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
             kb = [
@@ -4253,6 +4271,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             reply_to_id = challenge.get('message_id')
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+        
+        self.db.update_pending_pvp(self.pending_pvp)
         
         self.db.update_pending_pvp(self.pending_pvp)
 
@@ -4327,8 +4347,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         keyboard = [
             [
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"{game_type.replace('_bot', '_bot')}_{wager:.2f}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"{game_type.replace('_bot', '_bot')}_{wager*2:.2f}")
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game_type.replace('_bot', '')}_{wager:.2f}_{challenge.get('rolls', 1)}_{challenge.get('mode', 'normal')}_{challenge.get('pts', 1)}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game_type.replace('_bot', '')}_{wager*2:.2f}_{challenge.get('rolls', 1)}_{challenge.get('mode', 'normal')}_{challenge.get('pts', 1)}")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
