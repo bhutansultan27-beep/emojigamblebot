@@ -4857,21 +4857,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             if chat.type in ["group", "supergroup"]:
                 try:
                     await query.answer()
-                    # Delete the "your balance" message immediately
-                    await query.message.delete()
                     
-                    # Also delete the user's / message if possible
-                    if query.message.reply_to_message:
-                        try:
-                            await query.message.reply_to_message.delete()
-                        except:
-                            pass
+                    # Edit the balance message to notification message
+                    notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!"
+                    await query.edit_message_text(text=notification_text, parse_mode="HTML")
                     
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat.id,
-                        text=f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
-                        parse_mode="HTML"
-                    )
                     # Send private message
                     await self.app.bot.send_message(
                         chat_id=user_id,
@@ -4879,14 +4869,23 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         parse_mode="Markdown"
                     )
                     
-                    # Delete the notification message after 5 seconds
-                    async def delete_notification(chat_id, message_id):
+                    # Schedule deletion of both messages after 5 seconds
+                    async def cleanup_messages(chat_id, msg_to_delete, user_msg_to_delete):
                         await asyncio.sleep(5)
+                        # Delete notification message
                         try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_to_delete)
                         except:
                             pass
-                    asyncio.create_task(delete_notification(chat.id, sent_msg.message_id))
+                        # Delete user's / message
+                        if user_msg_to_delete:
+                            try:
+                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
+                            except:
+                                pass
+                                
+                    user_msg_id = query.message.reply_to_message.message_id if query.message.reply_to_message else None
+                    asyncio.create_task(cleanup_messages(chat.id, query.message.message_id, user_msg_id))
                 except Exception as e:
                     logger.error(f"Error in group withdraw button: {e}")
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
@@ -4915,21 +4914,11 @@ Example: `/withdraw 50 LTC1abc123...`
             if chat.type in ["group", "supergroup"]:
                 try:
                     await query.answer()
-                    # Delete the "your balance" message immediately
-                    await query.message.delete()
                     
-                    # Also delete the user's / message if possible
-                    if query.message.reply_to_message:
-                        try:
-                            await query.message.reply_to_message.delete()
-                        except:
-                            pass
+                    # Edit the balance message to notification message
+                    notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!"
+                    await query.edit_message_text(text=notification_text, parse_mode="HTML")
                     
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat.id,
-                        text=f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!",
-                        parse_mode="HTML"
-                    )
                     # Send private message
                     await self.app.bot.send_message(
                         chat_id=user_id,
@@ -4937,22 +4926,29 @@ Example: `/withdraw 50 LTC1abc123...`
                         parse_mode="Markdown"
                     )
                     
-                    # Delete the notification message after 5 seconds
-                    async def delete_notification(chat_id, message_id):
+                    # Schedule deletion of both messages after 5 seconds
+                    async def cleanup_messages(chat_id, msg_to_delete, user_msg_to_delete):
                         await asyncio.sleep(5)
+                        # Delete notification message
                         try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_to_delete)
                         except:
                             pass
-                    asyncio.create_task(delete_notification(chat.id, sent_msg.message_id))
+                        # Delete user's / message
+                        if user_msg_to_delete:
+                            try:
+                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
+                            except:
+                                pass
+                                
+                    user_msg_id = query.message.reply_to_message.message_id if query.message.reply_to_message else None
+                    asyncio.create_task(cleanup_messages(chat.id, query.message.message_id, user_msg_id))
                 except Exception as e:
                     logger.error(f"Error in group deposit button: {e}")
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
-                # Existing private chat deposit logic...
-                # Assuming there's logic here to handle private deposit, 
-                # but if it uses edit_message_text it already replaces the content.
+                # In private chat
                 pass
 
         """Handles all inline button presses."""
