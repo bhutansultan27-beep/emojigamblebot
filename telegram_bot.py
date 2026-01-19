@@ -5332,18 +5332,23 @@ To deposit, send LTC to the address below:
                 # Save bot progress
                 self.db.update_pending_pvp(self.pending_pvp)
                 
+                # Wait for bot dice animation to finish
                 await asyncio.sleep(4)
                 
-                # Re-load challenge for safety
+                # Re-load challenge for safety to get the absolute latest state
                 self.pending_pvp = self.db.data.get('pending_pvp', {})
                 challenge = self.pending_pvp.get(cid)
                 if not challenge:
                     logger.error(f"Challenge {cid} not found after rolls")
                     return
                 
-                # Use the persistent rolls for calculation to avoid issues with local variables and reloading
-                p_tot = sum(challenge.get('p_rolls', []))
-                b_tot = sum(challenge.get('b_rolls', []))
+                # RE-CALCULATE totals from the persistent rolls right before comparison
+                # This is critical because challenge['p_rolls'] and challenge['b_rolls'] 
+                # are the source of truth
+                current_p_rolls = challenge.get('p_rolls', [])
+                current_b_rolls = challenge.get('b_rolls', [])
+                p_tot = sum(current_p_rolls)
+                b_tot = sum(current_b_rolls)
                 
                 # Resolve Round/Series
                 round_win = None
