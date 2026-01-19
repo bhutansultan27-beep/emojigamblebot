@@ -83,14 +83,14 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             if str(result_val) in selections:
                 win = True
         elif game_mode == "basketball":
-            # Values 1-5. 1-3: miss, 4-5: score.
-            outcome = "miss" if result_val <= 3 else "score"
+            # Values 1-5. 1: miss, 2: stuck, 3-5: score.
+            outcome = "miss" if result_val == 1 else "stuck" if result_val == 2 else "score"
             result_label = outcome
             if outcome in selections:
                 win = True
         elif game_mode == "soccer":
-            # Values 1-5. 1-3: miss, 4-5: goal.
-            outcome = "miss" if result_val <= 3 else "goal"
+            # Values 1-5. 1: miss, 2: bar, 3-5: goal.
+            outcome = "miss" if result_val == 1 else "bar" if result_val == 2 else "goal"
             result_label = outcome
             if outcome in selections:
                 win = True
@@ -113,15 +113,15 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 multiplier = 1.95 # Traditional payout
         elif game_mode == "basketball":
             # Probability based on values 1-5
-            # miss: 3/5 (60%), score: 2/5 (40%)
-            outcomes_map = {"miss": 3, "score": 2}
+            # miss: 1/5, stuck: 1/5, score: 3/5
+            outcomes_map = {"miss": 1, "stuck": 1, "score": 3}
             total_slots = 5
             selected_outcome_slots = sum(outcomes_map[s] for s in selections if s in outcomes_map)
             multiplier = (total_slots / selected_outcome_slots) * (1 - house_edge) if selected_outcome_slots > 0 else 0
         elif game_mode == "soccer":
             # Probability based on values 1-5
-            # miss: 3/5 (60%), goal: 2/5 (40%)
-            outcomes_map = {"miss": 3, "goal": 2}
+            # miss: 1/5, bar: 1/5, goal: 3/5
+            outcomes_map = {"miss": 1, "bar": 1, "goal": 3}
             total_slots = 5
             selected_outcome_slots = sum(outcomes_map[s] for s in selections if s in outcomes_map)
             multiplier = (total_slots / selected_outcome_slots) * (1 - house_edge) if selected_outcome_slots > 0 else 0
