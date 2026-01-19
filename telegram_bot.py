@@ -2171,17 +2171,39 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
         user_data = self.ensure_user_registered(update)
+        
         # Default wager $1.00 or balance if lower
-        wager = min(1.0, user_data.get('balance', 0))
-        if wager < 1.0 and user_data.get('balance', 0) >= 1.0:
-            wager = 1.0
-        elif user_data.get('balance', 0) < 1.0:
-            await update.message.reply_text(f"❌ Minimum bet is $1.00. Your balance: ${user_data['balance']:.2f}")
+        wager = 1.0
+        if context.args:
+            try:
+                wager = float(context.args[0])
+            except ValueError:
+                pass # Fallback to 1.0
+
+        if user_data.get('balance', 0) < wager:
+            await update.message.reply_text(f"❌ Minimum bet is ${wager:.2f}. Your balance: ${user_data['balance']:.2f}")
             return
             
         await self._setup_predict_interface(update, context, wager, "dice")
 
     async def predict_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Unified command for prediction games"""
+        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
+            return
+        user_data = self.ensure_user_registered(update)
+        
+        wager = 1.0
+        if context.args:
+            try:
+                wager = float(context.args[0])
+            except ValueError:
+                pass
+
+        if user_data.get('balance', 0) < wager:
+            await update.message.reply_text(f"❌ Minimum bet is ${wager:.2f}. Your balance: ${user_data['balance']:.2f}")
+            return
+            
+        await self._setup_predict_interface(update, context, wager, "dice")
         """Play dice predict game - predict what you'll roll with multiple choices"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
