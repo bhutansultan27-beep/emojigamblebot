@@ -5216,7 +5216,8 @@ To deposit, send LTC to the address below:
         await query.answer()
         
         # Mark button as clicked for game buttons
-        if any(data.startswith(prefix) for prefix in ["v2_bot_", "v2_pvp_", "v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "emoji_setup_", "predict_start_", "setup_predict_select_", "setup_bet_", "flip_bot_"]):
+        # Removed "setup_predict_select_" from here to allow toggling/unselecting
+        if any(data.startswith(prefix) for prefix in ["v2_bot_", "v2_pvp_", "v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "emoji_setup_", "predict_start_", "setup_bet_", "flip_bot_"]):
             self.clicked_buttons.add(button_key)
         
         try:

@@ -29,9 +29,11 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
 
         if prediction in bot_instance._predict_selections[user_id]:
             bot_instance._predict_selections[user_id].remove(prediction)
+            await query.answer("Removed selection")
         else:
             if len(bot_instance._predict_selections[user_id]) < 5:
                 bot_instance._predict_selections[user_id].add(prediction)
+                await query.answer("Added selection")
             else:
                 await query.answer("❌ Max 5 selections!", show_alert=True)
                 return
