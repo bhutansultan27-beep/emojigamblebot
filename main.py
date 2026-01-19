@@ -4857,8 +4857,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             if chat.type in ["group", "supergroup"]:
                 try:
                     await query.answer()
-                    await query.message.reply_text(
-                        f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
+                    # Delete the "your balance" message immediately
+                    await query.message.delete()
+                    
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat.id,
+                        text=f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
                         parse_mode="HTML"
                     )
                     # Send private message
@@ -4867,12 +4871,21 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         text="To withdraw, please use the /withdraw command here in our private chat.",
                         parse_mode="Markdown"
                     )
+                    
+                    # Delete the notification message after 5 seconds
+                    async def delete_notification(chat_id, message_id):
+                        await asyncio.sleep(5)
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+                        except:
+                            pass
+                    asyncio.create_task(delete_notification(chat.id, sent_msg.message_id))
                 except Exception as e:
                     logger.error(f"Error in group withdraw button: {e}")
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
-                # In private chat, just show instructions
+                # In private chat, just show instructions and delete the balance message
                 user_data = self.db.get_user(user_id)
                 withdraw_text = f"""
 💸 **LTC Withdrawal Request**
@@ -4895,8 +4908,12 @@ Example: `/withdraw 50 LTC1abc123...`
             if chat.type in ["group", "supergroup"]:
                 try:
                     await query.answer()
-                    await query.message.reply_text(
-                        f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!",
+                    # Delete the "your balance" message immediately
+                    await query.message.delete()
+                    
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat.id,
+                        text=f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!",
                         parse_mode="HTML"
                     )
                     # Send private message
@@ -4905,12 +4922,23 @@ Example: `/withdraw 50 LTC1abc123...`
                         text="To deposit, please use the /deposit command here in our private chat.",
                         parse_mode="Markdown"
                     )
+                    
+                    # Delete the notification message after 5 seconds
+                    async def delete_notification(chat_id, message_id):
+                        await asyncio.sleep(5)
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+                        except:
+                            pass
+                    asyncio.create_task(delete_notification(chat.id, sent_msg.message_id))
                 except Exception as e:
                     logger.error(f"Error in group deposit button: {e}")
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
                 # Existing private chat deposit logic...
+                # Assuming there's logic here to handle private deposit, 
+                # but if it uses edit_message_text it already replaces the content.
                 pass
 
         """Handles all inline button presses."""
