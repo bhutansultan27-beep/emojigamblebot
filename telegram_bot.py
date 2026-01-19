@@ -3374,9 +3374,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.answer(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}", show_alert=True)
             return
         
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, "Bet on Soccer vs Bot")
-        
+        # Initialize V2 bot game state
         game_id = f"v2_bot_{user_id}_{int(datetime.now().timestamp())}"
         game_state = {
             "game": "soccer",
@@ -3388,12 +3386,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "p_rolls": [],
             "cur_rolls": 0,
             "wager": wager,
-            "wager_deducted": True,
+            "wager_deducted": False,
             "emoji": "⚽",
             "player": user_id,
             "chat_id": chat_id,
             "emoji_wait": datetime.now().isoformat(),
-            "waiting_for_emoji": True,
+            "waiting_for_emoji": False,
             "created_at": datetime.now().isoformat()
         }
         
@@ -3406,7 +3404,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎮 **Soccer Series**\n\n{bot_mention} vs {user_mention}\n\n{user_mention} your turn! Send ⚽",
+            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
 
@@ -3421,9 +3420,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.answer(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}", show_alert=True)
             return
         
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, "Bet on Bowling vs Bot")
-        
+        # Initialize V2 bot game state
         game_id = f"v2_bot_{user_id}_{int(datetime.now().timestamp())}"
         game_state = {
             "game": "bowling",
@@ -3435,12 +3432,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "p_rolls": [],
             "cur_rolls": 0,
             "wager": wager,
-            "wager_deducted": True,
+            "wager_deducted": False,
             "emoji": "🎳",
             "player": user_id,
             "chat_id": chat_id,
             "emoji_wait": datetime.now().isoformat(),
-            "waiting_for_emoji": True,
+            "waiting_for_emoji": False,
             "created_at": datetime.now().isoformat()
         }
         
@@ -3453,7 +3450,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎮 **Bowling Series**\n\n{bot_mention} vs {user_mention}\n\n{user_mention} your turn! Send 🎳",
+            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
 
