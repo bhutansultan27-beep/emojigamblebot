@@ -5639,6 +5639,9 @@ To deposit, send LTC to the address below:
                 return
             
             elif data == "setup_cancel":
+                user_id = query.from_user.id
+                if hasattr(self, "_predict_selections") and user_id in self._predict_selections:
+                    del self._predict_selections[user_id]
                 try:
                     await query.message.delete()
                     if query.message.reply_to_message:
@@ -5648,6 +5651,9 @@ To deposit, send LTC to the address below:
                 return
 
             elif data == "setup_cancel_roll":
+                user_id = query.from_user.id
+                if hasattr(self, "_predict_selections") and user_id in self._predict_selections:
+                    del self._predict_selections[user_id]
                 try:
                     await query.message.delete()
                     if query.message.reply_to_message:
