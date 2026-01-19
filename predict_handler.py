@@ -46,6 +46,9 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         selections = getattr(bot_instance, "_predict_selections", {}).get(user_id, set())
         if not selections:
             await query.answer("❌ Please select at least one prediction!", show_alert=True)
+            # Remove from clicked_buttons so they can click start again after selecting
+            if (chat_id, query.message.message_id, data) in bot_instance.clicked_buttons:
+                bot_instance.clicked_buttons.remove((chat_id, query.message.message_id, data))
             return
         
         user_data = bot_instance.db.get_user(user_id)
