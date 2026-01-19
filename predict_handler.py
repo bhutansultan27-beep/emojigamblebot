@@ -13,6 +13,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
     chat_id = query.message.chat_id
 
     if data.startswith("setup_predict_select_"):
+        # We don't check for clicked_buttons here because we want selections to be togglable
         parts = data.split("_")
         wager = float(parts[3])
         prediction = parts[4]
