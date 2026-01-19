@@ -1337,7 +1337,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Ensure the "START GAME" button doesn't delete the message but rather transitions to the "Send emoji" prompt
             keyboard.append([
                 back_btn,
-                InlineKeyboardButton("🚀 START GAME 🚀", callback_data=start_callback)
+                InlineKeyboardButton("✅ Start", callback_data=start_callback)
             ])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
