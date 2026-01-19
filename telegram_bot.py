@@ -5422,74 +5422,71 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         chat = query.message.chat
         data = query.data
         
-        # Check button ownership if applicable
-        owner_id = self.button_ownership.get((query.message.chat_id, query.message.message_id))
-        
-                # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
-                if data.startswith("bj_"):
-                    parts = data.split("_")
-                    if len(parts) >= 3:
-                        action = parts[1]
-                        # Handling both formats: bj_action_userid and bj_userid_action
-                        try:
-                            # Try to see if it's the new format bj_action_userid
-                            target_user_id = int(parts[2])
-                        except ValueError:
-                            # Fallback to old format if parts[1] was userid
-                            target_user_id = int(parts[1])
-                            action = parts[2]
-                        
-                        if user_id != target_user_id:
-                            await query.answer("❌ This is not your game!", show_alert=True)
+        # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
+        if data.startswith("bj_"):
+            parts = data.split("_")
+            if len(parts) >= 3:
+                action = parts[1]
+                # Handling both formats: bj_action_userid and bj_userid_action
+                try:
+                    # Try to see if it's the new format bj_action_userid
+                    target_user_id = int(parts[2])
+                except ValueError:
+                    # Fallback to old format if parts[1] was userid
+                    target_user_id = int(parts[1])
+                    action = parts[2]
+                
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your game!", show_alert=True)
+                    return
+                
+                if user_id not in self.blackjack_sessions:
+                    # Special case: bj_play_again is handled separately
+                    if action != "play":
+                        await query.answer("❌ No active game found.")
+                        return
+                else:
+                    game = self.blackjack_sessions[user_id]
+                    msg = ""
+                    if action == "hit":
+                        msg = game.hit()
+                    elif action == "stand":
+                        msg = game.stand()
+                    elif action == "double":
+                        # Check balance for double
+                        user_data = self.db.get_user(user_id)
+                        current_hand = game.player_hands[game.current_hand_index]
+                        additional_bet = current_hand['bet']
+                        if user_data['balance'] < additional_bet:
+                            await query.answer("❌ Insufficient balance!", show_alert=True)
                             return
-                        
-                        if user_id not in self.blackjack_sessions:
-                            # Special case: bj_play_again is handled separately
-                            if action != "play":
-                                await query.answer("❌ No active game found.")
-                                return
-                        else:
-                            game = self.blackjack_sessions[user_id]
-                            msg = ""
-                            if action == "hit":
-                                msg = game.hit()
-                            elif action == "stand":
-                                msg = game.stand()
-                            elif action == "double":
-                                # Check balance for double
-                                user_data = self.db.get_user(user_id)
-                                current_hand = game.player_hands[game.current_hand_index]
-                                additional_bet = current_hand['bet']
-                                if user_data['balance'] < additional_bet:
-                                    await query.answer("❌ Insufficient balance!", show_alert=True)
-                                    return
-                                user_data['balance'] -= additional_bet
-                                self.db.update_user(user_id, user_data)
-                                msg = game.double_down()
-                            elif action == "split":
-                                # Check balance for split
-                                user_data = self.db.get_user(user_id)
-                                current_hand = game.player_hands[game.current_hand_index]
-                                additional_bet = current_hand['bet']
-                                if user_data['balance'] < additional_bet:
-                                    await query.answer("❌ Insufficient balance!", show_alert=True)
-                                    return
-                                user_data['balance'] -= additional_bet
-                                self.db.update_user(user_id, user_data)
-                                msg = game.split()
-                            elif action == "insurance":
-                                user_data = self.db.get_user(user_id)
-                                insurance_cost = game.initial_bet / 2
-                                if user_data['balance'] < insurance_cost:
-                                    await query.answer("❌ Insufficient balance!", show_alert=True)
-                                    return
-                                user_data['balance'] -= insurance_cost
-                                self.db.update_user(user_id, user_data)
-                                msg = game.take_insurance()
-                            
-                            await query.answer(msg if msg else None)
-                            await self._display_blackjack_state(update, context, user_id)
+                        user_data['balance'] -= additional_bet
+                        self.db.update_user(user_id, user_data)
+                        msg = game.double_down()
+                    elif action == "split":
+                        # Check balance for split
+                        user_data = self.db.get_user(user_id)
+                        current_hand = game.player_hands[game.current_hand_index]
+                        additional_bet = current_hand['bet']
+                        if user_data['balance'] < additional_bet:
+                            await query.answer("❌ Insufficient balance!", show_alert=True)
                             return
+                        user_data['balance'] -= additional_bet
+                        self.db.update_user(user_id, user_data)
+                        msg = game.split()
+                    elif action == "insurance":
+                        user_data = self.db.get_user(user_id)
+                        insurance_cost = game.initial_bet / 2
+                        if user_data['balance'] < insurance_cost:
+                            await query.answer("❌ Insufficient balance!", show_alert=True)
+                            return
+                        user_data['balance'] -= insurance_cost
+                        self.db.update_user(user_id, user_data)
+                        msg = game.take_insurance()
+                    
+                    await query.answer(msg if msg else None)
+                    await self._display_blackjack_state(update, context, user_id)
+                    return
 
         # Play Again callback: bj_play_again_{user_id}_{amount}
         if data.startswith("bj_play_again_"):
