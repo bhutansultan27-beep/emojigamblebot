@@ -235,7 +235,6 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 
                 loss_text = (
                     f"🏆 <b>Game over!</b>\n\n"
-                    f"<b>Score:</b>\n"
                     f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
                     f"<b>Bot</b> • {challenge['b_pts']}\n\n"
                     f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"

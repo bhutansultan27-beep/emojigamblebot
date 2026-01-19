@@ -4252,8 +4252,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 p1_name = u.get('username', f'User{user_id}')
                 p1_mention = f'<a href="tg://user?id={user_id}"><b>{p1_name}</b></a>'
                 win_text = (
-                    f"🏆 <b>Game over!</b>\n"
-                    f"Score:\n"
+                    f"🏆 <b>Game over!</b>\n\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
                     f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
@@ -4269,8 +4268,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 u = self.db.get_user(user_id)
                 p1_name = u.get('username', f'User{user_id}')
                 loss_text = (
-                    f"🏆 <b>Game over!</b>\n"
-                    f"Score:\n"
+                    f"🏆 <b>Game over!</b>\n\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
                     f"<b>Bot</b> won <b>${w * 1.95:,.2f}</b>"
