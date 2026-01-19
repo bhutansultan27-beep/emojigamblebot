@@ -31,6 +31,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance._predict_selections[user_id].remove(prediction)
             await query.answer("Removed selection")
         else:
+            # Prevent picking all options in basketball and soccer
+            if game_mode in ["basketball", "soccer"]:
+                current_len = len(bot_instance._predict_selections[user_id])
+                if current_len >= 2:
+                    await query.answer("❌ Can't pick all options!", show_alert=True)
+                    return
+            
             if len(bot_instance._predict_selections[user_id]) < 5:
                 bot_instance._predict_selections[user_id].add(prediction)
                 await query.answer("Added selection")
