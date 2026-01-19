@@ -6556,6 +6556,13 @@ To deposit, send LTC to the address below:
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
             if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
+                # Ensure buttons can only be clicked once
+                btn_key = (chat_id, query.message.message_id, data)
+                if btn_key in self.clicked_buttons:
+                    await query.answer("❌ This button has already been used.", show_alert=True)
+                    return
+                self.clicked_buttons.add(btn_key)
+                
                 parts = data.split('_')
                 if len(parts) >= 3:
                     if data.startswith("v2_bot_"):
