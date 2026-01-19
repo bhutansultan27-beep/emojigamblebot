@@ -3881,7 +3881,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         keyboard = [[InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]]
                         reply_markup = InlineKeyboardMarkup(keyboard)
                         
-                        await context.bot.send_message(chat_id=chat_id, text=round_text, reply_markup=reply_markup, parse_mode="HTML")
+                        # Delete old cashout message if exists
+                        old_msg_id = challenge.get('cashout_msg_id')
+                        if old_msg_id:
+                            try:
+                                await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                            except Exception as e:
+                                logger.warning(f"Failed to delete old cashout message: {e}")
+
+                        sent_msg = await context.bot.send_message(chat_id=chat_id, text=round_text, reply_markup=reply_markup, parse_mode="HTML")
+                        challenge['cashout_msg_id'] = sent_msg.message_id
                     
                     with self.db.app.app_context():
                         pending_pvp_state = db.session.get(GlobalState, "pending_pvp")
@@ -4206,6 +4215,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         b_tot = sum(challenge.get('b_rolls', []))
 
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
+            # Delete final cashout message if it exists
+            old_msg_id = challenge.get('cashout_msg_id')
+            if old_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                except Exception as e:
+                    logger.warning(f"Failed to delete old cashout message at game end: {e}")
+
             # Series End logic
             if challenge['p_pts'] >= target_pts:
                 payout = w * 1.95
@@ -4269,8 +4286,17 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
             ]
             
+            # Delete old cashout message
+            old_msg_id = challenge.get('cashout_msg_id')
+            if old_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                except Exception as e:
+                    logger.warning(f"Failed to delete old cashout message: {e}")
+
             reply_to_id = challenge.get('message_id')
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+            challenge['cashout_msg_id'] = sent_msg.message_id
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         
         self.db.update_pending_pvp(self.pending_pvp)
@@ -5672,6 +5698,14 @@ To deposit, send LTC to the address below:
                         [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
                     ]
                     
+                    # Delete old cashout message
+                    old_msg_id = challenge.get('cashout_msg_id')
+                    if old_msg_id:
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                        except Exception as e:
+                            logger.warning(f"Failed to delete old cashout message: {e}")
+
                     # Reply to the game details message
                     reply_to_id = challenge.get('message_id')
                     sent_msg = await context.bot.send_message(
@@ -5681,6 +5715,7 @@ To deposit, send LTC to the address below:
                         parse_mode="HTML",
                         reply_to_message_id=reply_to_id
                     )
+                    challenge['cashout_msg_id'] = sent_msg.message_id
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     # Ensure the score message is a reply to the game details message (challenge['msg_id'])
                     reply_to_id = challenge.get('msg_id')

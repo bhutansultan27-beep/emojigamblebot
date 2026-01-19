@@ -191,6 +191,14 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         
         target_pts = challenge.get('pts', 1)
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
+            # Delete final cashout message if it exists
+            old_msg_id = challenge.get('cashout_msg_id')
+            if old_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                except Exception as e:
+                    pass
+
             # Series End
             w = challenge['wager']
             if challenge['p_pts'] >= target_pts:
@@ -257,7 +265,18 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             kb = [
                 [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
             ]
+            
+            # Delete old cashout message
+            old_msg_id = challenge.get('cashout_msg_id')
+            if old_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                except Exception as e:
+                    # logger not imported here, but we can use print or skip
+                    pass
+
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            challenge['cashout_msg_id'] = sent_msg.message_id
             bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         
         bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
