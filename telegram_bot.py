@@ -5934,7 +5934,11 @@ To deposit, send LTC to the address below:
                 with self.db.app.app_context():
                     db.session.commit()
                 
-                await query.edit_message_text(f"💰 **CASHOUT SUCCESSFUL!**\nYou cashed out for **${cashout_val:.2f}**\nNet: {'+' if profit >=0 else ''}${profit:.2f}")
+                username = user_data.get('username', f'User{user_id}')
+                bold_username = f"<b>{username}</b>"
+                bold_amount = f"<b>${cashout_val:.2f}</b>"
+                
+                await query.edit_message_text(f"💸 {bold_username} cashed out {bold_amount}!")
                 del self.pending_pvp[cid]
                 
                 # Update global state for pending_pvp
