@@ -5459,6 +5459,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         await self._display_blackjack_state(update, context, user_id)
                         return
 
+        # Play Again callback: bj_play_again_{user_id}_{amount}
+        if data.startswith("bj_play_again_"):
+            parts = data.split("_")
+            if len(parts) >= 5:
+                target_user_id = int(parts[3])
+                amount = float(parts[4])
+                
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your game!", show_alert=True)
+                    return
+                
+                # Mock context args to re-trigger blackjack_command
+                context.args = [str(amount)]
+                await self.blackjack_command(update, context)
+                return
+
         if owner_id and owner_id != user_id:
             await query.answer("❌ This menu isn't for you.", show_alert=True)
             return
