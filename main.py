@@ -297,6 +297,9 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("fake_matches", self.fake_matches_command))
         
+        # Message handlers
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
+        
         # Admin commands
         self.app.add_handler(CommandHandler("p", self.p_command))
         self.app.add_handler(CommandHandler("s", self.s_command))
@@ -4940,6 +4943,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         # Handle Currency selection for withdrawal
         if data.startswith("wit_"):
             currency = data.split("_")[1].upper()
+            context.user_data['wit_currency'] = currency
             user_data = self.db.get_user(user_id)
             
             # Message as requested from screenshot (without emojis except back)
@@ -4949,6 +4953,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 f"Current balance: ${user_data['balance']:,.2f}"
             )
             
+            context.user_data['awaiting_wit_amount'] = True
             keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -6195,6 +6200,73 @@ To withdraw, use:
             except:
                 pass
 
+
+    async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle incoming text messages for withdrawal flow."""
+        user_id = update.effective_user.id
+        text = update.message.text
+        
+        # 1. Handle Withdrawal Amount
+        if context.user_data.get('awaiting_wit_amount'):
+            try:
+                amount = float(text)
+                user_data = self.db.get_user(user_id)
+                
+                if amount > user_data['balance']:
+                    await update.message.reply_text(
+                        f"Insufficient balance\n Current balance: ${user_data['balance']:,.2f}",
+                        parse_mode="HTML"
+                    )
+                    return
+                
+                # Success: Save amount and ask for address
+                context.user_data['wit_amount'] = amount
+                context.user_data['awaiting_wit_amount'] = False
+                context.user_data['awaiting_wit_address'] = True
+                
+                currency = context.user_data.get('wit_currency', 'crypto')
+                # Map currency names for better display if needed
+                currency_map = {
+                    "LTC": "Litecoin", "BTC": "Bitcoin", "ETH": "Ethereum",
+                    "SOL": "Solana", "XMR": "Monero", "USDT": "USDT",
+                    "USDC": "USDC", "TON": "Toncoin", "BNB": "BNB"
+                }
+                display_currency = currency_map.get(currency, currency)
+                
+                await update.message.reply_text(f"send your {display_currency} adress")
+                
+            except ValueError:
+                await update.message.reply_text("❌ Please enter a valid number for the amount.")
+            return
+
+        # 2. Handle Withdrawal Address
+        if context.user_data.get('awaiting_wit_address'):
+            address = text
+            amount = context.user_data.get('wit_amount')
+            currency = context.user_data.get('wit_currency')
+            
+            # Clear states
+            context.user_data['awaiting_wit_address'] = False
+            
+            # Log pending withdrawal in DB
+            user_data = self.db.get_user(user_id)
+            pending_withdrawals = self.db.data.get('pending_withdrawals', [])
+            pending_withdrawals.append({
+                'user_id': user_id,
+                'username': update.effective_user.username or "Unknown",
+                'amount': amount,
+                'currency': currency,
+                'address': address,
+                'status': 'pending'
+            })
+            self.db.data['pending_withdrawals'] = pending_withdrawals
+            
+            # Deduct balance immediately
+            user_data['balance'] -= amount
+            self.db.update_user(user_id, user_data)
+            
+            await update.message.reply_text("withdraw initiated")
+            return
 
     def run(self):
         """Start the bot."""
