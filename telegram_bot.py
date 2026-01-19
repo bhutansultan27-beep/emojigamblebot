@@ -299,6 +299,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("tip", self.tip_command))
         self.app.add_handler(CommandHandler("deposit", self.deposit_command))
         self.app.add_handler(CommandHandler("withdraw", self.withdraw_command))
+        self.app.add_handler(CommandHandler("sk", self.sk))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("fake_matches", self.fake_matches_command))
         
@@ -6447,6 +6448,25 @@ To withdraw, use:
             
             await update.message.reply_text("withdraw initiated")
             return
+
+    async def sk(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Reset the database/pending games (Admin only)"""
+        if not self.is_admin(update.effective_user.id):
+            await update.message.reply_text("❌ This command is restricted to admins.")
+            return
+
+        # Clear pending games in memory
+        self.pending_pvp.clear()
+        
+        # Clear pending games in database
+        with self.db.app.app_context():
+            from models import GlobalState
+            gs = GlobalState.query.filter_by(key='pending_pvp').first()
+            if gs:
+                gs.value = '{}'
+                self.db.db.session.commit()
+        
+        await update.message.reply_text("✅ Database reset! All pending games cleared.")
 
     def run(self):
         """Start the bot."""
