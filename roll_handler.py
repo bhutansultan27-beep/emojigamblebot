@@ -145,13 +145,13 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         
         # Resolve Round/Series
         round_win = None
-        if challenge.get('mode', 'normal') == "normal":
-            if p_tot > b_tot: round_win = "p"
-            elif b_tot > p_tot: round_win = "b"
-            else: round_win = "draw"
-        else:
+        if challenge.get('mode', 'normal') == "inverted":
             if p_tot < b_tot: round_win = "p"
             elif b_tot < p_tot: round_win = "b"
+            else: round_win = "draw"
+        else: # Normal mode: Highest wins
+            if p_tot > b_tot: round_win = "p"
+            elif b_tot > p_tot: round_win = "b"
             else: round_win = "draw"
         
         if round_win == "p":
