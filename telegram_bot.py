@@ -342,6 +342,70 @@ class AntariaCasinoBot:
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
         
         await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
+
+    async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """End all active games and refund players (Admin only)"""
+        if not self.is_admin(update.effective_user.id):
+            await update.message.reply_text("❌ This command is for administrators only.")
+            return
+
+        count = 0
+        refunded_amount = 0
+
+        # 1. Refund Blackjack sessions
+        for user_id, game in list(self.blackjack_sessions.items()):
+            try:
+                bet = getattr(game, 'initial_bet', 0)
+                if bet > 0:
+                    user_data = self.db.get_user(user_id)
+                    user_data['balance'] += bet
+                    self.db.update_user(user_id, user_data)
+                    refunded_amount += bet
+                del self.blackjack_sessions[user_id]
+                count += 1
+            except Exception as e:
+                logger.error(f"Error refunding BJ user {user_id}: {e}")
+
+        # 2. Refund PvP / Bot games in GlobalState
+        with self.db.app.app_context():
+            state = db.session.get(GlobalState, "pending_pvp")
+            if state and state.value:
+                pending_pvp = state.value
+                for cid, challenge in list(pending_pvp.items()):
+                    try:
+                        wager = challenge.get('wager', 0)
+                        if cid.startswith("v2_bot_"):
+                            pid = challenge.get('player')
+                            if pid and challenge.get('wager_deducted'):
+                                user_data = self.db.get_user(pid)
+                                user_data['balance'] += wager
+                                self.db.update_user(pid, user_data)
+                                refunded_amount += wager
+                        elif cid.startswith("v2_pvp_"):
+                            p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                            if p1 and challenge.get('p1_deducted'):
+                                user_data = self.db.get_user(p1)
+                                user_data['balance'] += wager
+                                self.db.update_user(p1, user_data)
+                                refunded_amount += wager
+                            if p2 and challenge.get('p2_deducted'):
+                                user_data = self.db.get_user(p2)
+                                user_data['balance'] += wager
+                                self.db.update_user(p2, user_data)
+                                refunded_amount += wager
+                        
+                        count += 1
+                    except Exception as e:
+                        logger.error(f"Error refunding challenge {cid}: {e}")
+                
+                # Clear the table
+                state.value = {}
+                db.session.commit()
+                # Also clear the in-memory copy
+                self.pending_pvp = {}
+
+        await update.message.reply_text(f"✅ Ended {count} games and refunded a total of ${refunded_amount:.2f}.")
+
     
     async def s_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Set the expiration time for bets (Admin only)"""
@@ -2996,6 +3060,70 @@ Examples:
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
         
         await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
+
+    async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """End all active games and refund players (Admin only)"""
+        if not self.is_admin(update.effective_user.id):
+            await update.message.reply_text("❌ This command is for administrators only.")
+            return
+
+        count = 0
+        refunded_amount = 0
+
+        # 1. Refund Blackjack sessions
+        for user_id, game in list(self.blackjack_sessions.items()):
+            try:
+                bet = getattr(game, 'initial_bet', 0)
+                if bet > 0:
+                    user_data = self.db.get_user(user_id)
+                    user_data['balance'] += bet
+                    self.db.update_user(user_id, user_data)
+                    refunded_amount += bet
+                del self.blackjack_sessions[user_id]
+                count += 1
+            except Exception as e:
+                logger.error(f"Error refunding BJ user {user_id}: {e}")
+
+        # 2. Refund PvP / Bot games in GlobalState
+        with self.db.app.app_context():
+            state = db.session.get(GlobalState, "pending_pvp")
+            if state and state.value:
+                pending_pvp = state.value
+                for cid, challenge in list(pending_pvp.items()):
+                    try:
+                        wager = challenge.get('wager', 0)
+                        if cid.startswith("v2_bot_"):
+                            pid = challenge.get('player')
+                            if pid and challenge.get('wager_deducted'):
+                                user_data = self.db.get_user(pid)
+                                user_data['balance'] += wager
+                                self.db.update_user(pid, user_data)
+                                refunded_amount += wager
+                        elif cid.startswith("v2_pvp_"):
+                            p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                            if p1 and challenge.get('p1_deducted'):
+                                user_data = self.db.get_user(p1)
+                                user_data['balance'] += wager
+                                self.db.update_user(p1, user_data)
+                                refunded_amount += wager
+                            if p2 and challenge.get('p2_deducted'):
+                                user_data = self.db.get_user(p2)
+                                user_data['balance'] += wager
+                                self.db.update_user(p2, user_data)
+                                refunded_amount += wager
+                        
+                        count += 1
+                    except Exception as e:
+                        logger.error(f"Error refunding challenge {cid}: {e}")
+                
+                # Clear the table
+                state.value = {}
+                db.session.commit()
+                # Also clear the in-memory copy
+                self.pending_pvp = {}
+
+        await update.message.reply_text(f"✅ Ended {count} games and refunded a total of ${refunded_amount:.2f}.")
+
 
     async def allusers_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all registered users (Admin only)"""
