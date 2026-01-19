@@ -5631,6 +5631,15 @@ To deposit, send LTC to the address below:
                     
                     del self.pending_pvp[cid]
                     self.db.update_pending_pvp(self.pending_pvp)
+                    
+                    # Try to delete the original command message if it exists
+                    try:
+                        cmd_msg_id = challenge.get('message_id') # Original command message id is stored here
+                        if cmd_msg_id:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_msg_id)
+                    except Exception as e:
+                        logger.debug(f"Could not delete original command message: {e}")
+                        
                     await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
                 else:
                     await query.answer("❌ Game no longer exists!", show_alert=True)
@@ -5955,6 +5964,15 @@ To deposit, send LTC to the address below:
                     
                     del self.pending_pvp[cid]
                     self.db.update_pending_pvp(self.pending_pvp)
+                    
+                    # Try to delete the original command message if it exists
+                    try:
+                        cmd_msg_id = challenge.get('message_id') # Original command message id is stored here
+                        if cmd_msg_id:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_msg_id)
+                    except Exception as e:
+                        logger.debug(f"Could not delete original command message: {e}")
+                        
                     await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
                 else:
                     await query.answer("❌ Game no longer exists!", show_alert=True)
@@ -6117,6 +6135,15 @@ To deposit, send LTC to the address below:
                     
                     del self.pending_pvp[cid]
                     self.db.update_pending_pvp(self.pending_pvp)
+                    
+                    # Try to delete the original command message if it exists
+                    try:
+                        cmd_msg_id = challenge.get('message_id') # Original command message id is stored here
+                        if cmd_msg_id:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_msg_id)
+                    except Exception as e:
+                        logger.debug(f"Could not delete original command message: {e}")
+                        
                     await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
                 else:
                     await query.answer("❌ Game no longer exists!", show_alert=True)
