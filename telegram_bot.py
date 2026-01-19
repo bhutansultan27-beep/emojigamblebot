@@ -4758,10 +4758,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         keyboard = [
             [InlineKeyboardButton("Join Challenge", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{rolls}_{mode}_{pts}_{cid}")],
-            [InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll")]
+            [InlineKeyboardButton("❌ Cancel", callback_data=f"v2_pvp_cancel_{cid}")]
         ]
         msg_text = f"{emoji} **{game.capitalize()} PvP**\nChallenger: @{user_data.get('username', 'User')}\nWager: ${wager:.2f}\nMode: {mode.capitalize()}\nTarget: {pts}\n\nClick below to join!"
         
+        # Save the original command message ID if it exists for deletion later
+        if update.message:
+            context.user_data[f"last_dice_msg_{cid}"] = update.message.message_id
+
         if update.callback_query:
             sent_msg = await update.callback_query.edit_message_text(text=msg_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         else:
@@ -6026,6 +6030,34 @@ To deposit, send LTC to the address below:
                             await context.bot.delete_message(chat_id=chat_id, message_id=last_cmd_id)
                 except Exception as e:
                     logger.error(f"Error in setup_cancel_roll: {e}")
+                return
+
+            elif data.startswith("v2_pvp_cancel_"):
+                cid = data.replace("v2_pvp_cancel_", "")
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    # Refund the challenger
+                    challenger_id = challenge['challenger']
+                    wager = challenge['wager']
+                    user_data = self.db.get_user(challenger_id)
+                    self.db.update_user(challenger_id, {'balance': user_data['balance'] + wager})
+                    
+                    # Remove from pending
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    
+                    try:
+                        # Delete the challenge message
+                        await query.message.delete()
+                        # Delete the original command message if tracked
+                        orig_msg_id = context.user_data.get(f"last_dice_msg_{cid}")
+                        if orig_msg_id:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=orig_msg_id)
+                            del context.user_data[f"last_dice_msg_{cid}"]
+                    except Exception as e:
+                        logger.error(f"Error in v2_pvp_cancel: {e}")
+                else:
+                    await query.answer("❌ Challenge no longer exists!", show_alert=True)
                 return
 
             elif data.startswith("setup_bet_back_"):
