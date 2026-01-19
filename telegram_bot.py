@@ -2631,6 +2631,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 message += "Dealer has Blackjack!\n\n"
             
             total_payout = state['total_payout']
+            total_bet = sum(h['bet'] for h in state['player_hands'])
             if total_payout > 0:
                 message += f"✅ **You won ${total_payout:.2f}!**"
             elif total_payout < 0:
@@ -2649,7 +2650,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.db.update_user(user_id, user_data)
             
             if total_payout > 0:
-                self.db.add_transaction(user_id, "blackjack_win", total_payout, f"Blackjack Win (Bet: {state['total_bet']:.2f})")
+                self.db.add_transaction(user_id, "blackjack_win", total_payout, f"Blackjack Win (Bet: {total_bet:.2f})")
             
             # Clean up session
             del self.blackjack_sessions[user_id]
