@@ -1311,6 +1311,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             else:
                 mode_display = "Normal" if mode == "normal" else "Crazy"
             
+            user_data = self.db.get_user(user_id)
             user_mention = f'<a href="tg://user?id={user_id}">{user_data.get("username", "User")}</a>'
             
             if opponent == "bot":
