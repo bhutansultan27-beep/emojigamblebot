@@ -1511,48 +1511,28 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def dice_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play dice game setup (direct to bet selection)"""
+        """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        amount = 1.0
+        if context.args:
+            try:
+                arg = context.args[0].lower().replace('$', '').replace(',', '')
+                if arg == 'all':
+                    user_id = update.effective_user.id
+                    user_data = self.db.get_user(user_id)
+                    amount = user_data['balance']
+                else:
+                    amount = float(arg)
+            except ValueError:
+                pass
         
-        user_id = update.effective_user.id
-        user_data = self.db.get_user(user_id)
-        
-        # Initial bet menu text
-        text = (
-            "🎲 <b>Dice</b>\n\n"
-            f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-            "Select your bet amount:"
-        )
-        
-        # Consistent bet buttons
-        keyboard = [
-            [
-                InlineKeyboardButton("$1", callback_data="setup_bet_select_1.00_dice"),
-                InlineKeyboardButton("$2", callback_data="setup_bet_select_2.00_dice"),
-                InlineKeyboardButton("$5", callback_data="setup_bet_select_5.00_dice")
-            ],
-            [
-                InlineKeyboardButton("$10", callback_data="setup_bet_select_10.00_dice"),
-                InlineKeyboardButton("$25", callback_data="setup_bet_select_25.00_dice"),
-                InlineKeyboardButton("$50", callback_data="setup_bet_select_50.00_dice")
-            ],
-            [
-                InlineKeyboardButton("All In", callback_data=f"setup_bet_select_{user_data['balance']:.2f}_dice")
-            ],
-            [
-                InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel_roll")
-            ]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        sent_msg = await update.message.reply_text(
-            text, 
-            reply_markup=reply_markup, 
-            parse_mode="HTML",
-            reply_to_message_id=update.message.message_id
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        # Ensure minimum bet
+        if amount < 1.0:
+            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
+            return
+
+        await self._show_game_prediction_menu(update, context, amount, "dice")
 
     async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play darts game setup"""
@@ -1909,48 +1889,28 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def dice_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play dice game setup (direct to bet selection)"""
+        """Play dice game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
+        amount = 1.0
+        if context.args:
+            try:
+                arg = context.args[0].lower().replace('$', '').replace(',', '')
+                if arg == 'all':
+                    user_id = update.effective_user.id
+                    user_data = self.db.get_user(user_id)
+                    amount = user_data['balance']
+                else:
+                    amount = float(arg)
+            except ValueError:
+                pass
         
-        user_id = update.effective_user.id
-        user_data = self.db.get_user(user_id)
-        
-        # Initial bet menu text
-        text = (
-            "🎲 <b>Dice</b>\n\n"
-            f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-            "Select your bet amount:"
-        )
-        
-        # Consistent bet buttons
-        keyboard = [
-            [
-                InlineKeyboardButton("$1", callback_data="setup_bet_select_1.00_dice"),
-                InlineKeyboardButton("$2", callback_data="setup_bet_select_2.00_dice"),
-                InlineKeyboardButton("$5", callback_data="setup_bet_select_5.00_dice")
-            ],
-            [
-                InlineKeyboardButton("$10", callback_data="setup_bet_select_10.00_dice"),
-                InlineKeyboardButton("$25", callback_data="setup_bet_select_25.00_dice"),
-                InlineKeyboardButton("$50", callback_data="setup_bet_select_50.00_dice")
-            ],
-            [
-                InlineKeyboardButton("All In", callback_data=f"setup_bet_select_{user_data['balance']:.2f}_dice")
-            ],
-            [
-                InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel_roll")
-            ]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        sent_msg = await update.message.reply_text(
-            text, 
-            reply_markup=reply_markup, 
-            parse_mode="HTML",
-            reply_to_message_id=update.message.message_id
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        # Ensure minimum bet
+        if amount < 1.0:
+            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
+            return
+
+        await self._show_game_prediction_menu(update, context, amount, "dice")
 
     async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play darts game setup"""
