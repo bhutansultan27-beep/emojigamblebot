@@ -1,35 +1,31 @@
 # Antaria Casino Telegram Bot
 
 ## Overview
-This is a Telegram casino bot built with Python using the python-telegram-bot library. It features various gambling games including dice, blackjack, roulette, and more.
+A Telegram casino bot that allows users to play various games like dice, blackjack, roulette, and coinflip. Uses PostgreSQL for database persistence and Flask-SQLAlchemy for ORM.
 
 ## Project Structure
 - `main.py` - Main bot application with all command handlers and game logic
 - `models.py` - SQLAlchemy database models (User, Game, Transaction, GlobalState)
-- `blackjack.py` - Blackjack game logic implementation
-- `predict_handler.py` - Prediction game handler for emoji dice games
+- `blackjack.py` - Blackjack game logic
+- `predict_handler.py` - Prediction/match betting handler
 
-## Tech Stack
-- Python 3.11
-- python-telegram-bot (v22.x with job-queue)
-- Flask + Flask-SQLAlchemy (for database ORM)
-- PostgreSQL database
-- Gunicorn (for production)
+## Environment Variables
+Required:
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token
+- `DATABASE_URL` - PostgreSQL connection string
 
-## Required Environment Variables
-- `TELEGRAM_BOT_TOKEN` - Your Telegram Bot API token (REQUIRED)
-- `DATABASE_URL` - PostgreSQL connection string (auto-configured)
-- `SESSION_SECRET` - Flask session secret
-- `ADMIN_IDS` - Comma-separated list of Telegram user IDs for admin access
+Optional:
+- `ADMIN_IDS` - Comma-separated list of Telegram user IDs who have admin privileges
 
 ## Running the Bot
-The bot runs via the "Telegram Bot" workflow using `python main.py`. It requires the TELEGRAM_BOT_TOKEN to be set as a secret.
+The bot runs via the "Telegram Bot" workflow which executes `python main.py`.
 
-## Database Models
-- **User** - Stores user balance, stats, referral info
-- **Game** - Records game history
-- **Transaction** - Transaction logs
-- **GlobalState** - Global configuration (house balance, stickers, etc.)
+## Database
+Uses PostgreSQL with the following tables:
+- `users` - User accounts with balance, stats, referrals
+- `games` - Game history records
+- `transactions` - Transaction history
+- `global_state` - Key-value store for bot configuration
 
-## Recent Changes
-- 2026-01-18: Migrated to Replit environment, fixed telegram package conflict
+## Deployment
+Configured for VM deployment since the bot needs to run continuously.

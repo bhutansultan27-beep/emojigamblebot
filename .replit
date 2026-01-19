@@ -30,8 +30,8 @@ task = "shell.exec"
 args = "python main.py"
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+deploymentTarget = "vm"
+run = ["python", "main.py"]
 
 [[ports]]
 localPort = 5000
