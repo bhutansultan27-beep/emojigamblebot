@@ -5359,7 +5359,15 @@ To deposit, send LTC to the address below:
                     challenge['p_rolls'] = []
                     # Re-show roll button
                     kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{p1_name}</b>, your turn! {emoji}", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                    # Reply to the game details message
+                    reply_to_id = challenge.get('msg_id')
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=f"<b>{p1_name}</b>, your turn! {emoji}", 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML",
+                        reply_to_message_id=reply_to_id
+                    )
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     self.db.update_pending_pvp(self.pending_pvp)
                     return
@@ -5415,7 +5423,15 @@ To deposit, send LTC to the address below:
                         [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
                         [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
                     ]
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                    # Ensure the score message is a reply to the game details message (challenge['msg_id'])
+                    reply_to_id = challenge.get('msg_id')
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML",
+                        reply_to_message_id=reply_to_id
+                    )
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 
                 self.db.update_pending_pvp(self.pending_pvp)
