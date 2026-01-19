@@ -5160,6 +5160,8 @@ To deposit, send LTC to the address below:
             return
 
         if data.startswith("v2_pvp_create_"):
+            # Mark the button as clicked to prevent further interaction with this setup menu
+            self.clicked_buttons.add(button_key)
             parts = data.split("_")
             game, wager, rolls, mode, pts = parts[3], float(parts[4]), int(parts[5]), parts[6], int(parts[7])
             await self.start_generic_v2_pvp(update, context, game, wager, rolls, mode, pts)
@@ -5215,7 +5217,7 @@ To deposit, send LTC to the address below:
         await query.answer()
         
         # Mark button as clicked for game buttons
-        if any(data.startswith(prefix) for prefix in ["v2_bot_", "v2_pvp_", "v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral"]):
+        if any(data.startswith(prefix) for prefix in ["v2_bot_", "v2_pvp_", "v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "emoji_setup_", "predict_start_", "setup_predict_select_", "setup_bet_"]):
             self.clicked_buttons.add(button_key)
         
         try:
@@ -5238,6 +5240,8 @@ To deposit, send LTC to the address below:
 
             # Emoji game setup callbacks
             if data.startswith("v2_send_emoji_"):
+                # Mark it here too to be absolutely sure
+                self.clicked_buttons.add(button_key)
                 parts = data.split("_")
                 # Format: v2_send_emoji_bot_{g_mode}_{wager}_{rolls}_{mode}_{pts}
                 # OR v2_send_emoji_{cid}
