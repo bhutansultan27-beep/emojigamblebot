@@ -507,7 +507,7 @@ requires-dist = [
     { name = "flask-sqlalchemy", specifier = ">=3.1.1" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
-    { name = "python-telegram-bot", extras = ["job-queue"], specifier = "==22.5" },
+    { name = "python-telegram-bot", extras = ["job-queue"], specifier = ">=20.0" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "sqlalchemy", specifier = ">=2.0.45" },
     { name = "werkzeug", specifier = ">=3.1.5" },
