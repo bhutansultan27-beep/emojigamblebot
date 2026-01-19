@@ -1816,12 +1816,12 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         keyboard = []
         keyboard.extend(prediction_rows)
         keyboard.extend([
-            [InlineKeyboardButton("Half Bet", callback_data=f"setup_mode_predict_{max(1.0, wager/2):.2f}_{game_mode}"),
+            [InlineKeyboardButton("Half Bet", callback_data=f"setup_mode_predict_edit_{max(1.0, wager/2):.2f}_{game_mode}"),
              InlineKeyboardButton(f"Bet: ${wager:,.2f}", callback_data="none"),
-             InlineKeyboardButton("Double Bet", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")],
-            [InlineKeyboardButton("⬅️", callback_data=f"setup_mode_predict_{wager:.2f}_{prev_mode}"),
+             InlineKeyboardButton("Double Bet", callback_data=f"setup_mode_predict_edit_{wager*2:.2f}_{game_mode}")],
+            [InlineKeyboardButton("⬅️", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{prev_mode}"),
              InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
-             InlineKeyboardButton("➡️", callback_data=f"setup_mode_predict_{wager:.2f}_{next_mode}")],
+             InlineKeyboardButton("➡️", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{next_mode}")],
             [InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll"),
              InlineKeyboardButton("✅ Start", callback_data=f"predict_start_{wager:.2f}_{game_mode}")]
         ])
@@ -6371,6 +6371,13 @@ To deposit, send LTC to the address below:
             if data.startswith("flip_bot_"):
                 wager = float(data.split("_")[2])
                 await self._show_game_prediction_menu(update, context, wager, "coinflip")
+                return
+
+            if data.startswith("setup_mode_predict_edit_"):
+                parts = data.split("_")
+                wager = float(parts[4])
+                game_mode = parts[5] if len(parts) > 5 else "dice"
+                await self._setup_predict_interface(update, context, wager, game_mode, force_new=False)
                 return
 
             if data.startswith("setup_mode_predict_"):

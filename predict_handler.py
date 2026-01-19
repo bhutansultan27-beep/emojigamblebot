@@ -12,6 +12,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
     user_id = query.from_user.id
     chat_id = query.message.chat_id
 
+    if data.startswith("setup_mode_predict_edit_"):
+        parts = data.split("_")
+        wager = float(parts[4])
+        game_mode = parts[5]
+        await bot_instance._setup_predict_interface(update, context, wager, game_mode, force_new=False)
+        return
+
     if data.startswith("setup_mode_predict_"):
         # Remove buttons from the result message
         try:
