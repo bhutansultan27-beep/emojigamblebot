@@ -5376,8 +5376,9 @@ To deposit, send LTC to the address below:
                     challenge['p_rolls'] = []
                     # Re-show roll button
                     kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
+                    
                     # Reply to the game details message
-                    reply_to_id = challenge.get('msg_id')
+                    reply_to_id = challenge.get('message_id')
                     sent_msg = await context.bot.send_message(
                         chat_id=chat_id, 
                         text=f"<b>{p1_name}</b>, your turn! {emoji}", 
@@ -5407,7 +5408,16 @@ To deposit, send LTC to the address below:
                         )
                         kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
-                        sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                        
+                        # Reply to the game details message
+                        reply_to_id = challenge.get('message_id')
+                        sent_msg = await context.bot.send_message(
+                            chat_id=chat_id, 
+                            text=win_text, 
+                            reply_markup=InlineKeyboardMarkup(kb), 
+                            parse_mode="HTML",
+                            reply_to_message_id=reply_to_id
+                        )
                         self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     else:
                         self.db.update_house_balance(w)
@@ -5419,7 +5429,16 @@ To deposit, send LTC to the address below:
                         )
                         kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
-                        sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                        
+                        # Reply to the game details message
+                        reply_to_id = challenge.get('message_id')
+                        sent_msg = await context.bot.send_message(
+                            chat_id=chat_id, 
+                            text=loss_text, 
+                            reply_markup=InlineKeyboardMarkup(kb), 
+                            parse_mode="HTML",
+                            reply_to_message_id=reply_to_id
+                        )
                         self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     
                     del self.pending_pvp[cid]
@@ -5441,6 +5460,17 @@ To deposit, send LTC to the address below:
                         [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
                         [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
                     ]
+                    
+                    # Reply to the game details message
+                    reply_to_id = challenge.get('message_id')
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML",
+                        reply_to_message_id=reply_to_id
+                    )
+                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     # Ensure the score message is a reply to the game details message (challenge['msg_id'])
                     reply_to_id = challenge.get('msg_id')
                     sent_msg = await context.bot.send_message(
