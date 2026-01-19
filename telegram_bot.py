@@ -3716,9 +3716,19 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     if challenge.get('challenger') != user_id and challenge.get('opponent') != user_id:
                         continue
                 
+                # If they already clicked the button and bot is rolling for them, ignore manual rolls
+                if challenge.get('bot_is_rolling'):
+                    continue
+
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
-                # The process_generic_v2_roll should be called to handle it.
+                # Remove the "Send emoji" button if it exists
+                if challenge.get('message_id'):
+                    try:
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=challenge['message_id'], reply_markup=None)
+                    except:
+                        pass
+
                 await self.process_generic_v2_roll(update, context, cid, dice_value, emoji)
                 return
 
@@ -4094,24 +4104,30 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
             
+            # Save progress
+            self.db.update_pending_pvp(self.pending_pvp)
+
             if challenge['cur_rolls'] < challenge['rolls']:
                 # Need more rolls
                 p1_name = self.db.get_user(user_id).get('username', f'User{user_id}')
+                # Use bold name
+                bold_name = f"<b>{p1_name}</b>"
                 reply_to_id = challenge.get('message_id')
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"<b>{p1_name}</b>, roll again! ({challenge['cur_rolls']}/{challenge['rolls']}) {emoji}",
-                    reply_to_message_id=reply_to_id,
-                    parse_mode="HTML"
-                )
+                
+                # Give user 3 seconds to send next emoji before nagging
+                await asyncio.sleep(3)
+                # Re-check if they rolled in those 3 seconds
+                if len(challenge['p_rolls']) < challenge['rolls']:
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"{bold_name}, roll again! ({challenge['cur_rolls']}/{challenge['rolls']}) {emoji}",
+                        reply_to_message_id=reply_to_id,
+                        parse_mode="HTML"
+                    )
             else:
                 # Player finished, trigger bot response
-                # We can reuse the logic in the callback by simulating a "finished player turn" state
-                # or just call the resolution logic. For simplicity, we'll let the user click "Send emoji" 
-                # or we can automatically trigger the bot. 
-                # Let's automatically trigger the bot sequence by calling a specialized method if it existed,
-                # but here we'll just continue the bot turn.
                 challenge['waiting_for_emoji'] = False
+                challenge['bot_is_rolling'] = True
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 # Bot turn starts
@@ -4119,15 +4135,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 
                 challenge['b_rolls'] = []
                 for _ in range(challenge['rolls']):
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(4)
                     d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
                     bv = d.dice.value
                     bs = (1 if bv >= 4 else 0) if emoji in ["⚽", "🏀"] else bv
                     challenge['b_rolls'].append(bs)
-                    await asyncio.sleep(2)
                 
-                # Resolve round (reusing the logic structure from callback)
-                # Re-load for safety
+                # Wait for last bot dice
+                await asyncio.sleep(4)
+
+                # Resolve round
                 self.pending_pvp = self.db.data.get('pending_pvp', {})
                 challenge = self.pending_pvp.get(cid)
                 if not challenge: return
@@ -4148,18 +4165,87 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 if round_win == "p": challenge['p_pts'] += 1
                 elif round_win == "b": challenge['b_pts'] += 1
                 
-                # ... the rest of the resolution logic is similar to the callback ...
-                # To avoid massive code duplication, we'll just handle the basic point update here
-                # and then call the common resolution display logic if possible.
-                # For now, let's just make sure the bot "sees" the roll.
+                # Reset for next round or finish
+                challenge['bot_is_rolling'] = False
                 
-                self.db.update_pending_pvp(self.pending_pvp)
-                # Call the same resolution logic used in the callback (we'll need to refactor it or duplicate for now)
-                # Given Fast Mode, I will ensure the manual roll at least increments the points.
+                # Call handle_game_resolution if it was refactored, or just handle it here
+                # (Due to complexity of existing code, I'll ensure p_pts/b_pts are updated and handled)
+                await self._finalize_v2_round(update, context, cid)
         
         elif cid.startswith("v2_pvp_"):
             # PvP manual roll logic...
             pass
+        
+        self.db.update_pending_pvp(self.pending_pvp)
+
+    async def _finalize_v2_round(self, update, context, cid):
+        """Finalize a V2 round after all rolls are done"""
+        challenge = self.pending_pvp.get(cid)
+        if not challenge: return
+        chat_id = challenge['chat_id']
+        user_id = challenge['player']
+        game = challenge.get('game', 'dice')
+        target_pts = challenge.get('pts', 1)
+        w = challenge['wager']
+        rolls = challenge['rolls']
+        mode = challenge['mode']
+        emoji = challenge['emoji']
+
+        if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
+            # Series End logic
+            if challenge['p_pts'] >= target_pts:
+                payout = w * 1.95
+                u = self.db.get_user(user_id)
+                u['balance'] += payout
+                self.db.update_user(user_id, {'balance': u['balance']})
+                self.db.update_house_balance(-(payout - w))
+                
+                p1_name = u.get('username', f'User{user_id}')
+                p1_mention = f'<a href="tg://user?id={user_id}"><b>{p1_name}</b></a>'
+                win_text = f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+                
+                reply_to_id = challenge.get('message_id')
+                sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+                self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+            else:
+                self.db.update_house_balance(w)
+                u = self.db.get_user(user_id)
+                p1_name = u.get('username', f'User{user_id}')
+                loss_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+                
+                reply_to_id = challenge.get('message_id')
+                sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+                self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+            
+            del self.pending_pvp[cid]
+        else:
+            # Next Round
+            challenge['p_rolls'] = []
+            challenge['b_rolls'] = []
+            challenge['cur_rolls'] = 0
+            challenge['waiting_for_emoji'] = True
+            u = self.db.get_user(user_id)
+            p1_name = u.get('username', f'User{user_id}')
+            text = (
+                f"<b>Score</b>\n\n"
+                f"{p1_name}: {challenge['p_pts']}\n"
+                f"Rukia: {challenge['b_pts']}\n\n"
+                f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+            )
+            cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
+            cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
+            kb = [
+                [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
+                [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
+            ]
+            
+            reply_to_id = challenge.get('message_id')
+            sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+            self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         
         self.db.update_pending_pvp(self.pending_pvp)
 
@@ -5379,24 +5465,29 @@ To deposit, send LTC to the address below:
                 except Exception as e:
                     logger.error(f"Error removing reply markup: {e}")
                 
+                # Mark that bot is rolling to ignore manual rolls
+                challenge['bot_is_rolling'] = True
+                self.db.update_pending_pvp(self.pending_pvp)
+
                 emoji = challenge['emoji']
                 # Send emojis for user based on number of rolls
                 num_rolls = challenge.get('rolls', 1)
                 pts = challenge.get('pts', 1)
                 
-                for _ in range(num_rolls):
+                for i in range(num_rolls):
                     try:
                         msg = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
                         val = msg.dice.value
                         score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
                         challenge['p_rolls'].append(score)
+                        challenge['cur_rolls'] += 1
+                        self.db.update_pending_pvp(self.pending_pvp)
                     except Exception as e:
                         logger.error(f"Error sending player dice: {e}")
                         await context.bot.send_message(chat_id=chat_id, text="❌ Error sending dice. Please try again.")
                         return
-                
-                # Save rolls before sleeping to avoid losing them if state is re-loaded
-                self.db.update_pending_pvp(self.pending_pvp)
+                    if i < num_rolls - 1:
+                        await asyncio.sleep(4)
                 
                 await asyncio.sleep(4)
                 
