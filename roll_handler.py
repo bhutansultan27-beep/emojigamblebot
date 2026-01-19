@@ -147,17 +147,13 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             logger.error(f"Challenge {cid} not found after rolls")
             return
         
-        # Resolve Round/Series
-        round_win = None
-        # Mode is stored in challenge.get('mode')
-        game_mode_type = challenge.get('mode', 'normal')
-        
         # NORMAL mode: Highest wins
         # INVERTED mode: Lowest wins
         
         p_tot = sum(challenge['p_rolls'])
         b_tot = sum(challenge.get('b_rolls', [b_tot]))
         
+        game_mode_type = challenge.get('mode', 'normal') # Define it before use
         if game_mode_type == "inverted": # Crazy mode: Lowest wins
             if p_tot < b_tot: 
                 round_win = "p"
