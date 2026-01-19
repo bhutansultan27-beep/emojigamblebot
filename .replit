@@ -16,22 +16,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Telegram Bot"
+args = "Start application"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Telegram Bot"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python telegram_bot.py"
+args = "Telegram Bot"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -44,6 +33,17 @@ outputType = "webview"
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Telegram Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python telegram_bot.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [deployment]
 deploymentTarget = "autoscale"
