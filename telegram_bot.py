@@ -6391,11 +6391,14 @@ To deposit, send LTC to the address below:
                 # Remove buttons from the result message
                 try:
                     await query.edit_message_reply_markup(reply_markup=None)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Error removing markup: {e}")
                     
                 parts = data.split("_")
-                wager = float(parts[3])
+                try:
+                    wager = float(parts[3])
+                except (ValueError, IndexError):
+                    wager = 10.0
                 game_mode = parts[4] if len(parts) > 4 else "dice"
                 # Force a new message instead of editing
                 await self._setup_predict_interface(update, context, wager, game_mode, force_new=True)

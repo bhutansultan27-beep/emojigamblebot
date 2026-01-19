@@ -26,8 +26,8 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         # Remove buttons from the result message
         try:
             await query.edit_message_reply_markup(reply_markup=None)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error removing markup in setup_mode_predict: {e}")
             
         parts = data.split("_")
         try:
