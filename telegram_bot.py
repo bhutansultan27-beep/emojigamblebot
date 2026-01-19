@@ -6227,6 +6227,25 @@ To deposit, send LTC to the address below:
                 user_id = query.from_user.id
                 if hasattr(self, "_predict_selections") and user_id in self._predict_selections:
                     del self._predict_selections[user_id]
+                
+                # IMPORTANT: Remove from pending_pvp to allow new games
+                # We need to find if this user has any pending games in self.pending_pvp
+                for cid in list(self.pending_pvp.keys()):
+                    challenge = self.pending_pvp[cid]
+                    if (challenge.get('player') == user_id or 
+                        challenge.get('challenger') == user_id or 
+                        challenge.get('opponent') == user_id):
+                        # Refund if wager was deducted
+                        wager = challenge.get('wager', 0)
+                        if challenge.get('wager_deducted') or challenge.get('p1_deducted'):
+                            user_data = self.db.get_user(user_id)
+                            user_data['balance'] += wager
+                            self.db.update_user(user_id, user_data)
+                        
+                        del self.pending_pvp[cid]
+                
+                self.db.update_pending_pvp(self.pending_pvp)
+                
                 try:
                     await query.message.delete()
                     if query.message.reply_to_message:
@@ -6239,6 +6258,24 @@ To deposit, send LTC to the address below:
                 user_id = query.from_user.id
                 if hasattr(self, "_predict_selections") and user_id in self._predict_selections:
                     del self._predict_selections[user_id]
+                
+                # IMPORTANT: Remove from pending_pvp to allow new games
+                for cid in list(self.pending_pvp.keys()):
+                    challenge = self.pending_pvp[cid]
+                    if (challenge.get('player') == user_id or 
+                        challenge.get('challenger') == user_id or 
+                        challenge.get('opponent') == user_id):
+                        # Refund if wager was deducted
+                        wager = challenge.get('wager', 0)
+                        if challenge.get('wager_deducted') or challenge.get('p1_deducted'):
+                            user_data = self.db.get_user(user_id)
+                            user_data['balance'] += wager
+                            self.db.update_user(user_id, user_data)
+                        
+                        del self.pending_pvp[cid]
+                
+                self.db.update_pending_pvp(self.pending_pvp)
+
                 try:
                     await query.message.delete()
                     if query.message.reply_to_message:
