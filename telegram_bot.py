@@ -3765,15 +3765,15 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             db.session.commit()
                     
                     p_tot = sum(challenge['p_rolls'][-challenge['rolls']:])
-                    # Delete old cashout message before bot speaks
+                    # Remove button from old cashout message before bot speaks
                     old_msg_id = challenge.get('cashout_msg_id')
                     if old_msg_id:
                         try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                             challenge['cashout_msg_id'] = None
                             self.db.update_pending_pvp(self.pending_pvp)
                         except Exception as e:
-                            logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+                            logger.warning(f"Failed to remove button from old cashout message: {e}")
 
                     await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!")
                     
@@ -3891,13 +3891,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         keyboard = [[InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]]
                         reply_markup = InlineKeyboardMarkup(keyboard)
                         
-                        # Delete old cashout message if exists
+                        # Remove button from old cashout message if exists
                         old_msg_id = challenge.get('cashout_msg_id')
                         if old_msg_id:
                             try:
-                                await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                             except Exception as e:
-                                logger.warning(f"Failed to delete old cashout message: {e}")
+                                logger.warning(f"Failed to remove button from old cashout message: {e}")
 
                         sent_msg = await context.bot.send_message(chat_id=chat_id, text=round_text, reply_markup=reply_markup, parse_mode="HTML")
                         challenge['cashout_msg_id'] = sent_msg.message_id
@@ -4156,15 +4156,15 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 challenge['bot_is_rolling'] = True
                 self.db.update_pending_pvp(self.pending_pvp)
                 
-                # Delete old cashout message before bot speaks
+                # Remove button from old cashout message before bot speaks
                 old_msg_id = challenge.get('cashout_msg_id')
                 if old_msg_id:
                     try:
-                        await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                         challenge['cashout_msg_id'] = None
                         self.db.update_pending_pvp(self.pending_pvp)
                     except Exception as e:
-                        logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+                        logger.warning(f"Failed to remove button from old cashout message: {e}")
 
                 # Bot turn starts
                 await context.bot.send_message(chat_id=chat_id, text=f"<b>Bot</b>, your turn!", parse_mode="HTML")
@@ -4235,13 +4235,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         b_tot = sum(challenge.get('b_rolls', []))
 
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-            # Delete final cashout message if it exists
+            # Remove button from final cashout message if it exists
             old_msg_id = challenge.get('cashout_msg_id')
             if old_msg_id:
                 try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 except Exception as e:
-                    logger.warning(f"Failed to delete old cashout message at game end: {e}")
+                    logger.warning(f"Failed to remove button from final cashout message: {e}")
 
             # Series End logic
             if challenge['p_pts'] >= target_pts:
@@ -4306,13 +4306,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
             ]
             
-            # Delete old cashout message
+            # Remove button from old cashout message
             old_msg_id = challenge.get('cashout_msg_id')
             if old_msg_id:
                 try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 except Exception as e:
-                    logger.warning(f"Failed to delete old cashout message: {e}")
+                    logger.warning(f"Failed to remove button from old cashout message: {e}")
 
             reply_to_id = challenge.get('message_id')
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
@@ -5572,15 +5572,15 @@ To deposit, send LTC to the address below:
                     return
 
                 p_tot = sum(challenge['p_rolls'])
-                # Delete old cashout message before bot speaks
+                # Remove button from old cashout message before bot speaks
                 old_msg_id = challenge.get('cashout_msg_id')
                 if old_msg_id:
                     try:
-                        await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                         challenge['cashout_msg_id'] = None
                         self.db.update_pending_pvp(self.pending_pvp)
                     except Exception as e:
-                        logger.warning(f"Failed to delete old cashout message before bot turn: {e}")
+                        logger.warning(f"Failed to remove button from old cashout message: {e}")
 
                 await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
                 
@@ -5728,13 +5728,13 @@ To deposit, send LTC to the address below:
                         [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
                     ]
                     
-                    # Delete old cashout message
+                    # Remove button from old cashout message
                     old_msg_id = challenge.get('cashout_msg_id')
                     if old_msg_id:
                         try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                         except Exception as e:
-                            logger.warning(f"Failed to delete old cashout message: {e}")
+                            logger.warning(f"Failed to remove button from old cashout message: {e}")
 
                     # Reply to the game details message
                     reply_to_id = challenge.get('message_id')

@@ -125,11 +125,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
 
         p_tot = sum(challenge['p_rolls'])
 
-        # Delete old cashout message before bot speaks
+        # Remove button from old cashout message before bot speaks
         old_msg_id = challenge.get('cashout_msg_id')
         if old_msg_id:
             try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 challenge['cashout_msg_id'] = None
                 bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
             except Exception as e:
@@ -202,11 +202,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         
         target_pts = challenge.get('pts', 1)
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-            # Delete final cashout message if it exists
+            # Remove button from final cashout message if it exists
             old_msg_id = challenge.get('cashout_msg_id')
             if old_msg_id:
                 try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 except Exception as e:
                     pass
 
@@ -277,11 +277,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
             ]
             
-            # Delete old cashout message
+            # Remove button from old cashout message
             old_msg_id = challenge.get('cashout_msg_id')
             if old_msg_id:
                 try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 except Exception as e:
                     # logger not imported here, but we can use print or skip
                     pass
