@@ -4466,19 +4466,23 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         try:
             # Answer the query
             await query.answer()
-            # Send a NEW message as shown in the screenshot
+            
+            # Send the new "Match accepted" message as a NEW message
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id, 
                 text=msg_text, 
                 reply_markup=InlineKeyboardMarkup(kb), 
                 parse_mode="HTML"
             )
-            # Register ownership for the new message
+            # Register ownership for the NEW message
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+            
+            # DO NOT edit or delete the original query.message (the Game Details menu)
+            # This keeps the original menu with its buttons intact as requested.
             
         except Exception as e:
             logger.error(f"Error sending match accepted message: {e}")
-            # Fallback edit if message sending fails
+            # Fallback only if message sending fails
             try:
                 await query.edit_message_text(text=msg_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
             except Exception as inner_e:
