@@ -1324,8 +1324,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             )
             
             is_private = update.effective_chat.type == "private"
-            if not is_private and opponent != "bot":
-                text += f"• Opponent: <b>{opponent_display}</b>\n"
             
             text += f"\nReady to start?"
             
