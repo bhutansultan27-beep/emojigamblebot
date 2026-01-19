@@ -5944,7 +5944,26 @@ To deposit, send LTC to the address below:
                 bold_username = f"<b>{username}</b>"
                 bold_amount = f"<b>${cashout_val:.2f}</b>"
                 
-                await query.edit_message_text(f"💸 {bold_username} cashed out {bold_amount}!", parse_mode="HTML")
+                # Format final text for the cashout message
+                cashout_text = f"💸 {bold_username} cashed out {bold_amount}!"
+                
+                # Create Play Again / Double buttons
+                target_pts = challenge.get('pts', 1)
+                w = challenge['wager']
+                rolls = challenge['rolls']
+                mode = challenge['mode']
+                
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+                
+                # Edit the existing message instead of sending a new one
+                try:
+                    await query.edit_message_text(text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                except Exception as e:
+                    logger.error(f"Error editing cashout message: {e}")
+                    # Fallback if edit fails
+                    await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                
                 del self.pending_pvp[cid]
                 
                 # Update global state for pending_pvp
