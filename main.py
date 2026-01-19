@@ -1051,15 +1051,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
         if await self.is_user_in_game(update.effective_user.id):
             try:
+                # Show notification in status bar (answer_callback_query uses the "loading" bar)
+                if update.callback_query:
+                    await update.callback_query.answer(
+                        text="❌ You have an active game! Finish it first.",
+                        show_alert=False
+                    )
                 await update.message.delete()
-                # Show notification in status bar
-                await context.bot.answer_callback_query(
-                    callback_query_id=update.callback_query.id if update.callback_query else None,
-                    text="❌ You have an active game! Finish it first.",
-                    show_alert=False
-                )
             except Exception as e:
-                # If it wasn't a callback, we can't answer it, but we already deleted the message
                 pass
             return True
         return False
@@ -1072,18 +1071,13 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         user_data = self.db.get_user(user_id)
         if user_data.get('balance', 0) < 1.0:
             try:
-                await update.message.delete()
                 # Show notification in status bar if possible
                 if update.callback_query:
                     await update.callback_query.answer(
                         text="❌ Minimum balance required for /dice is $1",
                         show_alert=False
                     )
-                else:
-                    # For text commands, we can't use answer_callback_query
-                    # But we can send a transient message or just rely on the deletion
-                    # Since the user specifically asked for "status bar", it usually implies callback context
-                    pass
+                await update.message.delete()
             except Exception as e:
                 logger.error(f"Error deleting low balance message: {e}")
             return True
