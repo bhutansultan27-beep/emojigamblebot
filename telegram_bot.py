@@ -5155,10 +5155,19 @@ To deposit, send LTC to the address below:
         message_id = query.message.message_id
         
         # Check if button was already clicked (prevent spam)
-        button_key = (chat_id, message_id, data)
-        if button_key in self.clicked_buttons:
-            await query.answer("❌ This button has already been used!", show_alert=True)
-            return
+        # We EXEMPT everything related to setup or prediction menus from this check
+        setup_prefixes = [
+            "setup_mode_", "setup_bet_", "setup_predict_", "setup_cancel_", 
+            "predict_start_", "v2_bot_", "v2_pvp_", "v2_accept_",
+            "emoji_setup_", "setup_roll_", "flip_bot_", "setup_mode_normal_", "setup_mode_crazy_"
+        ]
+        is_setup_button = any(data.startswith(prefix) for prefix in setup_prefixes) or data.startswith("setup_predict_select_")
+        
+        if not is_setup_button:
+            button_key = (chat_id, message_id, data)
+            if button_key in self.clicked_buttons:
+                await query.answer("❌ This button has already been used!", show_alert=True)
+                return
 
         if data.startswith("v2_pvp_create_"):
             # Mark the button as clicked to prevent further interaction with this setup menu
@@ -5217,12 +5226,10 @@ To deposit, send LTC to the address below:
         
         await query.answer()
         
-        # Mark button as clicked for game buttons
-        # Ensure /dice and related menu buttons NEVER trigger "this button has already been clicked"
-        if any(data.startswith(prefix) for prefix in ["v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "emoji_setup_", "setup_bet_", "flip_bot_"]):
-            # Check if it's NOT a prediction or setup mode button
-            if not any(data.startswith(p) for p in ["setup_predict_select_", "setup_mode_predict_"]):
-                self.clicked_buttons.add(button_key)
+        # Mark button as clicked for game buttons (not setup buttons)
+        if not is_setup_button:
+            if any(data.startswith(prefix) for prefix in ["v2_accept_", "roulette_", "claim_daily_bonus", "claim_referral", "flip_bot_"]):
+                self.clicked_buttons.add((chat_id, message_id, data))
         
         try:
             if data == "none":
