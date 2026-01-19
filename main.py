@@ -719,12 +719,16 @@ class AntariaCasinoBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update.message.reply_text(
+        sent_msg = await update.message.reply_text(
             balance_text, 
             reply_markup=reply_markup, 
             parse_mode="HTML",
             reply_to_message_id=update.message.message_id
         )
+        # Store who sent the original command that triggered this balance message
+        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        # Store the message ID of the /bal command itself
+        context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
     
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show bonus status"""
@@ -4884,7 +4888,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             except:
                                 pass
                                 
-                    user_msg_id = query.message.reply_to_message.message_id if query.message.reply_to_message else None
+                    # Try to get the user command message ID from user_data first
+                    user_msg_id = context.user_data.get(f"cmd_msg_{query.message.message_id}")
+                    if not user_msg_id and query.message.reply_to_message:
+                        user_msg_id = query.message.reply_to_message.message_id
+                        
                     asyncio.create_task(cleanup_messages(chat.id, query.message.message_id, user_msg_id))
                 except Exception as e:
                     logger.error(f"Error in group withdraw button: {e}")
@@ -4941,7 +4949,11 @@ Example: `/withdraw 50 LTC1abc123...`
                             except:
                                 pass
                                 
-                    user_msg_id = query.message.reply_to_message.message_id if query.message.reply_to_message else None
+                    # Try to get the user command message ID from user_data first
+                    user_msg_id = context.user_data.get(f"cmd_msg_{query.message.message_id}")
+                    if not user_msg_id and query.message.reply_to_message:
+                        user_msg_id = query.message.reply_to_message.message_id
+                        
                     asyncio.create_task(cleanup_messages(chat.id, query.message.message_id, user_msg_id))
                 except Exception as e:
                     logger.error(f"Error in group deposit button: {e}")
