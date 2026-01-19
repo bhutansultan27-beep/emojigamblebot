@@ -4940,6 +4940,55 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
 
+        # Handle Admin Withdrawal Actions
+        if data.startswith("adm_wit_"):
+            if not self.is_admin(user_id):
+                await query.answer("❌ Admin only!", show_alert=True)
+                return
+            
+            parts = data.split("_")
+            action = parts[2]
+            target_user_id = int(parts[3])
+            amount = float(parts[4])
+            
+            if action == "approve":
+                # Mark as processed in DB
+                pending = self.db.data.get('pending_withdrawals', [])
+                for wit in pending:
+                    if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
+                        wit['status'] = 'processed'
+                        break
+                self.db.data['pending_withdrawals'] = pending
+                
+                await query.edit_message_text(f"✅ Withdrawal of ${amount:,.2f} for user {target_user_id} approved!")
+                # Notify user
+                try:
+                    await self.app.bot.send_message(target_user_id, f"✅ Your withdrawal of **${amount:,.2f}** has been approved and sent!")
+                except:
+                    pass
+            
+            elif action == "deny":
+                # Mark as denied and REFUND balance
+                pending = self.db.data.get('pending_withdrawals', [])
+                for wit in pending:
+                    if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
+                        wit['status'] = 'denied'
+                        break
+                self.db.data['pending_withdrawals'] = pending
+                
+                # Refund
+                target_user_data = self.db.get_user(target_user_id)
+                target_user_data['balance'] += amount
+                self.db.update_user(target_user_id, target_user_data)
+                
+                await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for user {target_user_id} denied. Balance refunded.")
+                # Notify user
+                try:
+                    await self.app.bot.send_message(target_user_id, f"❌ Your withdrawal of **${amount:,.2f}** was denied. Your balance has been refunded.")
+                except:
+                    pass
+            return
+
         # Handle Currency selection for withdrawal
         if data.startswith("wit_"):
             currency = data.split("_")[1].upper()
@@ -6264,6 +6313,37 @@ To withdraw, use:
             # Deduct balance immediately
             user_data['balance'] -= amount
             self.db.update_user(user_id, user_data)
+            
+            # Send request to channel
+            channel_id = "@emojigamblegroup"
+            username = update.effective_user.username or update.effective_user.first_name
+            # Clickable mention without @
+            user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
+            
+            request_text = (
+                f"📤 <b>New Withdrawal Request</b>\n\n"
+                f"User: {user_mention}\n"
+                f"Amount: ${amount:,.2f}\n"
+                f"Currency: {currency}\n"
+                f"Address: <code>{address}</code>"
+            )
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Approve", callback_data=f"adm_wit_approve_{user_id}_{amount}"),
+                    InlineKeyboardButton("❌ Deny", callback_data=f"adm_wit_deny_{user_id}_{amount}")
+                ]
+            ]
+            
+            try:
+                await self.app.bot.send_message(
+                    chat_id=channel_id,
+                    text=request_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send withdrawal request to channel: {e}")
             
             await update.message.reply_text("withdraw initiated")
             return
