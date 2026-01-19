@@ -6564,10 +6564,10 @@ To deposit, send LTC to the address below:
                 self.clicked_buttons.add(btn_key)
                 
                 # Remove buttons from the message after click
-                try:
-                    await query.edit_message_reply_markup(reply_markup=None)
-                except Exception as e:
-                    logger.warning(f"Failed to remove buttons after click: {e}")
+                # try:
+                #     await query.edit_message_reply_markup(reply_markup=None)
+                # except Exception as e:
+                #     logger.warning(f"Failed to remove buttons after click: {e}")
                 
                 parts = data.split('_')
                 if len(parts) >= 3:
@@ -6667,21 +6667,12 @@ To deposit, send LTC to the address below:
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
                 try:
-                    # Edit the original message but REMOVE the keyboard (to indicate it was cashed out)
+                    # Edit the original message to show result but KEEP buttons
                     await query.edit_message_text(
                         text=cashout_text,
-                        reply_markup=None,
-                        parse_mode="HTML"
-                    )
-                    
-                    # Send a NEW message with the Play Again / Double buttons
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id,
-                        text="<b>Game Over</b>",
                         reply_markup=InlineKeyboardMarkup(kb),
                         parse_mode="HTML"
                     )
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 except Exception as e:
                     logger.error(f"Error handling cashout UI: {e}")
                     # Fallback
