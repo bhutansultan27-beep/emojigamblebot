@@ -4860,6 +4860,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     # Delete the "your balance" message immediately
                     await query.message.delete()
                     
+                    # Also delete the user's / message if possible
+                    if query.message.reply_to_message:
+                        try:
+                            await query.message.reply_to_message.delete()
+                        except:
+                            pass
+                    
                     sent_msg = await context.bot.send_message(
                         chat_id=chat.id,
                         text=f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
@@ -4910,6 +4917,13 @@ Example: `/withdraw 50 LTC1abc123...`
                     await query.answer()
                     # Delete the "your balance" message immediately
                     await query.message.delete()
+                    
+                    # Also delete the user's / message if possible
+                    if query.message.reply_to_message:
+                        try:
+                            await query.message.reply_to_message.delete()
+                        except:
+                            pass
                     
                     sent_msg = await context.bot.send_message(
                         chat_id=chat.id,
