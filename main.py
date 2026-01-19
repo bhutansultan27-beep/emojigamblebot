@@ -4923,6 +4923,25 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
 
+        # Handle Currency selection for withdrawal
+        if data.startswith("wit_"):
+            currency = data.split("_")[1].upper()
+            user_data = self.db.get_user(user_id)
+            
+            # Message as requested from screenshot (without emojis except back)
+            withdraw_info_text = (
+                f"Enter withdrawal amount\n"
+                f"Withdrawal fee: $0.01 + 3.00%\n\n"
+                f"Current balance: ${user_data['balance']:,.2f}"
+            )
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.answer()
+            await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup)
+            return
+
         # Handle Back to balance menu
         if data == "balance_menu":
             await self.balance_command(update, context)
