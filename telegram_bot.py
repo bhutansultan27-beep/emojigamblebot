@@ -4250,7 +4250,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             u = self.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
             text = (
-                f"Round Result: {p_tot} vs {b_tot}.\n\n"
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Rukia: {challenge['b_pts']}\n\n"
