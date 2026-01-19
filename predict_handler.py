@@ -150,20 +150,48 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance.db.add_transaction(user_id, "predict_win", payout, f"Prediction win on {game_mode}")
             bot_instance.db.update_house_balance(-(payout - wager))
             
-            await context.bot.send_message(
+            user_username = user_data.get('username', f'User{user_id}')
+            win_text = (
+                f"🏆 <b>Game over!</b>\n\n"
+                f"{user_username} won <b>${payout:,.2f}</b>!"
+            )
+            
+            # Replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"🎉 <b>Winner!</b>\n\nThe result was <b>{result_label.capitalize()}</b>.\nYou won <b>${payout:.2f}</b>!",
+                text=win_text,
+                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
+            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
             bot_instance.db.update_house_balance(wager)
-            await context.bot.send_message(
+            
+            loss_text = (
+                f"🏆 <b>Game over!</b>\n\n"
+                f"Bot won <b>${wager:,.2f}</b>!"
+            )
+            
+            # Replay buttons
+            kb = [[
+                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
+                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
+            ]]
+            
+            sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ <b>You Lost!</b>\n\nThe result was <b>{result_label.capitalize()}</b>.\nBetter luck next time!",
+                text=loss_text,
+                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
+            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         
         # Clear selections for next game
         bot_instance._predict_selections[user_id] = set()
