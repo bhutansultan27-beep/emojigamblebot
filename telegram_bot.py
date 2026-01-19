@@ -3903,16 +3903,15 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
                 
-                # Mark Match Accepted message as un-clickable if it exists
+                # Delete Match Accepted message button if it exists
                 match_msg_id = challenge.get('match_accepted_msg_id')
                 if match_msg_id:
-                    # By removing the match_accepted_msg_id from the challenge object,
-                    # the button_callback for 'cancel_match' will no longer find it valid.
-                    # We also track that the game has officially "started" in terms of rolls.
-                    challenge['match_accepted_msg_id'] = None
-                    # We add a flag to ensure the cancel button is officially "expired"
-                    challenge['game_started_manual'] = True
-                    
+                    try:
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=match_msg_id, reply_markup=None)
+                        challenge['match_accepted_msg_id'] = None
+                    except Exception as e:
+                        logger.warning(f"Failed to remove Match Accepted button: {e}")
+
                 # Remove the "Send emoji" button if it exists
                 # User requested to leave the buttons there
                 # if challenge.get('message_id'):
@@ -5685,15 +5684,6 @@ To deposit, send LTC to the address below:
                 cid = data.replace("v2_cancel_", "")
                 challenge = self.pending_pvp.get(cid)
                 if challenge:
-                    # Check if game has already been manually started via emoji
-                    if challenge.get('game_started_manual') or challenge.get('cur_rolls', 0) > 0:
-                        await query.answer("❌ Match already started! Cannot cancel now.", show_alert=True)
-                        try:
-                            await query.edit_message_reply_markup(reply_markup=None)
-                        except:
-                            pass
-                        return
-
                     # Refund players
                     wager = challenge.get('wager', 0)
                     if cid.startswith("v2_bot_"):
@@ -6040,15 +6030,6 @@ To deposit, send LTC to the address below:
                 cid = data.replace("v2_cancel_", "")
                 challenge = self.pending_pvp.get(cid)
                 if challenge:
-                    # Check if game has already been manually started via emoji
-                    if challenge.get('game_started_manual') or challenge.get('cur_rolls', 0) > 0:
-                        await query.answer("❌ Match already started! Cannot cancel now.", show_alert=True)
-                        try:
-                            await query.edit_message_reply_markup(reply_markup=None)
-                        except:
-                            pass
-                        return
-
                     # Refund players
                     wager = challenge.get('wager', 0)
                     if cid.startswith("v2_bot_"):
@@ -6220,15 +6201,6 @@ To deposit, send LTC to the address below:
                 cid = data.replace("v2_cancel_", "")
                 challenge = self.pending_pvp.get(cid)
                 if challenge:
-                    # Check if game has already been manually started via emoji
-                    if challenge.get('game_started_manual') or challenge.get('cur_rolls', 0) > 0:
-                        await query.answer("❌ Match already started! Cannot cancel now.", show_alert=True)
-                        try:
-                            await query.edit_message_reply_markup(reply_markup=None)
-                        except:
-                            pass
-                        return
-
                     # Refund players
                     wager = challenge.get('wager', 0)
                     if cid.startswith("v2_bot_"):
@@ -6590,6 +6562,12 @@ To deposit, send LTC to the address below:
                     await query.answer("❌ This button has already been used.", show_alert=True)
                     return
                 self.clicked_buttons.add(btn_key)
+                
+                # Remove buttons from the message after click
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                except Exception as e:
+                    logger.warning(f"Failed to remove buttons after click: {e}")
                 
                 parts = data.split('_')
                 if len(parts) >= 3:
