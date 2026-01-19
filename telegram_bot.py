@@ -3902,6 +3902,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
+                
+                # Delete Match Accepted message if it exists
+                match_msg_id = challenge.get('match_accepted_msg_id')
+                if match_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=match_msg_id)
+                        challenge['match_accepted_msg_id'] = None
+                    except Exception as e:
+                        logger.warning(f"Failed to delete Match Accepted message: {e}")
+
                 # Remove the "Send emoji" button if it exists
                 # User requested to leave the buttons there
                 # if challenge.get('message_id'):
@@ -4901,6 +4911,10 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             )
             # Register ownership for the NEW message
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+            
+            # Store the message ID for automatic deletion when game starts
+            self.pending_pvp[cid]['match_accepted_msg_id'] = sent_msg.message_id
+            self.db.update_pending_pvp(self.pending_pvp)
             
             # DO NOT edit or delete the original query.message (the Game Details menu)
             # This keeps the original menu with its buttons intact as requested.
@@ -6601,6 +6615,12 @@ To deposit, send LTC to the address below:
                     await query.answer("❌ You already sent your emoji! Cannot cashout now.", show_alert=True)
                     return
                 
+                # Delete the original cashout message
+                try:
+                    await query.message.delete()
+                except Exception as e:
+                    logger.warning(f"Failed to delete cashout message: {e}")
+
                 cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
                 user_data = self.db.get_user(user_id)
                 
