@@ -10,15 +10,28 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
 # External dependencies
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    MessageHandler,
-    filters
-)
+import sys
+import os
+
+# Try to import from the specific site-packages if needed, but usually just standard import
+try:
+    import telegram
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        CallbackQueryHandler,
+        ContextTypes,
+        MessageHandler,
+        filters
+    )
+except (ImportError, AttributeError) as e:
+    print(f"Standard import failed: {e}")
+    # Fallback or diagnostic
+    import telegram
+    print(f"Telegram package location: {telegram.__file__}")
+    print(f"Telegram package content: {dir(telegram)}")
+    raise
 
 # Set up logging
 logging.basicConfig(
