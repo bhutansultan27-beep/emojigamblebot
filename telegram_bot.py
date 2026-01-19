@@ -5300,9 +5300,12 @@ To deposit, send LTC to the address below:
                         await context.bot.send_message(chat_id=chat_id, text="❌ Error sending dice. Please try again.")
                         return
                 
+                # Save rolls before sleeping to avoid losing them if state is re-loaded
+                self.db.update_pending_pvp(self.pending_pvp)
+                
                 await asyncio.sleep(4)
                 
-                # Check if challenge still exists after sleep
+                # Re-load challenge for safety
                 self.pending_pvp = self.db.data.get('pending_pvp', {})
                 challenge = self.pending_pvp.get(cid)
                 if not challenge: 
@@ -5320,6 +5323,9 @@ To deposit, send LTC to the address below:
                         b_tot += (1 if d.dice.value >= 4 else 0) if emoji in ["⚽", "🏀"] else d.dice.value
                     except Exception as e:
                         logger.error(f"Error sending bot dice: {e}")
+                
+                # Save bot progress (even if not strictly necessary for local calc)
+                self.db.update_pending_pvp(self.pending_pvp)
                 
                 await asyncio.sleep(4)
                 
