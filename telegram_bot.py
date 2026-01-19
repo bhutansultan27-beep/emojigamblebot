@@ -6575,6 +6575,7 @@ To deposit, send LTC to the address below:
                             pts = int(parts[6])
                             # Go directly to final confirmation step with these settings
                             # Change: Use a fresh message instead of editing the existing one
+                            # Ensure new_message=True is passed to avoid editing the result message
                             await self._show_emoji_game_setup(update, context, wager, game, "final", {"rolls": rolls, "mode": mode, "pts": pts}, new_message=True)
                             return
                         # Special edit buttons: v2_bot_edit_{field}_{game}_{wager}_{rolls}_{mode}_{pts}
