@@ -3238,10 +3238,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.answer(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}", show_alert=True)
             return
         
-        # Deduct wager and log transaction
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, "Bet on Dice vs Bot")
-        
         # Initialize V2 bot game state (Unified logic)
         game_id = f"v2_bot_{user_id}_{int(datetime.now().timestamp())}"
         game_state = {
@@ -3254,7 +3250,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "p_rolls": [],
             "cur_rolls": 0,
             "wager": wager,
-            "wager_deducted": True,
+            "wager_deducted": False,
             "emoji": "🎲",
             "player": user_id,
             "chat_id": chat_id,
@@ -3288,9 +3284,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.answer(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}", show_alert=True)
             return
         
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, "Bet on Darts vs Bot")
-        
         game_id = f"v2_bot_{user_id}_{int(datetime.now().timestamp())}"
         game_state = {
             "game": "darts",
@@ -3302,7 +3295,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "p_rolls": [],
             "cur_rolls": 0,
             "wager": wager,
-            "wager_deducted": True,
+            "wager_deducted": False,
             "emoji": "🎯",
             "player": user_id,
             "chat_id": chat_id,
@@ -3336,9 +3329,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.answer(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}", show_alert=True)
             return
         
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, "Bet on Basketball vs Bot")
-        
         game_id = f"v2_bot_{user_id}_{int(datetime.now().timestamp())}"
         game_state = {
             "game": "basketball",
@@ -3350,7 +3340,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "p_rolls": [],
             "cur_rolls": 0,
             "wager": wager,
-            "wager_deducted": True,
+            "wager_deducted": False,
             "emoji": "🏀",
             "player": user_id,
             "chat_id": chat_id,
@@ -4100,6 +4090,20 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         score = (1 if dice_value >= 4 else 0) if emoji in ["⚽", "🏀"] else dice_value
         
         if cid.startswith("v2_bot_"):
+            # Check balance if wager not yet deducted
+            if not challenge.get('wager_deducted'):
+                user_data = self.db.get_user(user_id)
+                wager = challenge.get('wager', 0)
+                if user_data['balance'] < (wager - 0.001):
+                    await update.message.reply_text(f"❌ Insufficient balance to start the game! (Balance: ${user_data['balance']:.2f}, Wager: ${wager:.2f})")
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    return
+                # Deduct balance
+                self.db.update_user(user_id, {'balance': max(0, user_data['balance'] - wager)})
+                self.db.add_transaction(user_id, "game_bet", -wager, f"Bet on {challenge.get('game', 'game')} vs Bot")
+                challenge['wager_deducted'] = True
+
             # Bot game: add to player rolls
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
@@ -4629,8 +4633,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             return
             
         # Deduct balance immediately
-        self.db.update_user(user_id, {"balance": user_data['balance'] - wager})
-        self.db.add_transaction(user_id, "game_bet", -wager, f"{game.capitalize()} vs Bot")
+        # self.db.update_user(user_id, {"balance": user_data['balance'] - wager})
+        # self.db.add_transaction(user_id, "game_bet", -wager, f"{game.capitalize()} vs Bot")
             
         cid = f"v2_bot_{game}_{user_id}_{int(datetime.now().timestamp())}"
         
@@ -4641,7 +4645,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "type": f"{game}_bot_v2", "player": user_id, "wager": wager, "game": game, "emoji": emoji,
             "rolls": rolls, "mode": mode, "pts": pts, "chat_id": chat_id,
             "p_pts": 0, "b_pts": 0, "p_rolls": [], "cur_rolls": 0, "emoji_wait": datetime.now().isoformat(),
-            "wager_deducted": True, "message_id": query.message.message_id,
+            "wager_deducted": False, "message_id": query.message.message_id,
             "waiting_for_emoji": False
         }
         self.db.update_pending_pvp(self.pending_pvp)
