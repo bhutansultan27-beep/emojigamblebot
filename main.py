@@ -4954,13 +4954,17 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             if action == "approve":
                 # Mark as processed in DB
                 pending = self.db.data.get('pending_withdrawals', [])
+                target_username = "User"
                 for wit in pending:
                     if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
                         wit['status'] = 'processed'
+                        target_username = wit.get('username', "User")
                         break
                 self.db.data['pending_withdrawals'] = pending
                 
-                await query.edit_message_text(f"✅ Withdrawal of ${amount:,.2f} for user {target_user_id} approved!")
+                # Clickable mention without @ for the approval message in group
+                target_mention = f'<a href="tg://user?id={target_user_id}">{target_username}</a>'
+                await query.edit_message_text(f"✅ Withdrawal of ${amount:,.2f} for user {target_mention} approved!", parse_mode="HTML")
                 # Notify user
                 try:
                     await self.app.bot.send_message(target_user_id, f"✅ Your withdrawal of **${amount:,.2f}** has been approved and sent!")
@@ -4970,9 +4974,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             elif action == "deny":
                 # Mark as denied and REFUND balance
                 pending = self.db.data.get('pending_withdrawals', [])
+                target_username = "User"
                 for wit in pending:
                     if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
                         wit['status'] = 'denied'
+                        target_username = wit.get('username', "User")
                         break
                 self.db.data['pending_withdrawals'] = pending
                 
@@ -4981,7 +4987,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 target_user_data['balance'] += amount
                 self.db.update_user(target_user_id, target_user_data)
                 
-                await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for user {target_user_id} denied. Balance refunded.")
+                # Clickable mention without @ for the denial message in group
+                target_mention = f'<a href="tg://user?id={target_user_id}">{target_username}</a>'
+                await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for user {target_mention} denied. Balance refunded.", parse_mode="HTML")
                 # Notify user
                 try:
                     await self.app.bot.send_message(target_user_id, f"your withdraw of {amount:,.2f} was unsuccesful. Your balance has been refunded")
