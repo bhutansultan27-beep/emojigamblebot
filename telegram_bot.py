@@ -4899,17 +4899,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         data = query.data
 
-        # Check if button has been clicked already
-        # For prediction setup, we only lock the START button after it's clicked
-        # And we prevent any selection/mode changes after the game has started
-        is_prediction_button = any(data.startswith(prefix) for prefix in [
-            "setup_predict_select_", 
-            "setup_mode_predict_",
-            "predict_start_"
-        ])
+        # Handle prediction button clicks differently to allow toggling
+        is_predict_setup = any(data.startswith(prefix) for prefix in ["setup_predict_select_", "setup_mode_predict_"])
         
-        if is_prediction_button:
-            # Check if any start button for this message is in clicked_buttons
+        if is_predict_setup:
+            # Check if game has already started for this message
             already_started = any(
                 k[0] == chat.id and k[1] == query.message.message_id and k[2].startswith("predict_start_")
                 for k in self.clicked_buttons
@@ -4917,13 +4911,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             if already_started:
                 await query.answer("❌ Game already started!", show_alert=True)
                 return
-            
-            if data.startswith("predict_start_"):
-                if (chat.id, query.message.message_id, data) in self.clicked_buttons:
-                    await query.answer("⌛ Game starting...", show_alert=True)
-                    return
-                # Only add the start button to clicked_buttons, setup buttons are togglable
-                self.clicked_buttons.add((chat.id, query.message.message_id, data))
+            # We NEVER add to clicked_buttons for setup buttons to allow toggling
+        elif data.startswith("predict_start_"):
+            if (chat.id, query.message.message_id, data) in self.clicked_buttons:
+                await query.answer("⌛ Game starting...", show_alert=True)
+                return
+            self.clicked_buttons.add((chat.id, query.message.message_id, data))
         else:
             # Standard locking for all other buttons
             if (chat.id, query.message.message_id, data) in self.clicked_buttons:
