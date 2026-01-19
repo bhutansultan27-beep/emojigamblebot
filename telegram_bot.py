@@ -2306,8 +2306,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             })
             self.db.update_house_balance(wager)
             
+            # Change losing message to match /dice (emoji gambling bot style)
+            # Use the emoji gambling bot user ID as seen in other snippets
+            bot_mention = '<a href="tg://user?id=8575155625">emojigamblebot</a>'
             await update.message.reply_text(
-                f"<b>Bot</b> won <b>${wager:,.2f}</b>!",
+                f"❌ {bot_mention} won <b>${wager:,.2f}</b>!",
                 parse_mode="HTML",
                 reply_to_message_id=update.message.message_id
             )
