@@ -6564,6 +6564,12 @@ To deposit, send LTC to the address below:
                         
                         # If it's a full "Play Again" / "Double" callback (v2_bot_game_wager_rolls_mode_pts)
                         if len(parts) >= 7:
+                            # Remove buttons from the result message after clicking
+                            try:
+                                await query.edit_message_reply_markup(reply_markup=None)
+                            except:
+                                pass
+
                             rolls = int(parts[4])
                             mode = parts[5]
                             pts = int(parts[6])
@@ -6654,21 +6660,12 @@ To deposit, send LTC to the address below:
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
                 try:
-                    # Edit the original message but REMOVE the keyboard (to indicate it was cashed out)
+                    # Edit the original message to show result with Play Again / Double buttons
                     await query.edit_message_text(
                         text=cashout_text,
-                        reply_markup=None,
-                        parse_mode="HTML"
-                    )
-                    
-                    # Send a NEW message with the Play Again / Double buttons
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id,
-                        text="<b>Game Over</b>",
                         reply_markup=InlineKeyboardMarkup(kb),
                         parse_mode="HTML"
                     )
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 except Exception as e:
                     logger.error(f"Error handling cashout UI: {e}")
                     # Fallback
