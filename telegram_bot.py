@@ -4692,7 +4692,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             f"Player 2: <b>Bot</b>\n\n"
             f"<b>{p1_name}</b>, your turn!"
         )
-        kb = []
+        kb = [[InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll")]]
         
         try:
             # Answer the query
@@ -4756,7 +4756,10 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         self.pending_pvp[cid] = challenge
         self.db.update_pending_pvp(self.pending_pvp)
         
-        keyboard = [[InlineKeyboardButton("Join Challenge", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{rolls}_{mode}_{pts}_{cid}")]]
+        keyboard = [
+            [InlineKeyboardButton("Join Challenge", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{rolls}_{mode}_{pts}_{cid}")],
+            [InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll")]
+        ]
         msg_text = f"{emoji} **{game.capitalize()} PvP**\nChallenger: @{user_data.get('username', 'User')}\nWager: ${wager:.2f}\nMode: {mode.capitalize()}\nTarget: {pts}\n\nClick below to join!"
         
         if update.callback_query:
