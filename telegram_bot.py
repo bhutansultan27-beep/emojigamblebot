@@ -6615,12 +6615,7 @@ To deposit, send LTC to the address below:
                     await query.answer("❌ You already sent your emoji! Cannot cashout now.", show_alert=True)
                     return
                 
-                # Delete the original cashout message
-                try:
-                    await query.message.delete()
-                except Exception as e:
-                    logger.warning(f"Failed to delete cashout message: {e}")
-
+                # Edit the original cashout message to show result
                 cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
                 user_data = self.db.get_user(user_id)
                 
@@ -6658,25 +6653,22 @@ To deposit, send LTC to the address below:
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                # Send a NEW message for the cashout result instead of editing
                 try:
-                    # User requested to leave the buttons there
-                    # await query.edit_message_reply_markup(reply_markup=None)
-                    pass
-                    
-                    # Then send the new result message
-                    sent_msg = await context.bot.send_message(
+                    # Edit the original message instead of deleting it
+                    await query.edit_message_text(
+                        text=cashout_text,
+                        reply_markup=InlineKeyboardMarkup(kb),
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.error(f"Error editing cashout message: {e}")
+                    # Fallback: send a new message if edit fails
+                    await context.bot.send_message(
                         chat_id=chat_id, 
                         text=cashout_text, 
                         reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML",
-                        reply_to_message_id=challenge.get('message_id')
+                        parse_mode="HTML"
                     )
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
-                except Exception as e:
-                    logger.error(f"Error handling cashout message: {e}")
-                    # Fallback
-                    await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
                 
                 del self.pending_pvp[cid]
                 
