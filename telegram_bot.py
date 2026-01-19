@@ -2525,14 +2525,18 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             await update.effective_message.reply_text("❌ Min: $0.01")
             return
         
+        # Re-fetch user data to ensure latest balance before deduction
+        user_data = self.db.get_user(user_id)
+        
         if wager > user_data['balance']:
             await update.effective_message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
             return
         
-        # Deduct wager
-        user_data['balance'] -= wager
-        self.db.update_user(user_id, user_data)
+        # Deduct wager instantly
+        new_balance = user_data['balance'] - wager
+        self.db.update_user(user_id, {"balance": new_balance})
         self.db.add_transaction(user_id, "blackjack_bet", -wager, f"Blackjack Bet: {wager}")
+        user_data['balance'] = new_balance
         
         # Start game
         try:
