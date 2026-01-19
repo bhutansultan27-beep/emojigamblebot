@@ -4456,37 +4456,35 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         p1_name = user_data.get('username', f'User{user_id}')
         msg_text = (
-            f"{emoji} <b>Match accepted!</b>\n\n"
+            f"🎲 <b>Match accepted!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>Bot</b>\n\n"
-            f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+            f"<b>{p1_name}</b>, your turn! To start, click the button below! 🎲"
         )
         kb = [[InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")]]
         
         try:
-            # First try to answer the query to stop the loading spinner
+            # Answer the query
             await query.answer()
-            # Then send the new message WITHOUT deleting the setup message
+            # Send a NEW message as shown in the screenshot
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id, 
                 text=msg_text, 
                 reply_markup=InlineKeyboardMarkup(kb), 
                 parse_mode="HTML"
             )
-            # Register ownership
-            if not hasattr(self, 'button_ownership'):
-                self.button_ownership = {}
+            # Register ownership for the new message
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             
-            # REMOVED: try to delete the setup message
-            # The user requested NOT to delete the buttons under the game menu details
         except Exception as e:
-            logger.error(f"Error starting game message: {e}")
-            # Fallback if message sending fails
+            logger.error(f"Error sending match accepted message: {e}")
+            # Fallback edit if message sending fails
             try:
                 await query.edit_message_text(text=msg_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
             except Exception as inner_e:
                 logger.error(f"Fallback edit also failed: {inner_e}")
+        
+        return
 
     async def start_generic_v2_pvp(self, update: Update, context: ContextTypes.DEFAULT_TYPE, game: str, wager: float, rolls: int, mode: str, pts: int):
         """Create a new PvP challenge in the group"""
