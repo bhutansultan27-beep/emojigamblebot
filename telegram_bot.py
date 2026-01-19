@@ -1773,7 +1773,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
         
         keyboard = [
-            [InlineKeyboardButton("🤖 Play vs emojigamblebot", callback_data=f"darts_bot_{wager:.2f}")],
+            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"darts_bot_{wager:.2f}")],
             [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"darts_player_open_{wager:.2f}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1813,7 +1813,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
         
         keyboard = [
-            [InlineKeyboardButton("🤖 Play vs emojigamblebot", callback_data=f"basketball_bot_{wager:.2f}")],
+            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"basketball_bot_{wager:.2f}")],
             [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"basketball_player_open_{wager:.2f}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2168,7 +2168,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.db.update_house_balance(wager)
             
             await update.message.reply_text(
-                f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${wager:,.2f}</b>",
+                f"<b>Bot</b> won <b>${wager:,.2f}</b>",
                 parse_mode="HTML",
                 reply_to_message_id=update.message.message_id
             )
@@ -3858,7 +3858,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             user_username = user_data.get('username', f'User{user_id}')
                             user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
                             loss_text = (
-                                f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                                f"<b>Bot</b> won <b>${w * 1.95:,.2f}</b>"
                             )
                             keyboard = [
                                 [
@@ -4135,7 +4135,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 # Bot turn starts
-                await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
+                await context.bot.send_message(chat_id=chat_id, text=f"<b>Bot</b>, your turn!", parse_mode="HTML")
                 
                 challenge['b_rolls'] = []
                 for _ in range(challenge['rolls']):
@@ -4235,7 +4235,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     f"Score:\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
-                    f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                    f"<b>Bot</b> won <b>${w * 1.95:,.2f}</b>"
                 )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
@@ -4252,8 +4252,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             text = (
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
-                f"Rukia: {challenge['b_pts']}\n\n"
-                f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+                f"Bot: {challenge['b_pts']}\n\n"
+                f"<b>{p1_name}</b>, your turn!"
             )
             challenge['p_rolls'] = []
             challenge['b_rolls'] = []
@@ -4319,7 +4319,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # LOSS: Already deducted, house keeps it
             profit = -wager
             result = "loss"
-            result_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${wager:,.2f}</b>"
+            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>"
             self.db.update_house_balance(wager)
         else:
             # Draw - refund wager
@@ -4393,7 +4393,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             self.db.update_house_balance(-wager)
         else:
             profit = -wager
-            result_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${wager:,.2f}</b>"
+            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>"
             self.db.update_house_balance(wager)
 
         # Update user stats and database
@@ -4473,7 +4473,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             else:
                 profit = -wager
                 outcome = "loss"
-                result_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${wager:,.2f}</b>"
+                result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>"
                 self.db.update_house_balance(wager)
             
             self._update_user_stats(user_id, wager, profit, outcome)
@@ -4576,7 +4576,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         else:
             profit = -wager
             outcome = "loss"
-            result_text = f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${wager:,.2f}</b>"
+            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>"
             self.db.update_house_balance(wager)
         
         self._update_user_stats(user_id, wager, profit, outcome)
