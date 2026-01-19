@@ -4922,6 +4922,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 if (chat.id, query.message.message_id, data) in self.clicked_buttons:
                     await query.answer("⌛ Game starting...", show_alert=True)
                     return
+                # Only add the start button to clicked_buttons, setup buttons are togglable
+                self.clicked_buttons.add((chat.id, query.message.message_id, data))
         else:
             # Standard locking for all other buttons
             if (chat.id, query.message.message_id, data) in self.clicked_buttons:
