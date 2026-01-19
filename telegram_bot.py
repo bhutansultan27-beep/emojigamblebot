@@ -4103,6 +4103,34 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.db.add_transaction(user_id, "game_bet", -wager, f"Bet on {challenge.get('game', 'game')} vs Bot")
                 challenge['wager_deducted'] = True
 
+            # User requested to remove cashout button when they send emoji to continue
+            # If there was a previous message with buttons (like score + cashout), remove those buttons
+            # We don't have the message_id of the score message in the challenge state usually, 
+            # but we can try to edit the reply_to_message if it exists and has buttons
+            if update.message.reply_to_message and update.message.reply_to_message.reply_markup:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=chat_id,
+                        message_id=update.message.reply_to_message.message_id,
+                        reply_markup=None
+                    )
+                except:
+                    pass
+
+            # User requested to remove cashout button when they send emoji to continue
+            # If there was a previous message with buttons (like score + cashout), remove those buttons
+            # We don't have the message_id of the score message in the challenge state usually, 
+            # but we can try to edit the reply_to_message if it exists and has buttons
+            if update.message.reply_to_message and update.message.reply_to_message.reply_markup:
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=chat_id,
+                        message_id=update.message.reply_to_message.message_id,
+                        reply_markup=None
+                    )
+                except:
+                    pass
+
             # Bot game: add to player rolls
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
