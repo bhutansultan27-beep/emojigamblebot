@@ -3879,7 +3879,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             f"<b>Score</b>\n\n"
                             f"{user_username}: {challenge['p_pts']}\n"
                             f"Rukia: {challenge['b_pts']}\n\n"
-                            # f"<b>{user_username}</b>, your turn!"
+                            f"<b>{user_username}</b>, your turn!"
                         )
                         
                         cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
@@ -4284,7 +4284,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Bot: {challenge['b_pts']}\n\n"
-                # f"<b>{p1_name}</b>, your turn!"
+                f"<b>{p1_name}</b>, your turn!"
             )
             challenge['p_rolls'] = []
             challenge['b_rolls'] = []
@@ -5711,7 +5711,7 @@ To deposit, send LTC to the address below:
                         f"<b>Score</b>\n\n"
                         f"{p1_name}: {challenge['p_pts']}\n"
                         f"Rukia: {challenge['b_pts']}\n\n"
-                        # f"<b>{p1_name}</b>, your turn! To start, click the button below! {emoji}"
+                        f"<b>{p1_name}</b>, your turn! {emoji}"
                     )
                     cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
                     cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0

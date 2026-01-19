@@ -268,7 +268,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Rukia: {challenge['b_pts']}\n\n"
-                # f"<b>{p1_name}</b>, your turn! {emoji}"
+                f"<b>{p1_name}</b>, your turn! {emoji}"
             )
             cashout_val = bot_instance.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
             cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
