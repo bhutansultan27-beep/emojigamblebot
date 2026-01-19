@@ -92,7 +92,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             user_data['games_won'] += 1
             
             result_text = (
-                f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>!"
+                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
             )
             bot_instance.db.update_house_balance(-profit)
         else:

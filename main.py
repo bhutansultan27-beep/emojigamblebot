@@ -2149,7 +2149,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             user_username = user_data.get('username', f'User{user_id}')
             user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
             await update.message.reply_text(
-                f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>! ({multiplier}x)",
+                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>! ({multiplier}x)",
                 parse_mode="HTML",
                 reply_to_message_id=update.message.message_id
             )
@@ -4057,7 +4057,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         winner_username = winner_user.get('username', f'User{winner_id}')
         winner_mention = f'<a href="tg://user?id={winner_id}">{winner_username}</a>'
         final_text = (
-            f"🎉 Congratulations, {winner_mention}! You won <b>${wager:,.2f}</b>!"
+            f"🎉 Congratulations, {winner_mention}! You won <b>${winnings:,.2f}</b>!"
         )
         
         keyboard = [
@@ -4107,14 +4107,15 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         if p_val > b_val:
             # WIN: Give back initial bet (already deducted) + profit (wager)
+            payout = wager * 2
             profit = wager
             result = "win"
-            user_data['balance'] += (wager * 2) # Wager back + profit
+            user_data['balance'] += payout # Wager back + profit
             self.db.update_user(user_id, user_data)
             
             # Winner display name bold without @
             result_text = (
-                f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>!"
+                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
             )
             self.db.update_house_balance(-wager)
         elif p_val < b_val:
@@ -4189,8 +4190,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         if choice == result:
             profit = wager
             outcome = "win"
+            payout = profit + wager
             user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>!"
+            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
             self.db.update_house_balance(-wager)
         else:
             profit = -wager
@@ -4370,8 +4372,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         if won:
             profit = wager * (multiplier - 1)
             outcome = "win"
+            payout = profit + wager
             user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>!"
+            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
             self.db.update_house_balance(-profit)
         else:
             profit = -wager
