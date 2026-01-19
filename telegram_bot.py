@@ -1310,10 +1310,19 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 mode_display = mode.capitalize()
             else:
                 mode_display = "Normal" if mode == "normal" else "Crazy"
-            opponent_display = "vs Rukia" if opponent == "bot" else "vs Player"
+            
+            user_mention = f'<a href="tg://user?id={user_id}">{user_data.get("username", "User")}</a>'
+            
+            if opponent == "bot":
+                opponent_display = "vs Rukia"
+                vs_text = f"{user_mention} vs Rukia"
+            else:
+                opponent_display = "vs Player"
+                vs_text = user_mention # Don't show vs until accepted
             
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').title()}</b>\n\n"
+                f"{vs_text}\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
                 f"Multiplier: <b>{self._calculate_emoji_multiplier(rolls, pts):.2f}x</b>\n\n"
                 f"<b>Game Details:</b>\n"
