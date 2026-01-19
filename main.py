@@ -4839,6 +4839,80 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle all button interactions"""
+        query = update.callback_query
+        user_id = query.from_user.id
+        chat = query.message.chat
+        
+        # Check button ownership if applicable
+        owner_id = self.button_ownership.get((query.message.chat_id, query.message.message_id))
+        if owner_id and owner_id != user_id:
+            await query.answer("❌ This menu isn't for you.", show_alert=True)
+            return
+
+        data = query.data
+        
+        # Handle Withdraw button from balance menu
+        if data == "withdraw_mock":
+            if chat.type in ["group", "supergroup"]:
+                try:
+                    await query.answer()
+                    await query.message.reply_text(
+                        f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
+                        parse_mode="HTML"
+                    )
+                    # Send private message
+                    await self.app.bot.send_message(
+                        chat_id=user_id,
+                        text="To withdraw, please use the /withdraw command here in our private chat.",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.error(f"Error in group withdraw button: {e}")
+                    await query.answer("❌ Please start a private chat with me first.", show_alert=True)
+                return
+            else:
+                # In private chat, just show instructions
+                user_data = self.db.get_user(user_id)
+                withdraw_text = f"""
+💸 **LTC Withdrawal Request**
+
+Your balance **${user_data['balance']:,.2f}**
+
+To withdraw, use:
+`/withdraw <amount> <your_ltc_address>`
+
+Example: `/withdraw 50 LTC1abc123...`
+
+⚠️ Withdrawals are processed manually by admin.
+"""
+                await query.answer()
+                await query.edit_message_text(withdraw_text, parse_mode="Markdown")
+                return
+
+        # Handle Deposit button from balance menu
+        if data == "deposit_mock":
+            if chat.type in ["group", "supergroup"]:
+                try:
+                    await query.answer()
+                    await query.message.reply_text(
+                        f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!",
+                        parse_mode="HTML"
+                    )
+                    # Send private message
+                    await self.app.bot.send_message(
+                        chat_id=user_id,
+                        text="To deposit, please use the /deposit command here in our private chat.",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.error(f"Error in group deposit button: {e}")
+                    await query.answer("❌ Please start a private chat with me first.", show_alert=True)
+                return
+            else:
+                # Existing private chat deposit logic...
+                pass
+
         """Handles all inline button presses."""
         query = update.callback_query
         if not query:
