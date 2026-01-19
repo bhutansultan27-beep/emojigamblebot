@@ -1812,6 +1812,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
     
     async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play darts game setup"""
+        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
+            return
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
         
@@ -1852,6 +1854,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
     
     async def basketball_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play basketball game setup"""
+        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
+            return
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
         
