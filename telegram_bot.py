@@ -4104,6 +4104,10 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
             
+            # Ensure bot rolls list exists
+            if 'b_rolls' not in challenge:
+                challenge['b_rolls'] = []
+                
             # Save progress
             self.db.update_pending_pvp(self.pending_pvp)
 
@@ -4140,17 +4144,20 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     bv = d.dice.value
                     bs = (1 if bv >= 4 else 0) if emoji in ["⚽", "🏀"] else bv
                     challenge['b_rolls'].append(bs)
+                    self.db.update_pending_pvp(self.pending_pvp) # Save bot rolls as they happen
                 
-                # Wait for last bot dice
+                # Wait for last bot dice animation
                 await asyncio.sleep(4)
 
-                # Resolve round
+                # Re-load challenge for safety to get the absolute latest state
                 self.pending_pvp = self.db.data.get('pending_pvp', {})
                 challenge = self.pending_pvp.get(cid)
-                if not challenge: return
+                if not challenge: 
+                    logger.error(f"Challenge {cid} disappeared during bot turn")
+                    return
                 
-                p_tot = sum(challenge['p_rolls'])
-                b_tot = sum(challenge['b_rolls'])
+                p_tot = sum(challenge.get('p_rolls', []))
+                b_tot = sum(challenge.get('b_rolls', []))
                 
                 round_win = None
                 if challenge.get('mode', 'normal') == "normal":
