@@ -2470,8 +2470,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
             
         # Ensure user is registered
-        user_id = update.effective_user.id
         user_data = self.ensure_user_registered(update)
+        user_id = update.effective_user.id
         
         # Check if user already has an active game
         if user_id in self.blackjack_sessions:
