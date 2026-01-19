@@ -2052,8 +2052,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
         user_data = self.ensure_user_registered(update)
-        # Default wager $10.00 or balance if lower
-        wager = min(10.0, user_data.get('balance', 0))
+        # Default wager $1.00 or balance if lower
+        wager = min(1.0, user_data.get('balance', 0))
         if wager < 1.0 and user_data.get('balance', 0) >= 1.0:
             wager = 1.0
         elif user_data.get('balance', 0) < 1.0:
