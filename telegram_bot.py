@@ -6170,6 +6170,11 @@ To deposit, send LTC to the address below:
                     await query.answer("❌ Game not found or not yours!", show_alert=True)
                     return
                 
+                # Check if player has already rolled in this round
+                if len(challenge.get('p_rolls', [])) > 0:
+                    await query.answer("❌ You already sent your emoji! Cannot cashout now.", show_alert=True)
+                    return
+                
                 cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
                 user_data = self.db.get_user(user_id)
                 
