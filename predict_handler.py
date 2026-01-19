@@ -156,20 +156,15 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 f"{user_username} won <b>${payout:,.2f}</b>!"
             )
             
-            # Replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            sent_msg = await context.bot.send_message(
+            await context.bot.send_message(
                 chat_id=chat_id,
                 text=win_text,
-                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
-            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            
+            # Show new interface instead of adding buttons to result
+            await bot_instance._setup_predict_interface(update, context, wager, game_mode)
         else:
             bot_instance.db.update_house_balance(wager)
             
@@ -178,20 +173,15 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 f"Bot won <b>${wager:,.2f}</b>!"
             )
             
-            # Replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            sent_msg = await context.bot.send_message(
+            await context.bot.send_message(
                 chat_id=chat_id,
                 text=loss_text,
-                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
                 reply_to_message_id=sent_dice.message_id
             )
-            bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            
+            # Show new interface instead of adding buttons to result
+            await bot_instance._setup_predict_interface(update, context, wager, game_mode)
         
         # Clear selections for next game
         bot_instance._predict_selections[user_id] = set()

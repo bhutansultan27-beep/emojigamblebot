@@ -2298,21 +2298,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 f"{user_username} won <b>${payout:,.2f}</b>!"
             )
             
-            # Add replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            # Use same editing logic as /dice
-            reply_to_id = update.message.message_id
-            sent_msg = await update.message.reply_text(
+            # Send result message without buttons
+            await update.message.reply_text(
                 win_text,
-                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
-                reply_to_message_id=reply_to_id
+                reply_to_message_id=update.message.message_id
             )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            # Send fresh prediction menu
+            await self._setup_predict_interface(update, context, wager, game_mode)
         else:
             self.db.update_user(user_id, {
                 'total_wagered': user_data['total_wagered'] + wager,
@@ -2326,20 +2319,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 f"Bot won <b>${wager:,.2f}</b>!"
             )
             
-            # Add replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            reply_to_id = update.message.message_id
-            sent_msg = await update.message.reply_text(
+            # Send result message without buttons
+            await update.message.reply_text(
                 loss_text,
-                reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="HTML",
-                reply_to_message_id=reply_to_id
+                reply_to_message_id=update.message.message_id
             )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            # Send fresh prediction menu
+            await self._setup_predict_interface(update, context, wager, game_mode)
         
         self.db.record_game({
             'type': 'dice_predict',
