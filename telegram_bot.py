@@ -1739,9 +1739,16 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         current_emoji = emoji_map.get(game_mode, "🎲")
         
         # Get current selections
-        selections = getattr(self, "_predict_selections", {}).get(user_id, set())
+        user_selections = getattr(self, "_predict_selections", {}).get(user_id, {})
+        if not isinstance(user_selections, dict):
+            # Migration path: if old data exists, clear or convert it
+            user_selections = {}
+            if hasattr(self, "_predict_selections"):
+                self._predict_selections[user_id] = {}
+        
+        selections = user_selections.get(game_mode, set())
         if not isinstance(selections, set):
-            selections = {str(selections)} if selections != "None" else set()
+            selections = {str(selections)} if (selections and selections != "None") else set()
             
         selection_list = sorted(list(selections))
         selection_text = f"Selected: <b>{', '.join([s.capitalize() for s in selection_list])}</b>" if selections else "Selected: <b>None</b>"

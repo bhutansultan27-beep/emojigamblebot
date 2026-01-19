@@ -44,23 +44,24 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance._predict_selections = {}
         
         if user_id not in bot_instance._predict_selections:
-            bot_instance._predict_selections[user_id] = set()
-        elif not isinstance(bot_instance._predict_selections[user_id], set):
-            bot_instance._predict_selections[user_id] = {str(bot_instance._predict_selections[user_id])}
+            bot_instance._predict_selections[user_id] = {}
+            
+        if game_mode not in bot_instance._predict_selections[user_id]:
+            bot_instance._predict_selections[user_id][game_mode] = set()
 
-        if prediction in bot_instance._predict_selections[user_id]:
-            bot_instance._predict_selections[user_id].remove(prediction)
+        if prediction in bot_instance._predict_selections[user_id][game_mode]:
+            bot_instance._predict_selections[user_id][game_mode].remove(prediction)
             await query.answer("Removed selection")
         else:
             # Prevent picking all options in basketball and soccer
             if game_mode in ["basketball", "soccer"]:
-                current_len = len(bot_instance._predict_selections[user_id])
+                current_len = len(bot_instance._predict_selections[user_id][game_mode])
                 if current_len >= 2:
                     await query.answer("❌ Can't pick all options!", show_alert=True)
                     return
             
-            if len(bot_instance._predict_selections[user_id]) < 5:
-                bot_instance._predict_selections[user_id].add(prediction)
+            if len(bot_instance._predict_selections[user_id][game_mode]) < 5:
+                bot_instance._predict_selections[user_id][game_mode].add(prediction)
                 await query.answer("Added selection")
             else:
                 await query.answer("❌ Max 5 selections!", show_alert=True)
@@ -74,7 +75,8 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         wager = float(parts[2])
         game_mode = parts[3]
         
-        selections = bot_instance._predict_selections.get(user_id, set())
+        user_selections = bot_instance._predict_selections.get(user_id, {})
+        selections = user_selections.get(game_mode, set())
         if not selections:
             await query.answer("❌ Please make a selection first!", show_alert=True)
             return
