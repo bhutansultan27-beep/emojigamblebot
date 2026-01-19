@@ -6591,12 +6591,6 @@ To deposit, send LTC to the address below:
                     return
                 self.clicked_buttons.add(btn_key)
                 
-                # Remove buttons from the message after click
-                try:
-                    await query.edit_message_reply_markup(reply_markup=None)
-                except Exception as e:
-                    logger.warning(f"Failed to remove buttons after click: {e}")
-                
                 parts = data.split('_')
                 if len(parts) >= 3:
                     if data.startswith("v2_bot_"):
