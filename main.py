@@ -4858,6 +4858,23 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         # Handle Withdraw button from balance menu
         if data == "withdraw_mock":
+            user_data = self.db.get_user(user_id)
+            withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+            
+            keyboard = [
+                [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
+                 InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+                [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
+                 InlineKeyboardButton("USDC", callback_data="wit_usdc")],
+                [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
+                 InlineKeyboardButton("Solana", callback_data="wit_sol")],
+                [InlineKeyboardButton("BNB", callback_data="wit_bnb"),
+                 InlineKeyboardButton("Monero", callback_data="wit_xmr")],
+                [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="balance_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
             if chat.type in ["group", "supergroup"]:
                 try:
                     await query.answer()
@@ -4866,25 +4883,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!"
                     await query.edit_message_text(text=notification_text, parse_mode="HTML")
                     
-                    # In private chat, just show instructions and delete the balance message
-                    user_data = self.db.get_user(user_id)
-                    withdraw_text = f"""
-💸 **LTC Withdrawal Request**
-
-Your balance **${user_data['balance']:,.2f}**
-
-To withdraw, use:
-`/withdraw <amount> <your_ltc_address>`
-
-Example: `/withdraw 50 LTC1abc123...`
-
-⚠️ Withdrawals are processed manually by admin.
-"""
-                    # Send private message
+                    # Send private message with currency selection
                     await self.app.bot.send_message(
                         chat_id=user_id,
                         text=withdraw_text,
-                        parse_mode="Markdown"
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
                     )
                     
                     # Schedule deletion of both messages
@@ -4914,23 +4918,15 @@ Example: `/withdraw 50 LTC1abc123...`
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
-                # In private chat, just show instructions and delete the balance message
-                user_data = self.db.get_user(user_id)
-                withdraw_text = f"""
-💸 **LTC Withdrawal Request**
-
-Your balance **${user_data['balance']:,.2f}**
-
-To withdraw, use:
-`/withdraw <amount> <your_ltc_address>`
-
-Example: `/withdraw 50 LTC1abc123...`
-
-⚠️ Withdrawals are processed manually by admin.
-"""
+                # In private chat, edit current message to show currency selection
                 await query.answer()
-                await query.edit_message_text(withdraw_text, parse_mode="Markdown")
+                await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
+
+        # Handle Back to balance menu
+        if data == "balance_menu":
+            await self.balance_command(update, context)
+            return
 
         # Handle Deposit button from balance menu
         if data == "deposit_mock":
