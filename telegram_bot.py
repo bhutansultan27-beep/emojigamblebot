@@ -2470,8 +2470,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
             
         # Ensure user is registered
-        user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
+        user_data = self.ensure_user_registered(update)
         
         # Check if user already has an active game
         if user_id in self.blackjack_sessions:
@@ -5407,6 +5407,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         query = update.callback_query
         user_id = query.from_user.id
         chat = query.message.chat
+        data = query.data
         
         # Check button ownership if applicable
         owner_id = self.button_ownership.get((query.message.chat_id, query.message.message_id))
