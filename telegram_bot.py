@@ -6654,21 +6654,25 @@ To deposit, send LTC to the address below:
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
                 try:
-                    # Edit the original message instead of deleting it
+                    # Edit the original message but REMOVE the keyboard (to indicate it was cashed out)
                     await query.edit_message_text(
                         text=cashout_text,
+                        reply_markup=None,
+                        parse_mode="HTML"
+                    )
+                    
+                    # Send a NEW message with the Play Again / Double buttons
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id,
+                        text="<b>Game Over</b>",
                         reply_markup=InlineKeyboardMarkup(kb),
                         parse_mode="HTML"
                     )
+                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 except Exception as e:
-                    logger.error(f"Error editing cashout message: {e}")
-                    # Fallback: send a new message if edit fails
-                    await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=cashout_text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML"
-                    )
+                    logger.error(f"Error handling cashout UI: {e}")
+                    # Fallback
+                    await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
                 
                 del self.pending_pvp[cid]
                 
