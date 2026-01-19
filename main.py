@@ -4984,7 +4984,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for user {target_user_id} denied. Balance refunded.")
                 # Notify user
                 try:
-                    await self.app.bot.send_message(target_user_id, f"❌ Your withdrawal of **${amount:,.2f}** was denied. Your balance has been refunded.")
+                    await self.app.bot.send_message(target_user_id, f"your withdraw of {amount:,.2f} was unsuccesful. Your balance has been refunded")
                 except:
                     pass
             return
