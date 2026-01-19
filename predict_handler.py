@@ -57,6 +57,9 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         user_display_name = user_data.get('username', f'User{user_id}')
         if wager > user_data['balance']:
             await query.answer(f"❌ Balance: ${user_data['balance']:,.2f}", show_alert=True)
+            # Remove from clicked_buttons so they can try again after deposit/balance update
+            if hasattr(bot_instance, "clicked_buttons") and (chat_id, query.message.message_id, data) in bot_instance.clicked_buttons:
+                bot_instance.clicked_buttons.remove((chat_id, query.message.message_id, data))
             return
         
         if len(selections) == 3 and game_mode == "dice":
