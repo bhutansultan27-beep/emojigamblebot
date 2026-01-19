@@ -2610,13 +2610,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}"))
             if row3:
                 keyboard.append(row3)
-        else:
-            # Game over buttons: Play Again and Double Bet
-            total_bet = sum(h['bet'] for h in state['player_hands'])
-            keyboard.append([
-                InlineKeyboardButton("Play Again", callback_data=f"bj_play_again_{user_id}_{total_bet:.2f}"),
-                InlineKeyboardButton("Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
-            ])
         
         # Insurance info
         if state['is_insurance_available']:
@@ -2655,8 +2648,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Clean up session
             del self.blackjack_sessions[user_id]
 
-            # Play Again and Double Bet buttons
-            total_bet = sum(h['bet'] for h in state['player_hands'])
+            # Play Again and Double Bet buttons (styled to match dice losing message)
             keyboard.append([
                 InlineKeyboardButton("🔄 Play Again", callback_data=f"bj_play_again_{user_id}_{total_bet:.2f}"),
                 InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{total_bet*2:.2f}")
