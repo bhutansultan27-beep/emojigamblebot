@@ -161,7 +161,10 @@ class BlackjackGame:
             
         # Surrender, Double, and Split are only available on the initial two cards
         if len(hand.cards) == 2:
-            current_state['actions']['can_double'] = True
+            # ONLY double on hard 9, 10, or 11
+            # Hard 9, 10, 11 means no Ace being used as 11 to reach that value
+            if not hand.soft and hand.value in [9, 10, 11]:
+                current_state['actions']['can_double'] = True
             
             # Surrender only allowed on the *very first* hand
             if self.current_hand_index == 0:
