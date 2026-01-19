@@ -1315,6 +1315,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         if step == "final":
             back_btn = InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{params.get('rolls', 1)}_{params.get('mode', 'normal')}")
+            # Ensure the "START GAME" button doesn't delete the message but rather transitions to the "Send emoji" prompt
             keyboard.append([
                 back_btn,
                 InlineKeyboardButton("🚀 START GAME 🚀", callback_data=start_callback)
@@ -1323,6 +1324,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if update.callback_query:
+            # We use edit_message_text here, which is fine, but we need to ensure the next step (start_generic_v2_bot) 
+            # behaves as requested: "dont delete the buttons under the / dice game menu details. just send the message"
             sent_msg = await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
@@ -4446,7 +4449,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         try:
             # First try to answer the query to stop the loading spinner
             await query.answer()
-            # Then send the new message
+            # Then send the new message WITHOUT deleting the setup message
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id, 
                 text=msg_text, 
@@ -4458,11 +4461,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.button_ownership = {}
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             
-            # Try to delete the setup message
-            try:
-                await query.delete_message()
-            except:
-                pass
+            # REMOVED: try to delete the setup message
+            # The user requested NOT to delete the buttons under the game menu details
         except Exception as e:
             logger.error(f"Error starting game message: {e}")
             # Fallback if message sending fails
