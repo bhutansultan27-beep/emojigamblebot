@@ -133,6 +133,6 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             text=result_text, 
             reply_markup=reply_markup, 
             parse_mode="HTML",
-            reply_to_message_id=dice_message.message_id
+            reply_to_message_id=query.message.message_id
         )
         return
