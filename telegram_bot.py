@@ -6265,7 +6265,7 @@ To deposit, send LTC to the address below:
                     f"{p1_name}: {challenge['p_pts']}\n"
                     f"Rukia: {challenge['b_pts']}\n\n"
                 )
-                cashout_text = f"{score_text}💸 {bold_username} cashed out {bold_amount}!"
+                cashout_text = f"{score_text}{bold_username} cashed out {bold_amount}!"
                 
                 # Create Play Again / Double buttons
                 target_pts = challenge.get('pts', 1)
