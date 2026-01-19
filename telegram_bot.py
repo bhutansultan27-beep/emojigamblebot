@@ -4781,7 +4781,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             p1_username = p1_data.get('username', f'User{p1_id}')
             p2_username = p2_data.get('username', f'User{p2_id}')
             score_text = f"<b>{p1_username}</b>: {challenge['p1_pts']}\n<b>{p2_username}</b>: {challenge['p2_pts']}"
-            await context.bot.send_message(chat_id=chat_id, text=f"Round Result: {p1_tot} vs {p2_tot}. Point to {'you' if win else 'Draw'}!\n\n{score_text}", parse_mode="HTML")
+            await context.bot.send_message(chat_id=chat_id, text=f"{score_text}", parse_mode="HTML")
             await asyncio.sleep(1)
 
         wager = challenge['wager']
@@ -4854,8 +4854,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             
             await context.bot.send_message(
                 chat_id=chat_id, 
-                text=f"Round Result: @{p1_data['username']} {p1_total} vs @{p2_data['username']} {p2_total}\n"
-                     f"Point to {'you' if win else 'Draw'}!"
+                text=f"{p1_data['username']} {challenge['p1_points']} - {challenge['p2_points']} {p2_data['username']}"
             )
 
     async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
