@@ -3272,7 +3272,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn! To start, click the button below! 🎲",
+            text=f"🎲 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=msg_id,
             parse_mode="Markdown"
         )
@@ -3320,7 +3320,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn! To start, click the button below! 🎯",
+            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -3368,7 +3368,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn! To start, click the button below! 🏀",
+            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="Markdown"
         )
@@ -4651,9 +4651,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             f"🎲 <b>Match accepted!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>Bot</b>\n\n"
-            f"<b>{p1_name}</b>, your turn! To start, click the button below! 🎲"
+            f"<b>{p1_name}</b>, your turn!"
         )
-        kb = [[InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")]]
+        kb = []
         
         try:
             # Answer the query
@@ -4663,7 +4663,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id, 
                 text=msg_text, 
-                reply_markup=InlineKeyboardMarkup(kb), 
+                reply_markup=InlineKeyboardMarkup(kb) if kb else None, 
                 parse_mode="HTML",
                 reply_to_message_id=query.message.message_id
             )
