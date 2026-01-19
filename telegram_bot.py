@@ -6563,11 +6563,11 @@ To deposit, send LTC to the address below:
                     return
                 self.clicked_buttons.add(btn_key)
                 
-                # Remove buttons from the message after click
-                # try:
-                #     await query.edit_message_reply_markup(reply_markup=None)
-                # except Exception as e:
-                #     logger.warning(f"Failed to remove buttons after click: {e}")
+                # Remove buttons from the message after click, but leave the text as is
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                except Exception as e:
+                    logger.warning(f"Failed to remove buttons after click: {e}")
                 
                 parts = data.split('_')
                 if len(parts) >= 3:
@@ -6666,17 +6666,15 @@ To deposit, send LTC to the address below:
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                try:
-                    # Edit the original message to show result but KEEP buttons
-                    await query.edit_message_text(
-                        text=cashout_text,
-                        reply_markup=InlineKeyboardMarkup(kb),
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    logger.error(f"Error handling cashout UI: {e}")
-                    # Fallback
-                    await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                # Edit the original message to show result and REMOVE buttons
+                await query.edit_message_text(
+                    text=cashout_text,
+                    reply_markup=None,
+                    parse_mode="HTML"
+                )
+                
+                # Send a fresh game setup menu in a new message
+                await self._show_emoji_game_setup(update, context, w, game, "final", {"rolls": rolls, "mode": mode, "pts": target_pts}, new_message=True)
                 
                 del self.pending_pvp[cid]
                 
