@@ -2153,9 +2153,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.db.update_house_balance(-profit)
             
             user_username = user_data.get('username', f'User{user_id}')
-            user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
             await update.message.reply_text(
-                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>! ({multiplier}x)",
+                f"<b>{user_username}</b> won <b>${payout:,.2f}</b>! ({multiplier}x)",
                 parse_mode="HTML",
                 reply_to_message_id=update.message.message_id
             )
@@ -3832,7 +3831,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             user_username = u.get('username', f'User{user_id}')
                             user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
                             win_text = (
-                                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
+                                f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
                             )
                             
                             keyboard = [
@@ -4075,9 +4074,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         self.db.record_game({"type": f"{game_type}_pvp", "challenger": challenger_id, "opponent": user_id, "wager": wager, "result": "win"})
         
         winner_username = winner_user.get('username', f'User{winner_id}')
-        winner_mention = f'<a href="tg://user?id={winner_id}">{winner_username}</a>'
         final_text = (
-            f"🎉 Congratulations, {winner_mention}! You won <b>${winnings:,.2f}</b>!"
+            f"<b>{winner_username}</b> won <b>${winnings:,.2f}</b>!"
         )
         
         keyboard = [
@@ -4258,7 +4256,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     f"Score:\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
-                    f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                    f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
                 )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
@@ -4360,7 +4358,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             
             # Winner display name bold without @
             result_text = (
-                f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
+                f"<b>{user_data.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
             )
             self.db.update_house_balance(-wager)
         elif p_val < b_val:
@@ -4436,8 +4434,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             profit = wager
             outcome = "win"
             payout = profit + wager
-            user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
+            user_mention = username
+            result_text = f"<b>{username}</b> won <b>${payout:,.2f}</b>!"
             self.db.update_house_balance(-wager)
         else:
             profit = -wager
@@ -4618,8 +4616,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             profit = wager * (multiplier - 1)
             outcome = "win"
             payout = profit + wager
-            user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-            result_text = f"🎉 Congratulations, {user_mention}! You won <b>${payout:,.2f}</b>!"
+            user_mention = username
+            result_text = f"<b>{username}</b> won <b>${payout:,.2f}</b>!"
             self.db.update_house_balance(-profit)
         else:
             profit = -wager

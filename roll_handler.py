@@ -222,7 +222,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 p1_name = u.get('username', f'User{user_id}')
                 p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
                 win_text = (
-                    f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                    f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
                 )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
