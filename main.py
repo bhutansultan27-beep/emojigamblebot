@@ -4873,20 +4873,21 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         parse_mode="Markdown"
                     )
                     
-                    # Schedule deletion of both messages after 5 seconds
+                    # Schedule deletion of both messages
                     async def cleanup_messages(chat_id, msg_to_delete, user_msg_to_delete):
+                        # Delete user's / message immediately
+                        if user_msg_to_delete:
+                            try:
+                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
+                            except:
+                                pass
+                        
                         await asyncio.sleep(5)
                         # Delete notification message
                         try:
                             await context.bot.delete_message(chat_id=chat_id, message_id=msg_to_delete)
                         except:
                             pass
-                        # Delete user's / message
-                        if user_msg_to_delete:
-                            try:
-                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
-                            except:
-                                pass
                                 
                     # Try to get the user command message ID from user_data first
                     user_msg_id = context.user_data.get(f"cmd_msg_{query.message.message_id}")
@@ -4934,20 +4935,21 @@ Example: `/withdraw 50 LTC1abc123...`
                         parse_mode="Markdown"
                     )
                     
-                    # Schedule deletion of both messages after 5 seconds
+                    # Schedule deletion of both messages
                     async def cleanup_messages(chat_id, msg_to_delete, user_msg_to_delete):
+                        # Delete user's / message immediately
+                        if user_msg_to_delete:
+                            try:
+                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
+                            except:
+                                pass
+                        
                         await asyncio.sleep(5)
                         # Delete notification message
                         try:
                             await context.bot.delete_message(chat_id=chat_id, message_id=msg_to_delete)
                         except:
                             pass
-                        # Delete user's / message
-                        if user_msg_to_delete:
-                            try:
-                                await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_to_delete)
-                            except:
-                                pass
                                 
                     # Try to get the user command message ID from user_data first
                     user_msg_id = context.user_data.get(f"cmd_msg_{query.message.message_id}")
