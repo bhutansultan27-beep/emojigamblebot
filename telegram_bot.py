@@ -5316,15 +5316,20 @@ To deposit, send LTC to the address below:
                 await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
                 
                 # Bot rolls
-                b_tot = 0
+                challenge['b_rolls'] = [] # Clear bot rolls for the round
                 for _ in range(challenge['rolls']):
                     try:
                         d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                        b_tot += (1 if d.dice.value >= 4 else 0) if emoji in ["⚽", "🏀"] else d.dice.value
+                        val = d.dice.value
+                        score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
+                        challenge['b_rolls'].append(score)
                     except Exception as e:
                         logger.error(f"Error sending bot dice: {e}")
                 
-                # Save bot progress (even if not strictly necessary for local calc)
+                # Re-calculate b_tot from the rolls we just made
+                b_tot = sum(challenge['b_rolls'])
+                
+                # Save bot progress
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 await asyncio.sleep(4)
@@ -5335,6 +5340,10 @@ To deposit, send LTC to the address below:
                 if not challenge:
                     logger.error(f"Challenge {cid} not found after rolls")
                     return
+                
+                # Use the persistent rolls for calculation to avoid issues with local variables and reloading
+                p_tot = sum(challenge.get('p_rolls', []))
+                b_tot = sum(challenge.get('b_rolls', []))
                 
                 # Resolve Round/Series
                 round_win = None
@@ -5409,6 +5418,7 @@ To deposit, send LTC to the address below:
                 else:
                     # Next Round
                     challenge['p_rolls'] = []
+                    challenge['b_rolls'] = [] # Also clear bot rolls
                     u = self.db.get_user(user_id)
                     p1_name = u.get('username', f'User{user_id}')
                     text = (
