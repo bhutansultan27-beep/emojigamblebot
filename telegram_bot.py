@@ -5232,6 +5232,11 @@ To deposit, send LTC to the address below:
                     pass
                 return
 
+            if data.startswith("emoji_setup_") or data.startswith("v2_send_emoji_"):
+                from roll_handler import handle_roll
+                await handle_roll(self, update, context)
+                return
+
             if data.startswith("match_page_"):
                 parts = data.split('_')
                 if len(parts) < 4:
