@@ -15,7 +15,6 @@ import os
 
 # Try to import from the specific site-packages if needed, but usually just standard import
 try:
-    import telegram
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
         Application,
@@ -29,7 +28,7 @@ except (ImportError, AttributeError) as e:
     print(f"Standard import failed: {e}")
     # Fallback or diagnostic
     import telegram
-    print(f"Telegram package location: {telegram.__file__}")
+    print(f"Telegram package location: {getattr(telegram, '__file__', 'Unknown')}")
     print(f"Telegram package content: {dir(telegram)}")
     raise
 
@@ -6274,43 +6273,47 @@ To deposit, send LTC to the address below:
                     
                     del self.pending_pvp[cid]
                 else:
-                    # Next Round
-                    challenge['p_rolls'] = []
-                    challenge['b_rolls'] = [] # Also clear bot rolls
-                    u = self.db.get_user(user_id)
-                    p1_name = u.get('username', f'User{user_id}')
-                    text = (
-                        f"<b>Score</b>\n\n"
-                        f"{p1_name}: {challenge['p_pts']}\n"
-                        f"Bot: {challenge['b_pts']}\n\n"
-                        f"<b>{p1_name}</b>, your turn! {emoji}"
-                    )
-                    cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
-                    cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
-                    kb = [
-                        [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
-                        [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
-                    ]
-                    
-                    # Remove button from old cashout message
-                    old_msg_id = challenge.get('cashout_msg_id')
-                    if old_msg_id:
-                        try:
-                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                        except Exception as e:
-                            logger.warning(f"Failed to remove button from old cashout message: {e}")
+                    if target_pts > 1:
+                        # Next Round
+                        challenge['p_rolls'] = []
+                        challenge['b_rolls'] = [] # Also clear bot rolls
+                        u = self.db.get_user(user_id)
+                        p1_name = u.get('username', f'User{user_id}')
+                        text = (
+                            f"<b>Score</b>\n\n"
+                            f"{p1_name}: {challenge['p_pts']}\n"
+                            f"Bot: {challenge['b_pts']}\n\n"
+                            f"<b>{p1_name}</b>, your turn! {emoji}"
+                        )
+                        cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
+                        cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
+                        kb = [
+                            [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
+                            [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
+                        ]
+                        
+                        # Remove button from old cashout message
+                        old_msg_id = challenge.get('cashout_msg_id')
+                        if old_msg_id:
+                            try:
+                                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
+                            except Exception as e:
+                                logger.warning(f"Failed to remove button from old cashout message: {e}")
 
-                    # Reply to the game details message
-                    reply_to_id = challenge.get('message_id')
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML",
-                        reply_to_message_id=reply_to_id
-                    )
-                    challenge['cashout_msg_id'] = sent_msg.message_id
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+                        # Reply to the game details message
+                        reply_to_id = challenge.get('message_id')
+                        sent_msg = await context.bot.send_message(
+                            chat_id=chat_id, 
+                            text=text, 
+                            reply_markup=InlineKeyboardMarkup(kb), 
+                            parse_mode="HTML",
+                            reply_to_message_id=reply_to_id
+                        )
+                        challenge['cashout_msg_id'] = sent_msg.message_id
+                        self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+                    else:
+                        # For 1-point games, we don't need a "Next Round" or Cashout message
+                        pass
                 
                 self.db.update_pending_pvp(self.pending_pvp)
                 return
