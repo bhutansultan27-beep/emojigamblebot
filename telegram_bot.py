@@ -2569,10 +2569,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         user_data = self.db.get_user(user_id)
         
         # Build message text
-        message = "🃏 **Blackjack**\n\n"
+        message = "🃏 <b>Blackjack</b>\n\n"
         
         # Dealer section
-        message += f"Dealer cards: **{state['dealer']['value']}**\n"
+        message += f"Dealer cards: <b>{state['dealer']['value']}</b>\n"
         # Hide dealer cards if game not over
         if state['game_over']:
             dealer_cards_str = ""
@@ -2585,14 +2585,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}  ??\n\n"
             
         # Player section
-        message += f"Your cards: **{state['player_hands'][0]['value']}**\n"
+        message += f"Your cards: <b>{state['player_hands'][0]['value']}</b>\n"
         player_cards_str = ""
         for card in game.player_hands[0]['hand'].cards:
             player_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
         message += f"{player_cards_str.strip()}\n\n"
         
-        message += f"Bet: **${state['player_hands'][0]['bet']:.2f}**\n"
-        message += f"Balance: **${user_data['balance']:.2f}**\n"
+        message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
+        message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
         
         # If it's your turn
         if not state['game_over']:
@@ -2639,17 +2639,17 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             username = user_data.get('username') or update.effective_user.first_name
             
             if player_hand['status'] == 'Blackjack':
-                message += "**BLACKJACK!**"
+                message += "<b>BLACKJACK!</b>"
             elif player_hand['status'] == 'Bust':
-                message += "**Busted. You lost!**"
+                message += "<b>Busted. You lost!</b>"
             elif dealer_hand['final_status'] == 'Bust':
-                message += "**Dealer bust. You won!**"
+                message += "<b>Dealer bust. You won!</b>"
             elif total_payout > 0:
-                message += f"**Congratulations {username}, you won!**"
+                message += f"<b>Congratulations {username}, you won!</b>"
             elif total_payout < 0:
-                message += "**Dealer won!**"
+                message += "<b>Dealer won!</b>"
             else:
-                message += "**Push!**"
+                message += "<b>Push!</b>"
             
             # Update user balance
             user_data = self.db.get_user(user_id)
@@ -2688,11 +2688,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         # Send or edit message
         if update.callback_query:
-            sent_msg = await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode="Markdown")
+            sent_msg = await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
             if not state['game_over']:
                 self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
-            sent_msg = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
+            sent_msg = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
             if not state['game_over']:
                 self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
             
