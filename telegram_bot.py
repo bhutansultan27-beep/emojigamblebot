@@ -6122,11 +6122,13 @@ To deposit, send LTC to the address below:
                         challenge['cur_rolls'] += 1
                         self.db.update_pending_pvp(self.pending_pvp)
                     except Exception as e:
-                        logger.error(f"Error sending player dice: {e}")
-                        await context.bot.send_message(chat_id=chat_id, text="❌ Error sending dice. Please try again.")
-                        return
-                    if i < num_rolls - 1:
-                        await asyncio.sleep(4)
+                        logger.error(f"Error sending dice: {e}")
+
+                # After rolls are complete, trigger resolution
+                # For single-point games after a draw, num_rolls=1
+                # This ensures resolve_bot_game is called to calculate the new round result
+                await self.resolve_bot_game(update, context, cid)
+                return
                 
                 await asyncio.sleep(4)
                 
