@@ -97,19 +97,19 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         bot_instance.db.update_user(user_id, user_data)
         bot_instance.db.add_transaction(user_id, f"predict_{game_mode}", -wager, f"Prediction bet on {game_mode}")
 
-        # Make buttons unclickable by removing their callback data
-        if query.message and query.message.reply_markup:
-            try:
-                new_keyboard = []
-                for row in query.message.reply_markup.inline_keyboard:
-                    new_row = []
-                    for button in row:
-                        # Create a new button with same text but no callback data (or dummy)
-                        new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
-                    new_keyboard.append(new_row)
-                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
-            except Exception as e:
-                logger.error(f"Error making markup unclickable in predict_start: {e}")
+        # Make buttons unclickable - DISABLED as per user request to remove "game in progress" feel
+        # if query.message and query.message.reply_markup:
+        #     try:
+        #         new_keyboard = []
+        #         for row in query.message.reply_markup.inline_keyboard:
+        #             new_row = []
+        #             for button in row:
+        #                 # Create a new button with same text but no callback data (or dummy)
+        #                 new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
+        #             new_keyboard.append(new_row)
+        #         await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
+        #     except Exception as e:
+        #         logger.error(f"Error making markup unclickable in predict_start: {e}")
 
         await query.answer("Game started!")
         
