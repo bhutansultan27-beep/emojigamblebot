@@ -2637,9 +2637,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
         
-        # Clean up session
-        if user_id in self.blackjack_sessions:
-            del self.blackjack_sessions[user_id]
+        # Clean up session ONLY IF GAME IS OVER
+        if state['game_over']:
+            if user_id in self.blackjack_sessions:
+                del self.blackjack_sessions[user_id]
 
         # Action Buttons
         keyboard = []
