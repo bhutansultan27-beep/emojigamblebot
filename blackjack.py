@@ -179,9 +179,10 @@ class BlackjackGame:
                 current_state['actions']['can_surrender'] = True
             
             # Split only allowed if ranks are equal OR both are 10-value cards
+            # and only if this hand hasn't already been split
             card1 = hand.cards[0]
             card2 = hand.cards[1]
-            if card1.rank == card2.rank or (card1.value == 10 and card2.value == 10):
+            if not hand.is_split and (card1.rank == card2.rank or (card1.value == 10 and card2.value == 10)):
                 current_state['actions']['can_split'] = True
 
     def _advance_hand(self):
@@ -272,12 +273,12 @@ class BlackjackGame:
         current_hand_state['hand'].add_card(self.deck.deal_card())
         current_hand_state['actions'] = {} # Reset actions for Hand 1
 
-        # Re-splitting is often allowed, but for now we'll allow standard actions on Hand 2
+        # Re-splitting is NOT allowed - only 1 split per hand
         new_hand_state: Dict[str, Any] = {
             'hand': Hand(cards=[card2], is_split=True), 
             'bet': bet, 
             'status': 'Playing',
-            'actions': {'can_split': True, 'can_double': True, 'can_surrender': False} 
+            'actions': {'can_split': False, 'can_double': True, 'can_surrender': False} 
         }
         new_hand_state['hand'].add_card(self.deck.deal_card())
         
