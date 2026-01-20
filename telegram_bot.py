@@ -6938,6 +6938,9 @@ To deposit, send LTC to the address below:
                 await self.accept_generic_v2_pvp(update, context, cid)
             
             elif data.startswith("v2_cashout_"):
+                await query.answer()
+                # Re-load pending pvp to ensure we have latest data
+                self.pending_pvp = self.db.data.get('pending_pvp', {})
                 cid = data.replace("v2_cashout_", "")
                 challenge = self.pending_pvp.get(cid)
                 if not challenge or challenge.get('player') != user_id:
