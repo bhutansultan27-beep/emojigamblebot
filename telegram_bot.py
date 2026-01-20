@@ -2631,17 +2631,23 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Game over - show results
         if state['game_over']:
             message += f"\n**Final Result:**\n"
-            if state['dealer']['final_status'] == 'Bust':
-                message += f"Dealer busts with **{state['dealer']['value']}**!\n\n"
-            elif state['dealer']['is_blackjack']:
-                message += "Dealer has Blackjack!\n\n"
             
             total_payout = state['total_payout']
             total_bet = sum(h['bet'] for h in state['player_hands'])
-            if total_payout > 0:
-                message += f"✅ **You won ${total_payout:.2f}!**"
+            player_hand = state['player_hands'][0]
+            dealer_hand = state['dealer']
+            username = user_data.get('username') or update.effective_user.first_name
+            
+            if player_hand['status'] == 'Blackjack':
+                message += "🎊 **BLACKJACK!**"
+            elif player_hand['status'] == 'Bust':
+                message += "💥 **Busted. You lost!**"
+            elif dealer_hand['final_status'] == 'Bust':
+                message += "💥 **Dealer bust. You won!**"
+            elif total_payout > 0:
+                message += f"🎉 **Congratulations {username}, you won!**"
             elif total_payout < 0:
-                message += f"❌ **You lost ${abs(total_payout):.2f}**"
+                message += "❌ **Dealer won!**"
             else:
                 message += "🤝 **Push** - Bet returned"
             
