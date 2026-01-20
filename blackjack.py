@@ -136,24 +136,20 @@ class BlackjackGame:
             self.player_hands[0]['status'] = 'Blackjack'
             # Force current_hand_index to end game
             self.current_hand_index = 1 
-            # If dealer upcard is Ace, check hole card before resolving
-            if self.dealer_hand.cards[0].rank == 'A' or self.dealer_hand.cards[0].value == 10:
-                # Dealer could have blackjack too
-                if self.dealer_hand.is_blackjack():
-                    self._resolve_game()
-                    return "Push - Both have Blackjack! Game over."
-                else:
-                    self._resolve_game()
-                    return "Blackjack! Game over."
+            
+            # Dealer turn to check for push
+            self._dealer_turn()
+            
+            if self.dealer_hand.is_blackjack():
+                return "Push - Both have Blackjack! Game over."
             else:
-                self._resolve_game()
                 return "Blackjack! Game over."
         
         # Check if dealer has blackjack (Natural) even if player doesn't
         if self.dealer_hand.is_blackjack():
             self.player_hands[0]['status'] = 'Stood' # Player loses
             self.current_hand_index = 1
-            self._resolve_game()
+            self._dealer_turn()
             return "Dealer has Blackjack! Game over."
 
         self._check_available_actions()
