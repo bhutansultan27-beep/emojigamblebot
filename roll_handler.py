@@ -182,27 +182,31 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         b_tot = sum(challenge.get('b_rolls', [b_tot]))
         
         # Consistent mode check: allow both 'crazy' and 'inverted'
-        game_mode_type = challenge.get('mode', 'normal') 
-        is_crazy = game_mode_type.lower() in ["crazy", "inverted"]
+        game_mode_type = str(challenge.get('mode', 'normal')).lower()
+        is_crazy = game_mode_type in ["crazy", "inverted"]
+        
+        logger.info(f"RESOLVING ROUND: PlayerTotal={p_tot}, BotTotal={b_tot}, Mode={game_mode_type}, IsCrazy={is_crazy}")
         
         if is_crazy: # Crazy mode: Lowest wins (or inverted side for coinflip)
             if p_tot < b_tot: 
                 round_win = "p"
-                logger.info(f"CRAZY/INVERTED MODE WIN: Player {p_tot} < Bot {b_tot}")
+                logger.info(f"WINNER: Player (Crazy Mode: {p_tot} < {b_tot})")
             elif b_tot < p_tot: 
                 round_win = "b"
-                logger.info(f"CRAZY/INVERTED MODE WIN: Bot {b_tot} < Player {p_tot}")
+                logger.info(f"WINNER: Bot (Crazy Mode: {b_tot} < {p_tot})")
             else: 
                 round_win = "draw"
+                logger.info("WINNER: Draw (Crazy Mode)")
         else: # Normal mode: Highest wins
             if p_tot > b_tot: 
                 round_win = "p"
-                logger.info(f"NORMAL MODE WIN: Player {p_tot} > Bot {b_tot}")
+                logger.info(f"WINNER: Player (Normal Mode: {p_tot} > {b_tot})")
             elif b_tot > p_tot: 
                 round_win = "b"
-                logger.info(f"NORMAL MODE WIN: Bot {b_tot} > Player {p_tot}")
+                logger.info(f"WINNER: Bot (Normal Mode: {b_tot} > {p_tot})")
             else: 
                 round_win = "draw"
+                logger.info("WINNER: Draw (Normal Mode)")
 
         logger.info(f"DEBUG RESOLVE: P:{p_tot} B:{b_tot} Mode:{game_mode_type} IsCrazy:{is_crazy} -> Win:{round_win}")
         
