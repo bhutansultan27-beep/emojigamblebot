@@ -6210,59 +6210,15 @@ To deposit, send LTC to the address below:
                 
                 if round_win == "draw":
                     target_pts = challenge.get('pts', 1)
-                    # SILENCE for multi-point games
-                    if target_pts > 1:
-                        challenge['p_rolls'] = []
-                        challenge['b_rolls'] = []
-                        self.db.update_pending_pvp(self.pending_pvp)
-                        return
-                    
-                    # Single point draw: Offer Roll again / Cashout
+                    # SILENCE: No message for draws
                     challenge['p_rolls'] = []
                     challenge['b_rolls'] = []
-                    
-                    u = self.db.get_user(user_id)
-                    p1_name = u.get('username', f'User{user_id}')
-                    
-                    text = (
-                        f"🤝 <b>Round Draw!</b> No points awarded.\n\n"
-                        f"<b>Score</b>\n"
-                        f"{p1_name}: {challenge['p_pts']}\n"
-                        f"Bot: {challenge['b_pts']}\n\n"
-                        f"<b>{p1_name}</b>, roll again! {emoji}"
-                    )
-                    
-                    cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], target_pts, challenge['wager'])
-                    cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
-                    
-                    kb = [
-                        [InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")],
-                        [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
-                    ]
-                    
-                    # Remove button from old cashout message if it exists
-                    old_msg_id = challenge.get('cashout_msg_id')
-                    if old_msg_id:
-                        try:
-                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                        except Exception as e:
-                            logger.warning(f"Failed to remove button from old cashout message on draw: {e}")
-
-                    reply_to_id = challenge.get('message_id')
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML",
-                        reply_to_message_id=reply_to_id
-                    )
-                    challenge['cashout_msg_id'] = sent_msg.message_id
                     self.db.update_pending_pvp(self.pending_pvp)
                     return
                 
                 target_pts = challenge.get('pts', 1)
                 if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-                    # Series End
+                    # Series End - UPDATE BALANCE BUT DON'T SEND MESSAGE
                     w = challenge['wager']
                     if challenge['p_pts'] >= target_pts:
                         payout = w * 1.95
@@ -6270,56 +6226,12 @@ To deposit, send LTC to the address below:
                         u['balance'] += payout
                         self.db.update_user(user_id, {'balance': u['balance']})
                         self.db.update_house_balance(-(payout - w))
-                        
-                        p1_name = u.get('username', f'User{user_id}')
-                        p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
-                        
-                        # Show final score
-                        final_score = f"\n\n<b>Score</b>\n{p1_name}: {challenge['p_pts']}\nBot: {challenge['b_pts']}"
-                        
-                        win_text = (
-                            f"🎉 Congratulations, {p1_mention}! You won the series and <b>${payout:,.2f}</b>!{final_score}"
-                        )
-                        kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
-                               InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
-                        
-                        # Reply to the game details message
-                        reply_to_id = challenge.get('message_id')
-                        sent_msg = await context.bot.send_message(
-                            chat_id=chat_id, 
-                            text=win_text, 
-                            reply_markup=InlineKeyboardMarkup(kb), 
-                            parse_mode="HTML",
-                            reply_to_message_id=reply_to_id
-                        )
-                        self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     else:
                         self.db.update_house_balance(w)
-                        u = self.db.get_user(user_id)
-                        p1_name = u.get('username', f'User{user_id}')
-                        p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
-                        
-                        # Show final score
-                        final_score = f"\n\n<b>Score</b>\n{p1_name}: {challenge['p_pts']}\nBot: {challenge['b_pts']}"
-                        
-                        loss_text = (
-                            f"❌ <b>Bot</b> won the series and <b>${w * 1.95:,.2f}</b>{final_score}"
-                        )
-                        kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
-                               InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
-                        
-                        # Reply to the game details message
-                        reply_to_id = challenge.get('message_id')
-                        sent_msg = await context.bot.send_message(
-                            chat_id=chat_id, 
-                            text=loss_text, 
-                            reply_markup=InlineKeyboardMarkup(kb), 
-                            parse_mode="HTML",
-                            reply_to_message_id=reply_to_id
-                        )
-                        self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                     
                     del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    return
                 else:
                     if target_pts > 1:
                         # SILENCE: Don't send Score/Cashout message for mid-series rounds
