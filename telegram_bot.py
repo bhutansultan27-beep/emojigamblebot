@@ -2422,7 +2422,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
             loss_text = (
                 f"🏆 <b>Game over!</b>\n\n"
-                f"Bot won <b>${wager:,.2f}</b>!"
+                f"Bot won <b>${wager * 1.95:,.2f}</b>!"
             )
             
             # Replay buttons
@@ -4768,7 +4768,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # LOSS: Already deducted, house keeps it
             profit = -wager
             result = "loss"
-            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>!"
+            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             self.db.update_house_balance(wager)
         else:
             # Draw - refund wager
@@ -4844,7 +4844,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             self.db.update_house_balance(-wager)
         else:
             profit = -wager
-            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>!"
+            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             self.db.update_house_balance(wager)
 
         # Update user stats and database
@@ -4924,7 +4924,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             else:
                 profit = -wager
                 outcome = "loss"
-                result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>!"
+                result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
                 self.db.update_house_balance(wager)
             
             self._update_user_stats(user_id, wager, profit, outcome)
@@ -5027,7 +5027,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         else:
             profit = -wager
             outcome = "loss"
-            result_text = f"<b>Bot</b> won <b>${wager:,.2f}</b>!"
+            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             self.db.update_house_balance(wager)
         
         self._update_user_stats(user_id, wager, profit, outcome)

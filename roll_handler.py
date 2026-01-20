@@ -246,7 +246,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"🏆 <b>Game over!</b>\n\n"
                     f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
                     f"<b>Bot</b> • {challenge['b_pts']}\n\n"
-                    f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>!"
+                    f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                 )
                 
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),

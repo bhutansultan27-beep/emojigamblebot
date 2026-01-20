@@ -248,7 +248,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             
             loss_text = (
                 f"🏆 <b>Game over!</b>\n\n"
-                f"Bot won <b>${wager:,.2f}</b>!"
+                f"Bot won <b>${wager * 1.95:,.2f}</b>!"
             )
             
             # Replay buttons
