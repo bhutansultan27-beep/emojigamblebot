@@ -5458,11 +5458,21 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         user_id = query.from_user.id
         chat = query.message.chat
         data = query.data
-        owner_id = self.button_ownership.get((chat.id, query.message.message_id))
+        message_id = query.message.message_id
+        owner_id = self.button_ownership.get((chat.id, message_id))
+
+        # PvP acceptance: allow anyone but the challenger to click accept
+        if data.startswith("v2_accept_"):
+            parts = data.split("_")
+            cid = parts[2]
+            challenge = self.pending_pvp.get(cid)
+            if challenge and user_id == challenge.get('challenger'):
+                await query.answer("❌ You cannot accept your own challenge.", show_alert=True)
+                return
+            # If not challenger, they can proceed (ownership will be handled in handle_pvp_acceptance)
         
         # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
-        # EXCLUDE play_again which is handled separately below
-        if data.startswith("bj_") and not data.startswith("bj_play_again_"):
+        elif data.startswith("bj_") and not data.startswith("bj_play_again_"):
             parts = data.split("_")
             if len(parts) >= 3:
                 # Handling both formats: bj_action_userid and bj_userid_action
