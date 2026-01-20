@@ -861,15 +861,26 @@ class AntariaCasinoBot:
         
         games_played = user_data.get('games_played', 0)
         games_won = user_data.get('games_won', 0)
+        # Fix win_rate calculation to avoid ZeroDivisionError
         win_rate = (games_won / games_played * 100) if games_played > 0 else 0
-        total_wagered = user_data.get('total_wagered', 0)
-        total_won = user_data.get('total_won', 0) # Assuming total_won exists in DB schema
         
         # Determine rank emoji (example logic)
         rank_emoji = "🥉 Bronze V" 
         
+        # Update from DB if available
+        games_played = user_data.get('games_played', 0)
+        games_won = user_data.get('games_won', 0)
+        total_wagered = user_data.get('total_wagered', 0)
+        total_won = user_data.get('total_won', 0)
+        
+        # Recalculate win rate with latest data
+        win_rate = (games_won / games_played * 100) if games_played > 0 else 0
+        
+        if total_won == 0 and user_data.get('total_pnl', 0) > 0:
+             total_won = total_wagered + user_data.get('total_pnl', 0)
+
         # Get join date from user_data or created_at (if it exists)
-        join_date = "Jan 10, 2026" # Placeholder or fetch from DB if available
+        join_date = user_data.get('created_at', datetime.now()).strftime("%b %d, %Y") if 'created_at' in user_data else "Jan 10, 2026"
         
         stats_text = f"""
 ℹ️ Stats of <b>{username}</b>
@@ -4560,6 +4571,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         # Source of truth for totals
         p_tot = sum(challenge.get('p_rolls', []))
         b_tot = sum(challenge.get('b_rolls', []))
+
+        # Fix KeyError: 'bot_roll' - ensure it exists for record_game
+        if 'bot_roll' not in challenge:
+            challenge['bot_roll'] = b_tot
+        if 'player_roll' not in challenge:
+            challenge['player_roll'] = p_tot
 
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
             # Remove button from final cashout message if it exists
