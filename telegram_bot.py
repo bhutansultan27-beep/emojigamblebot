@@ -6202,7 +6202,14 @@ To deposit, send LTC to the address below:
                 
                 if round_win == "draw":
                     target_pts = challenge.get('pts', 1)
-                    # For both single and multi-point games, allow rolling again or cashing out
+                    # SILENCE for multi-point games
+                    if target_pts > 1:
+                        challenge['p_rolls'] = []
+                        challenge['b_rolls'] = []
+                        self.db.update_pending_pvp(self.pending_pvp)
+                        return
+                    
+                    # Single point draw: Offer Roll again / Cashout
                     challenge['p_rolls'] = []
                     challenge['b_rolls'] = []
                     
@@ -6307,43 +6314,11 @@ To deposit, send LTC to the address below:
                     del self.pending_pvp[cid]
                 else:
                     if target_pts > 1:
-                        # Next Round
+                        # SILENCE: Don't send Score/Cashout message for mid-series rounds
                         challenge['p_rolls'] = []
-                        challenge['b_rolls'] = [] # Also clear bot rolls
-                        u = self.db.get_user(user_id)
-                        p1_name = u.get('username', f'User{user_id}')
-                        text = (
-                            f"<b>Score</b>\n\n"
-                            f"{p1_name}: {challenge['p_pts']}\n"
-                            f"Bot: {challenge['b_pts']}\n\n"
-                            f"<b>{p1_name}</b>, your turn! {emoji}"
-                        )
-                        cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
-                        cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
-                        kb = [
-                            [InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_{cid}")],
-                            [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
-                        ]
-                        
-                        # Remove button from old cashout message
-                        old_msg_id = challenge.get('cashout_msg_id')
-                        if old_msg_id:
-                            try:
-                                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                            except Exception as e:
-                                logger.warning(f"Failed to remove button from old cashout message: {e}")
-
-                        # Reply to the game details message
-                        reply_to_id = challenge.get('message_id')
-                        sent_msg = await context.bot.send_message(
-                            chat_id=chat_id, 
-                            text=text, 
-                            reply_markup=InlineKeyboardMarkup(kb), 
-                            parse_mode="HTML",
-                            reply_to_message_id=reply_to_id
-                        )
-                        challenge['cashout_msg_id'] = sent_msg.message_id
-                        self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+                        challenge['b_rolls'] = []
+                        self.db.update_pending_pvp(self.pending_pvp)
+                        return
                     else:
                         # For 1-point games, we don't need a "Next Round" or Cashout message
                         pass
