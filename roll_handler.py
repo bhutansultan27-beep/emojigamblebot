@@ -70,21 +70,21 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         return
 
     # Handle bot game start/roll
-    if data.startswith("v2_send_emoji_"):
+    if data.startswith("v2_bot_"):
         parts = data.split("_")
-        # Format: v2_send_emoji_bot_{g_mode}_{wager}_{rolls}_{mode}_{pts}
-        # OR v2_send_emoji_{cid}
-        if len(parts) > 3 and parts[2] == "bot":
-            g_mode = parts[3]
-            wager = float(parts[4])
-            rolls = int(parts[5])
-            mode = parts[6]
-            pts = int(parts[7])
+        # Format: v2_bot_{game}_{wager}_{rolls}_{mode}_{pts}
+        if len(parts) >= 7:
+            game = parts[2]
+            wager = float(parts[3])
+            rolls = int(parts[4])
+            mode = parts[5]
+            pts = int(parts[6])
             
-            # Call the bot start function which handles the actual game logic
-            await bot_instance.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
+            # Call the bot start function
+            await bot_instance.start_generic_v2_bot(update, context, game, wager, rolls, mode, pts)
             return
 
+    if data.startswith("v2_send_emoji_"):
         cid = data.replace("v2_send_emoji_", "")
         challenge = bot_instance.pending_pvp.get(cid)
         if not challenge or challenge.get('player') != user_id:
