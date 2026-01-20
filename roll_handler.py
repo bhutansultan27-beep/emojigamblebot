@@ -175,12 +175,12 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         # NORMAL mode: Highest wins
-        # INVERTED mode: Lowest wins
+        # CRAZY mode: Lowest wins
         
         p_tot = sum(challenge['p_rolls'])
         b_tot = sum(challenge.get('b_rolls', [b_tot]))
         
-        game_mode_type = challenge.get('mode', 'normal') # Define it before use
+        game_mode_type = challenge.get('mode', 'normal') 
         if game_mode_type == "crazy": # Crazy mode: Lowest wins
             if p_tot < b_tot: 
                 round_win = "p"
@@ -206,25 +206,12 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         if round_win == "draw":
             u = bot_instance.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
-            # await context.bot.send_message(chat_id=chat_id, text=f"🤝 Draw! Refunded", parse_mode="HTML")
             challenge['p_rolls'] = []
-            # Re-show roll button
-            kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
-            # sent_msg = await context.bot.send_message(chat_id=chat_id, text=f"<b>{p1_name}</b>, your turn! {emoji}", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-            # bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
             return
         
         target_pts = challenge.get('pts', 1)
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-            # Remove button from final cashout message if it exists
-            old_msg_id = challenge.get('cashout_msg_id')
-            if old_msg_id:
-                try:
-                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                except Exception as e:
-                    pass
-
             # Series End
             w = challenge['wager']
             if challenge['p_pts'] >= target_pts:
@@ -235,7 +222,6 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_house_balance(-(payout - w))
                 
                 p1_name = u.get('username', f'User{user_id}')
-                p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
                 win_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
@@ -251,7 +237,6 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 u = bot_instance.db.get_user(user_id)
                 p1_name = u.get('username', f'User{user_id}')
                 
-                # In Crazy mode, if bot has more points, it means it rolled LOWER more often
                 loss_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
@@ -262,9 +247,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
                 
-                # Check for cashout message or game details message to reply to
-                reply_id = challenge.get('message_id') # Original game details msg
-                # If we have a more recent 'msg_id' (like the cashout prompt), use that
+                reply_id = challenge.get('message_id')
                 if challenge.get('msg_id'):
                     reply_id = challenge['msg_id']
 
@@ -286,7 +269,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             text = (
                 f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
-                f"Rukia: {challenge['b_pts']}\n\n"
+                f"Bot: {challenge['b_pts']}\n\n"
                 f"<b>{p1_name}</b>, your turn! {emoji}"
             )
             cashout_val = bot_instance.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
