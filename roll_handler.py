@@ -197,7 +197,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         if round_win == "draw":
             u = bot_instance.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
-            await context.bot.send_message(chat_id=chat_id, text=f"🤝 Draw! Refunded", parse_mode="HTML")
+            # await context.bot.send_message(chat_id=chat_id, text=f"🤝 Draw! Refunded", parse_mode="HTML")
             challenge['p_rolls'] = []
             # Re-show roll button
             kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]

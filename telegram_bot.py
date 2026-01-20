@@ -2422,7 +2422,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
             loss_text = (
                 f"🏆 <b>Game over!</b>\n\n"
-                f"Bot won <b>${wager * 1.95:,.2f}</b>!"
+                f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             )
             
             # Replay buttons
