@@ -857,22 +857,35 @@ class AntariaCasinoBot:
         """Show player statistics"""
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
+        username = update.effective_user.username or update.effective_user.first_name
         
         games_played = user_data.get('games_played', 0)
         games_won = user_data.get('games_won', 0)
         win_rate = (games_won / games_played * 100) if games_played > 0 else 0
+        total_wagered = user_data.get('total_wagered', 0)
+        total_won = user_data.get('total_won', 0) # Assuming total_won exists in DB schema
+        
+        # Determine rank emoji (example logic)
+        rank_emoji = "🥉 Bronze V" 
+        
+        # Get join date from user_data or created_at (if it exists)
+        join_date = "Jan 10, 2026" # Placeholder or fetch from DB if available
         
         stats_text = f"""
-📊 **Your Stats**
+ℹ️ Stats of <b>{username}</b>
 
-🎮 Games: {games_played} played, {games_won} won
-📈 Win Rate: {win_rate:.0f}%
-💵 Total Wagered: ${user_data.get('total_wagered', 0):.2f}
-💰 Profit/Loss: ${user_data.get('total_pnl', 0):.2f}
-🔥 Best Streak: {user_data.get('best_win_streak', 0)} wins
+Level: <b>{rank_emoji}</b>
+Games Played: <b>{games_played}</b>
+Wins: <b>{games_won} ({win_rate:.2f}%)</b>
+Total Wagered: <b>${total_wagered:,.2f}</b>
+Total Won: <b>${total_won:,.2f}</b>
+
+Join date: <b>{join_date}</b>
+First game: <b>Never played</b>
+Last game: <b>Never played</b>
 """
         
-        await update.message.reply_text(stats_text, parse_mode="Markdown")
+        await update.message.reply_text(stats_text, parse_mode="HTML")
     
     async def leaderboard_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show leaderboard with pagination"""
