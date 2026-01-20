@@ -6225,7 +6225,7 @@ To deposit, send LTC to the address below:
                 
                 target_pts = challenge.get('pts', 1)
                 if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-                        # Series End
+                    # Series End
                     w = challenge['wager']
                     if challenge['p_pts'] >= target_pts:
                         payout = w * 1.95
@@ -6237,9 +6237,11 @@ To deposit, send LTC to the address below:
                         p1_name = u.get('username', f'User{user_id}')
                         p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
                         
-                        # Only announce winner if the series is over
+                        # Show final score
+                        final_score = f"\n\n<b>Score</b>\n{p1_name}: {challenge['p_pts']}\nBot: {challenge['b_pts']}"
+                        
                         win_text = (
-                            f"🎉 Congratulations, {p1_mention}! You won <b>${payout:,.2f}</b>!"
+                            f"🎉 Congratulations, {p1_mention}! You won the series and <b>${payout:,.2f}</b>!{final_score}"
                         )
                         kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
@@ -6260,9 +6262,11 @@ To deposit, send LTC to the address below:
                         p1_name = u.get('username', f'User{user_id}')
                         p1_mention = f'<a href="tg://user?id={user_id}">{p1_name}</a>'
                         
-                        # Only announce winner if the series is over
+                        # Show final score
+                        final_score = f"\n\n<b>Score</b>\n{p1_name}: {challenge['p_pts']}\nBot: {challenge['b_pts']}"
+                        
                         loss_text = (
-                            f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>"
+                            f"❌ <b>Bot</b> won the series and <b>${w * 1.95:,.2f}</b>{final_score}"
                         )
                         kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
