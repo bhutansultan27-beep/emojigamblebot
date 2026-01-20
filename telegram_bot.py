@@ -6201,27 +6201,41 @@ To deposit, send LTC to the address below:
                     challenge['b_pts'] += 1
                 
                 if round_win == "draw":
-                    u = self.db.get_user(user_id)
-                    p1_name = u.get('username', f'User{user_id}')
-                    # Auto-refund handled by "Draw! Refunded" message
-                    # But we also need to ensure points aren't added and game can continue or finish
-                    
-                    # Series logic usually handles this, but let's make it clear
-                    # We just don't increment points.
-                    
-                    # Send draw message and offer to roll again
-                    kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
-                    reply_to_id = challenge.get('message_id')
-                    await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=f"🤝 <b>Round Draw!</b> No points awarded.", 
-                        # \n\n<b>{p1_name}</b>, your turn! {emoji}", 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML",
-                        reply_to_message_id=reply_to_id
-                    )
-                    self.db.update_pending_pvp(self.pending_pvp)
-                    return
+                    target_pts = challenge.get('pts', 1)
+                    if target_pts > 1:
+                        # Continue the series, just clear the current round's rolls
+                        challenge['p_rolls'] = []
+                        challenge['b_rolls'] = []
+                        
+                        u = self.db.get_user(user_id)
+                        p1_name = u.get('username', f'User{user_id}')
+                        
+                        text = (
+                            f"🤝 <b>Round Draw!</b> No points awarded.\n\n"
+                            f"<b>Score</b>\n"
+                            f"{p1_name}: {challenge['p_pts']}\n"
+                            f"Bot: {challenge['b_pts']}\n\n"
+                            f"<b>{p1_name}</b>, roll again! {emoji}"
+                        )
+                        
+                        kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
+                        reply_to_id = challenge.get('message_id')
+                        await context.bot.send_message(
+                            chat_id=chat_id, 
+                            text=text, 
+                            reply_markup=InlineKeyboardMarkup(kb), 
+                            parse_mode="HTML",
+                            reply_to_message_id=reply_to_id
+                        )
+                        self.db.update_pending_pvp(self.pending_pvp)
+                        return
+                    else:
+                        # Standard 1-point game draw: refund
+                        u = self.db.get_user(user_id)
+                        p1_name = u.get('username', f'User{user_id}')
+                        # Refund is handled by the caller or existing logic elsewhere usually
+                        # but we'll stick to the specific behavior for 1-pt games if needed
+                        pass
                 
                 target_pts = challenge.get('pts', 1)
                 if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
