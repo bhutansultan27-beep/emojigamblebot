@@ -172,7 +172,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         b_tot = sum(challenge.get('b_rolls', [b_tot]))
         
         game_mode_type = challenge.get('mode', 'normal') # Define it before use
-        if game_mode_type == "inverted": # Crazy mode: Lowest wins
+        if game_mode_type == "crazy": # Crazy mode: Lowest wins
             if p_tot < b_tot: 
                 round_win = "p"
             elif b_tot < p_tot: 
