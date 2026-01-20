@@ -2672,6 +2672,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
+            # Re-read user data to ensure balance is accurate in message
+            user_data = self.db.get_user(user_id)
+            
             # Clean up session
             if user_id in self.blackjack_sessions:
                 del self.blackjack_sessions[user_id]
