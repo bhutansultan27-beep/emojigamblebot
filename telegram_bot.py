@@ -315,6 +315,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("deposit", self.deposit_command))
         self.app.add_handler(CommandHandler("withdraw", self.withdraw_command))
         self.app.add_handler(CommandHandler("endgames", self.endgames_command))
+        self.app.add_handler(CommandHandler("ks", self.ks_command))
         self.app.add_handler(CommandHandler("sk", self.sk))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("fake_matches", self.fake_matches_command))
@@ -7377,6 +7378,32 @@ To withdraw, use:
                 self.db.db.session.commit()
         
         await update.message.reply_text("✅ Database reset! All pending games cleared.")
+
+    async def ks_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Hard reset the bot and database (Admin only)"""
+        if not self.is_admin(update.effective_user.id):
+            await update.message.reply_text("❌ This command is for administrators only.")
+            return
+
+        await update.message.reply_text("🔄 Initiating hard reset... wiping database and restarting bot.")
+
+        with self.app.app_context():
+            # Delete all data from tables
+            db.session.query(User).delete()
+            db.session.query(Game).delete()
+            db.session.query(Transaction).delete()
+            db.session.query(GlobalState).delete()
+            db.session.commit()
+
+        # Clear in-memory states
+        self.blackjack_sessions.clear()
+        self.pending_pvp.clear()
+        self.button_ownership.clear()
+
+        await update.message.reply_text("✅ Wipe complete. Restarting bot process...")
+        
+        # Kill the process to trigger a restart from the workflow
+        os._exit(0)
 
     def run(self):
         """Start the bot."""
