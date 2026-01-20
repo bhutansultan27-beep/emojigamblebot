@@ -143,6 +143,8 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         # Multiplier = (Total Outcomes / Selected Outcomes) * (1 - House Edge)
         house_edge = 0.005
         
+        import math
+        
         if game_mode in ["dice", "darts", "bowling"]:
             total_outcomes = 6
             multiplier = (total_outcomes / len(selections)) * (1 - house_edge)
@@ -168,6 +170,11 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             # heads: 3/6, tails: 3/6 (mapped from 1-6 dice)
             total_outcomes = 2
             multiplier = (total_outcomes / len(selections)) * (1 - house_edge)
+        else:
+            multiplier = 0.0
+
+        if not math.isfinite(multiplier) or multiplier < 0:
+            multiplier = 0.0
 
         await asyncio.sleep(4) # Wait for animation
 
