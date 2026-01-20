@@ -2591,39 +2591,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             player_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
         message += f"{player_cards_str.strip()}\n\n"
         
-        message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
-        message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
-        
-        # Action Buttons
-        keyboard = []
-        if not state['game_over']:
-            # Normal Actions
-            current_hand = state['player_hands'][state['current_hand_index']]
-            actions = current_hand.get('actions', {})
-            
-            keyboard.append([InlineKeyboardButton("              Hit              ", callback_data=f"bj_hit_{user_id}")])
-            keyboard.append([InlineKeyboardButton("              Stand              ", callback_data=f"bj_stand_{user_id}")])
-            
-            row2 = []
-            if actions.get('can_double'):
-                row2.append(InlineKeyboardButton("              Double              ", callback_data=f"bj_double_{user_id}"))
-            if actions.get('can_split'):
-                row2.append(InlineKeyboardButton("              Split              ", callback_data=f"bj_split_{user_id}"))
-            if row2:
-                # If both double and split are available, put them on separate rows to keep them wide
-                for btn in row2:
-                    keyboard.append([btn])
-                
-            row3 = []
-            if state['is_insurance_available']:
-                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}"))
-            if row3:
-                keyboard.append(row3)
-        
-        # Insurance info
-        if state['is_insurance_available']:
-            message += f"\n**Insurance available:** ${state['insurance_bet']:.2f}\n"
-        
         # Game over - show results
         if state['game_over']:
             message += "\n"
@@ -2650,10 +2617,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Update user balance
             user_data = self.db.get_user(user_id)
             
-            # If actual_return is 0 (loss), no balance update needed beyond deduction
-            # If win (1.5x or 1:1), payout is profit. actual_return is bet + profit.
-            # If push (tie), payout is 0. actual_return is bet.
-            
             actual_return = total_bet + total_payout
             if actual_return > 0:
                 user_data['balance'] += actual_return
@@ -2668,14 +2631,44 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
-            # Re-read user data to ensure balance is accurate in message
-            user_data = self.db.get_user(user_id)
-            
-            # Clean up session
-            if user_id in self.blackjack_sessions:
-                del self.blackjack_sessions[user_id]
+        # Re-read user data to ensure balance is accurate in message
+        user_data = self.db.get_user(user_id)
 
+        message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
+        message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
+        
+        # Clean up session
+        if user_id in self.blackjack_sessions:
+            del self.blackjack_sessions[user_id]
+
+        # Action Buttons
+        keyboard = []
+        if not state['game_over']:
+            # Normal Actions
+            current_hand = state['player_hands'][state['current_hand_index']]
+            actions = current_hand.get('actions', {})
+            
+            keyboard.append([InlineKeyboardButton("              Hit              ", callback_data=f"bj_hit_{user_id}")])
+            keyboard.append([InlineKeyboardButton("              Stand              ", callback_data=f"bj_stand_{user_id}")])
+            
+            row2 = []
+            if actions.get('can_double'):
+                row2.append(InlineKeyboardButton("              Double              ", callback_data=f"bj_double_{user_id}"))
+            if actions.get('can_split'):
+                row2.append(InlineKeyboardButton("              Split              ", callback_data=f"bj_split_{user_id}"))
+            if row2:
+                # If both double and split are available, put them on separate rows to keep them wide
+                for btn in row2:
+                    keyboard.append([btn])
+                
+            row3 = []
+            if state['is_insurance_available']:
+                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}"))
+            if row3:
+                keyboard.append(row3)
+        else:
             # Play Again buttons (matched to screenshot)
+            total_bet = sum(h['bet'] for h in state['player_hands'])
             original_bet = getattr(game, 'initial_bet', total_bet)
             keyboard.append([InlineKeyboardButton("✅ Start Game", callback_data=f"bj_play_again_{user_id}_{original_bet:.2f}")])
             keyboard.append([
