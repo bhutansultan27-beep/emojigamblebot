@@ -228,8 +228,8 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"<b>Bot</b> • {challenge['b_pts']}\n\n"
                     f"<b>{p1_name}</b> won <b>${payout:,.2f}</b>!"
                 )
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}")]]
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
                 bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             else:
@@ -244,8 +244,8 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                 )
                 
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}")]]
                 
                 reply_id = challenge.get('message_id')
                 if challenge.get('msg_id'):
