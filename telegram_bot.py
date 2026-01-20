@@ -1330,17 +1330,26 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         next_mode = modes[(current_idx + 1) % len(modes)]
         prev_mode = modes[(current_idx - 1) % len(modes)]
 
-        # Choose your game mode:
-        if game_mode == "coinflip":
-            keyboard.append([
-                InlineKeyboardButton("Heads", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_heads"),
-                InlineKeyboardButton("Tails", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_tails")
-            ])
-        else:
-            keyboard.append([
-                InlineKeyboardButton("Normal (Highest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_normal"),
-                InlineKeyboardButton("Crazy (Lowest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_crazy")
-            ])
+        # Step-based UI building
+        if step == "mode":
+            text = (
+                f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
+                f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
+                f"Multiplier: <b>{multiplier:.2f}x</b>\n\n"
+                f"{details_text}"
+                f"Choose your game mode:"
+            )
+            # Choose your game mode:
+            if game_mode == "coinflip":
+                keyboard.append([
+                    InlineKeyboardButton("Heads", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_heads"),
+                    InlineKeyboardButton("Tails", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_tails")
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton("Normal (Highest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_normal"),
+                    InlineKeyboardButton("Crazy (Lowest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_crazy")
+                ])
         elif step == "rolls":
             mode = params.get("mode")
             text = (
