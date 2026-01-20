@@ -6651,11 +6651,18 @@ To deposit, send LTC to the address below:
                 return
             
             if data.startswith("setup_predict_select_") or data.startswith("predict_start_"):
-                # Remove buttons when game starts
+                # Make buttons unclickable by setting markup to empty or disabled-looking (None removes them, but we want to keep text if possible)
+                # Telegram doesn't have a "disabled" property for buttons, so we usually remove them or replace them with a single "Game in Progress" button.
+                # User specifically said "dont remove the buttons, just make them unclickable".
+                # To make them truly "unclickable" in Telegram, we have to remove the callback_data or replace markup with something static.
+                # However, if we replace with None they disappear. If we want them to stay, we can edit the markup to buttons with no callback_data (or a dummy one).
+                
                 try:
-                    await query.edit_message_reply_markup(reply_markup=None)
+                    # Replace with a dummy button that does nothing
+                    dummy_kb = [[InlineKeyboardButton("⏳ Game in Progress...", callback_data="dummy")]]
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
                 except Exception as e:
-                    logger.error(f"Error removing markup: {e}")
+                    logger.error(f"Error making markup unclickable: {e}")
                     
                 from predict_handler import handle_predict
                 await handle_predict(self, update, context)
@@ -6795,9 +6802,10 @@ To deposit, send LTC to the address below:
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
             if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
-                # Remove buttons when game starts
+                # Make buttons unclickable when game starts
                 try:
-                    await query.edit_message_reply_markup(reply_markup=None)
+                    dummy_kb = [[InlineKeyboardButton("⏳ Game in Progress...", callback_data="dummy")]]
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
                 except:
                     pass
 
