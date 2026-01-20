@@ -4775,14 +4775,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             user_data['balance'] += wager
             self.db.update_user(user_id, user_data)
             username_display = user_data.get('username', f'User{user_id}')
-            result_text = f"🤝 <b>Game over!</b>\n\n<b>{username_display}</b> - Draw, bet refunded"
+            result_text = f"🤝 <b>Draw!</b>\n\n<b>{username_display}</b> - Draw, bet refunded"
             profit = 0.0
             result = "draw"
-        
+
         # Update stats (unless draw, which already refunded)
         if result != "draw":
             self._update_user_stats(user_id, wager, profit, result)
-        
+
         # Record transactions
         self.db.add_transaction(user_id, game_type, profit, f"{game_type.upper().replace('_', ' ')} - Wager: ${wager:.2f}")
         self.db.record_game({
@@ -4793,7 +4793,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "bot_roll": challenge.get('bot_roll', 0),
             "result": result
         })
-        
+
         keyboard = [
             [
                 InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game_type.replace('_bot', '')}_{wager:.2f}_{challenge.get('rolls', 1)}_{challenge.get('mode', 'normal')}_{challenge.get('pts', 1)}"),
@@ -4801,15 +4801,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         sent_msg = await context.bot.send_message(
-            chat_id=chat_id, 
-            text=result_text, 
-            reply_markup=reply_markup, 
+            chat_id=chat_id,
+            text=result_text,
+            reply_markup=reply_markup,
             parse_mode="HTML",
             reply_to_message_id=update.effective_message.message_id if update.effective_message else None
         )
         self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+        return
 
     async def coinflip_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, choice: str):
         """Play coinflip against the bot (called from button)"""
