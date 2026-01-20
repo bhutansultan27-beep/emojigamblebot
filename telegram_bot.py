@@ -874,7 +874,7 @@ class AntariaCasinoBot:
         stats_text = f"""
 ℹ️ Stats of <b>{username}</b>
 
-Level: <b>{rank_emoji}</b>
+<b>{rank_emoji}</b>
 Games Played: <b>{games_played}</b>
 Wins: <b>{games_won} ({win_rate:.2f}%)</b>
 Total Wagered: <b>${total_wagered:,.2f}</b>
