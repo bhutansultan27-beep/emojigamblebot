@@ -5422,6 +5422,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         user_id = query.from_user.id
         chat = query.message.chat
         data = query.data
+        owner_id = self.button_ownership.get((chat.id, query.message.message_id))
         
         # Blackjack Action Buttons: bj_hit_{user_id}, bj_stand_{user_id}, etc.
         # EXCLUDE play_again which is handled separately below
