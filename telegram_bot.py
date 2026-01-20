@@ -2639,17 +2639,17 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             username = user_data.get('username') or update.effective_user.first_name
             
             if player_hand['status'] == 'Blackjack':
-                message += "🎊 **BLACKJACK!**"
+                message += "**BLACKJACK!**"
             elif player_hand['status'] == 'Bust':
-                message += "💥 **Busted. You lost!**"
+                message += "**Busted. You lost!**"
             elif dealer_hand['final_status'] == 'Bust':
-                message += "💥 **Dealer bust. You won!**"
+                message += "**Dealer bust. You won!**"
             elif total_payout > 0:
-                message += f"🎉 **Congratulations {username}, you won!**"
+                message += f"**Congratulations {username}, you won!**"
             elif total_payout < 0:
-                message += "❌ **Dealer won!**"
+                message += "**Dealer won!**"
             else:
-                message += "🤝 **Push** - Bet returned"
+                message += "**Push** - Bet returned"
             
             # Update user balance
             user_data = self.db.get_user(user_id)
