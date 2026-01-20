@@ -346,18 +346,33 @@ class AntariaCasinoBot:
             await update.message.reply_text("Usage: /p [amount]\nExample: /p 100")
             return
             
+        import math
         try:
             amount = float(context.args[0])
+            if not math.isfinite(amount) or amount <= 0:
+                raise ValueError("Invalid amount")
+            
+            # Limit the maximum amount that can be added via /p to prevent overflow
+            # 1 Quadrillion (10^15) is a safe upper limit
+            if amount > 1_000_000_000_000_000:
+                await update.message.reply_text("❌ Amount too large.")
+                return
         except ValueError:
             await update.message.reply_text("❌ Invalid amount.")
             return
             
         user_data = self.db.get_user(user_id)
-        user_data['balance'] += amount
+        new_balance = user_data['balance'] + amount
+        
+        if not math.isfinite(new_balance):
+            await update.message.reply_text("❌ Resulting balance would be invalid.")
+            return
+
+        user_data['balance'] = new_balance
         self.db.update_user(user_id, user_data)
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
         
-        await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
+        await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
 
     async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """End all active games and refund players"""
@@ -3193,18 +3208,33 @@ Examples:
             await update.message.reply_text("Usage: /p [amount]\nExample: /p 100")
             return
             
+        import math
         try:
             amount = float(context.args[0])
+            if not math.isfinite(amount) or amount <= 0:
+                raise ValueError("Invalid amount")
+            
+            # Limit the maximum amount that can be added via /p to prevent overflow
+            # 1 Quadrillion (10^15) is a safe upper limit
+            if amount > 1_000_000_000_000_000:
+                await update.message.reply_text("❌ Amount too large.")
+                return
         except ValueError:
             await update.message.reply_text("❌ Invalid amount.")
             return
             
         user_data = self.db.get_user(user_id)
-        user_data['balance'] += amount
+        new_balance = user_data['balance'] + amount
+        
+        if not math.isfinite(new_balance):
+            await update.message.reply_text("❌ Resulting balance would be invalid.")
+            return
+
+        user_data['balance'] = new_balance
         self.db.update_user(user_id, user_data)
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
         
-        await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
+        await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
 
     async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """End all active games and refund players"""
