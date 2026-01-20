@@ -6256,7 +6256,7 @@ To deposit, send LTC to the address below:
                         
                         # Only announce winner if the series is over
                         loss_text = (
-                            f"❌ <a href=\"tg://user?id=8575155625\">emojigamblebot</a> won <b>${w * 1.95:,.2f}</b>"
+                            f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>"
                         )
                         kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}"),
                                InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{target_pts}")]]
@@ -6282,7 +6282,7 @@ To deposit, send LTC to the address below:
                     text = (
                         f"<b>Score</b>\n\n"
                         f"{p1_name}: {challenge['p_pts']}\n"
-                        f"Rukia: {challenge['b_pts']}\n\n"
+                        f"Bot: {challenge['b_pts']}\n\n"
                         f"<b>{p1_name}</b>, your turn! {emoji}"
                     )
                     cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
@@ -6310,16 +6310,6 @@ To deposit, send LTC to the address below:
                         reply_to_message_id=reply_to_id
                     )
                     challenge['cashout_msg_id'] = sent_msg.message_id
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
-                    # Ensure the score message is a reply to the game details message (challenge['msg_id'])
-                    reply_to_id = challenge.get('msg_id')
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML",
-                        reply_to_message_id=reply_to_id
-                    )
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
                 
                 self.db.update_pending_pvp(self.pending_pvp)
