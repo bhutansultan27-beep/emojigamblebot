@@ -4654,17 +4654,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 self.db.update_house_balance(-(payout - w))
                 
                 p1_name = u.get('username', f'User{user_id}')
-                p1_mention = f'<a href="tg://user?id={user_id}"><b>{p1_name}</b></a>'
+                bold_name = f"<b>{p1_name}</b>"
                 win_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
-                    f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
+                    f"<b>{bold_name}</b> won <b>${payout:,.2f}</b>!"
                 )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                # Series End: We still send a new message as usual, but the callback handler will now remove buttons
                 reply_to_id = challenge.get('message_id')
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
