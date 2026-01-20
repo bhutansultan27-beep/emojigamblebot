@@ -149,6 +149,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         bot_to_use = bot_instance.secondary_bot if bot_instance.secondary_bot else context.bot
         for _ in range(challenge['rolls']):
             try:
+                # Secondary bot ONLY sends dice
                 d = await bot_to_use.send_dice(chat_id=chat_id, emoji=emoji)
                 val = d.dice.value
                 score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
