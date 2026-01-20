@@ -4541,8 +4541,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 bold_name = f"<b>{p1_name}</b>"
                 reply_to_id = challenge.get('message_id')
                 
-                # Give user 3 seconds to send next emoji before nagging
-                await asyncio.sleep(3)
+                # Give user 10 seconds to send next emoji before nagging
+                await asyncio.sleep(10)
                 # Re-check if they rolled in those 3 seconds
                 if len(challenge['p_rolls']) < challenge['rolls']:
                     await context.bot.send_message(
