@@ -2566,7 +2566,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if state['game_over']:
             message += f"   **{state['dealer']['value']}**\n\n"
         else:
-            message += f"   (Showing: {state['dealer']['value']})\n\n"
+            message += f"   **{state['dealer']['value']}**\n\n"
         
         # 2. Display all player hands
         for hand in state['player_hands']:
