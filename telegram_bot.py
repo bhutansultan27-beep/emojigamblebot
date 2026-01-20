@@ -6227,6 +6227,7 @@ To deposit, send LTC to the address below:
                     # SILENCE: No message for draws in both single and multi-point games
                     challenge['p_rolls'] = []
                     challenge['b_rolls'] = []
+                    challenge['cur_rolls'] = 0 # Reset cur_rolls to allow cashout/next roll
                     
                     # For single point games, we need to show the cashout message buttons so they can keep playing
                     if target_pts == 1:
@@ -6945,10 +6946,11 @@ To deposit, send LTC to the address below:
                     return
                 
                 # Check if player has already rolled in this round
-                if len(challenge.get('p_rolls', [])) > 0:
-                    # In single-point games after a draw, p_rolls is cleared
+                if len(challenge.get('p_rolls', [])) > 0 or challenge.get('cur_rolls', 0) > 0:
+                    # In single-point games after a draw, p_rolls is cleared and cur_rolls is reset
                     # But if they JUST rolled, we should check cur_rolls or p_rolls
-                    pass 
+                    await query.answer("❌ You already sent your emoji! Cannot cashout now.", show_alert=True)
+                    return
                 
                 # Special handling for single point games in draw state
                 # If target_pts == 1 and it's a draw, they can cash out
