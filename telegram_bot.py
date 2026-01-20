@@ -1828,11 +1828,18 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         house_edge = 0.005
         if selections:
             if game_mode in ["dice", "darts", "bowling"]:
-                total_outcomes = 6
-                selected_count = len(selections)
-                multiplier = (total_outcomes / selected_count) * (1 - house_edge)
-                if selected_count == 3:
-                    multiplier = 1.95
+                multipliers = {
+                    1: 5.85,
+                    2: 2.93,
+                    3: 1.95,
+                    4: 1.46,
+                    5: 1.17
+                }
+                multiplier = multipliers.get(len(selections), 0.0)
+                if not multiplier:
+                    total_outcomes = 6
+                    selected_count = len(selections)
+                    multiplier = (total_outcomes / selected_count) * (1 - house_edge)
             elif game_mode == "basketball":
                 # Probability based on values 1-5: miss(2), stuck(1), score(2)
                 # score: (5/2)*0.995 = 2.4875x
