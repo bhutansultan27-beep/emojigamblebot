@@ -4083,8 +4083,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 match_msg_id = challenge.get('match_accepted_msg_id')
                 if match_msg_id:
                     try:
-                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=match_msg_id, reply_markup=None)
-                        challenge['match_accepted_msg_id'] = None
+                        # User requested not to delete buttons, so we'll skip removing the reply markup
+                        # await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=match_msg_id, reply_markup=None)
+                        pass
                     except Exception as e:
                         logger.warning(f"Failed to remove Match Accepted button: {e}")
 
@@ -4092,7 +4093,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 msg_id = challenge.get('message_id')
                 if msg_id:
                     try:
-                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=msg_id, reply_markup=None)
+                        # User requested not to delete buttons, so we'll skip removing the reply markup
+                        # await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=msg_id, reply_markup=None)
+                        pass
                     except Exception as e:
                         logger.warning(f"Failed to remove game menu buttons: {e}")
 
@@ -4147,7 +4150,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     old_msg_id = challenge.get('cashout_msg_id')
                     if old_msg_id:
                         try:
-                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
+                            # User requested not to delete buttons
+                            # await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                             challenge['cashout_msg_id'] = None
                             self.db.update_pending_pvp(self.pending_pvp)
                         except Exception as e:
