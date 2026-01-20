@@ -2631,6 +2631,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
             user_data['total_pnl'] += total_payout
             user_data['games_played'] += 1
+            user_data['total_wagered'] += total_bet
             if total_payout > 0:
                 user_data['games_won'] += 1
             
