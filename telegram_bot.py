@@ -4681,22 +4681,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
-                try:
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=win_text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML", 
-                        reply_to_message_id=reply_to_id
-                    )
-                except Exception:
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=win_text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML"
-                    )
+                reply_to_id = challenge.get('message_id')
+                sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             else:
                 self.db.update_house_balance(w)
@@ -4711,22 +4697,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
-                try:
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=loss_text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML", 
-                        reply_to_message_id=reply_to_id
-                    )
-                except Exception:
-                    sent_msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=loss_text, 
-                        reply_markup=InlineKeyboardMarkup(kb), 
-                        parse_mode="HTML"
-                    )
+                reply_to_id = challenge.get('message_id')
+                sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             
             del self.pending_pvp[cid]
@@ -4735,7 +4707,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             u = self.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
             text = (
-                f"🏆 <b>Score!</b>\n\n"
+                f"<b>Score</b>\n\n"
                 f"{p1_name}: {challenge['p_pts']}\n"
                 f"Bot: {challenge['b_pts']}\n\n"
                 f"<b>{p1_name}</b>, your turn!"
@@ -4760,22 +4732,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     logger.warning(f"Failed to remove button from old cashout message: {e}")
 
             # DISABLED: redundant message during game progress
-            reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
-            try:
-                sent_msg = await context.bot.send_message(
-                    chat_id=chat_id, 
-                    text=text, 
-                    reply_markup=InlineKeyboardMarkup(kb), 
-                    parse_mode="HTML", 
-                    reply_to_message_id=reply_to_id
-                )
-            except Exception:
-                sent_msg = await context.bot.send_message(
-                    chat_id=chat_id, 
-                    text=text, 
-                    reply_markup=InlineKeyboardMarkup(kb), 
-                    parse_mode="HTML"
-                )
+            reply_to_id = challenge.get('message_id')
+            sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
             challenge['cashout_msg_id'] = sent_msg.message_id
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         
@@ -5094,12 +5052,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # Store the message ID for automatic deletion when game starts
             self.pending_pvp[cid]['match_accepted_msg_id'] = sent_msg.message_id
             self.db.update_pending_pvp(self.pending_pvp)
-            
-            # Delete the original game details menu message when user clicks start
-            try:
-                await query.message.delete()
-            except Exception as e:
-                logger.debug(f"Could not delete original game details message: {e}")
             
             # DO NOT edit or delete the original query.message (the Game Details menu)
             # This keeps the original menu with its buttons intact as requested.
