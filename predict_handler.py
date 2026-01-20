@@ -111,7 +111,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         #     except Exception as e:
         #         logger.error(f"Error making markup unclickable in predict_start: {e}")
 
-        await query.answer("Game started!")
+        # await query.answer("Game started!")
         
         # Mapping for emoji values
         # Dice: 1-6
