@@ -2585,9 +2585,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}\n\n"
             
         # Player Hands section (Support multiple hands from splitting)
+        num_player_hands = len(state['player_hands'])
         for i, h in enumerate(state['player_hands']):
-            hand_label = "Your cards" if len(state['player_hands']) == 1 else f"Hand {i+1}"
-            current_marker = " ⬅️" if h['is_current_turn'] else ""
+            hand_label = "Your cards" if num_player_hands == 1 else f"Hand {i+1}"
+            current_marker = " ⬅️" if (h['is_current_turn'] and num_player_hands > 1) else ""
             message += f"{hand_label}: <b>{h['value']}</b>{current_marker}\n"
             message += f"{h['cards']}\n\n"
         
