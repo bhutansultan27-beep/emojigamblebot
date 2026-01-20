@@ -4544,16 +4544,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
             
-            # Delete the game details message when user sends their emoji
-            if challenge['cur_rolls'] == 1:
-                game_details_msg_id = challenge.get('message_id')
-                if game_details_msg_id:
-                    try:
-                        await context.bot.delete_message(chat_id=chat_id, message_id=game_details_msg_id)
-                        challenge['message_id'] = None # Avoid double deletion
-                    except Exception as e:
-                        logger.debug(f"Could not delete game details message: {e}")
-            
             # Ensure bot rolls list exists
             if 'b_rolls' not in challenge:
                 challenge['b_rolls'] = []
@@ -5062,6 +5052,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # Store the message ID for automatic deletion when game starts
             self.pending_pvp[cid]['match_accepted_msg_id'] = sent_msg.message_id
             self.db.update_pending_pvp(self.pending_pvp)
+            
+            # Delete the original game details menu message when user clicks start
+            try:
+                await query.message.delete()
+            except Exception as e:
+                logger.debug(f"Could not delete original game details message: {e}")
             
             # DO NOT edit or delete the original query.message (the Game Details menu)
             # This keeps the original menu with its buttons intact as requested.
