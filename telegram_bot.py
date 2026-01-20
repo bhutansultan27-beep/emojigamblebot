@@ -4536,21 +4536,19 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
             if challenge['cur_rolls'] < challenge['rolls']:
                 # Need more rolls
-                p1_name = self.db.get_user(user_id).get('username', f'User{user_id}')
-                # Use bold name
-                bold_name = f"<b>{p1_name}</b>"
-                reply_to_id = challenge.get('message_id')
-                
-                # Give user 3 seconds to send next emoji before nagging
-                await asyncio.sleep(3)
-                # Re-check if they rolled in those 3 seconds
-                if len(challenge['p_rolls']) < challenge['rolls']:
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"{bold_name}, roll again! ({challenge['cur_rolls']}/{challenge['rolls']}) {emoji}",
-                        reply_to_message_id=reply_to_id,
-                        parse_mode="HTML"
-                    )
+                # DISABLED: user requested to remove "roll again" message
+                # p1_name = self.db.get_user(user_id).get('username', f'User{user_id}')
+                # bold_name = f"<b>{p1_name}</b>"
+                # reply_to_id = challenge.get('message_id')
+                # await asyncio.sleep(3)
+                # if len(challenge['p_rolls']) < challenge['rolls']:
+                #     await context.bot.send_message(
+                #         chat_id=chat_id,
+                #         text=f"{bold_name}, roll again! ({challenge['cur_rolls']}/{challenge['rolls']}) {emoji}",
+                #         reply_to_message_id=reply_to_id,
+                #         parse_mode="HTML"
+                #     )
+                pass
             else:
                 # Player finished, trigger bot response
                 challenge['waiting_for_emoji'] = False
