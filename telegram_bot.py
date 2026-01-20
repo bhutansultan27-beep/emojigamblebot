@@ -2653,16 +2653,24 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             
             # Update user balance
             user_data = self.db.get_user(user_id)
-            user_data['balance'] += total_payout
+            
+            # If actual_return is 0 (loss), no balance update needed beyond deduction
+            # If win (1.5x or 1:1), payout is profit. actual_return is bet + profit.
+            # If push (tie), payout is 0. actual_return is bet.
+            
+            actual_return = total_bet + total_payout
+            if actual_return > 0:
+                user_data['balance'] += actual_return
+                self.db.update_user(user_id, user_data)
+                self.db.add_transaction(user_id, "blackjack_result", actual_return, f"Blackjack Result (Return: {actual_return:.2f})")
+            
             user_data['total_pnl'] += total_payout
             user_data['games_played'] += 1
             if total_payout > 0:
                 user_data['games_won'] += 1
             
+            # Final update for stats
             self.db.update_user(user_id, user_data)
-            
-            if total_payout > 0:
-                self.db.add_transaction(user_id, "blackjack_win", total_payout, f"Blackjack Win (Bet: {total_bet:.2f})")
             
             # Clean up session
             if user_id in self.blackjack_sessions:

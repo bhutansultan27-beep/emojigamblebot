@@ -239,7 +239,8 @@ class BlackjackGame:
         if not current_hand_state['actions'].get('can_double'):
             return "Error: Cannot Double Down. Only allowed on the initial two cards."
         
-        # Increase bet
+        # Note: The extra bet deduction should be handled by the bot/caller
+        # based on this return message or the changed bet amount.
         current_hand_state['bet'] *= 2
         
         # Hit exactly once
