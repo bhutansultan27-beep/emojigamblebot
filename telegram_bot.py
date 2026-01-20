@@ -6200,6 +6200,9 @@ To deposit, send LTC to the address below:
                 elif round_win == "b":
                     challenge['b_pts'] += 1
                 
+                # Update database IMMEDIATELY after incrementing points
+                self.db.update_pending_pvp(self.pending_pvp)
+                
                 if round_win == "draw":
                     target_pts = challenge.get('pts', 1)
                     # SILENCE for multi-point games
