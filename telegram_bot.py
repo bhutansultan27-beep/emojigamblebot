@@ -4541,8 +4541,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 bold_name = f"<b>{p1_name}</b>"
                 reply_to_id = challenge.get('message_id')
                 
-                # Give user 10 seconds to send next emoji before nagging
-                await asyncio.sleep(10)
+                # Give user 3 seconds to send next emoji before nagging
+                await asyncio.sleep(3)
                 # Re-check if they rolled in those 3 seconds
                 if len(challenge['p_rolls']) < challenge['rolls']:
                     await context.bot.send_message(
@@ -4716,9 +4716,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
                 except Exception as e:
                     logger.warning(f"Failed to remove button from old cashout message: {e}")
-
-            # Wait 10 seconds before next round prompt as requested
-            await asyncio.sleep(10)
 
             reply_to_id = challenge.get('message_id')
             sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
