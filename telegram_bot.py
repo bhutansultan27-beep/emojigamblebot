@@ -4681,8 +4681,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                reply_to_id = challenge.get('message_id')
-                sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+                reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
+                try:
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=win_text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML", 
+                        reply_to_message_id=reply_to_id
+                    )
+                except Exception:
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=win_text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML"
+                    )
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             else:
                 self.db.update_house_balance(w)
@@ -4697,8 +4711,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
                 
-                reply_to_id = challenge.get('message_id')
-                sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+                reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
+                try:
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=loss_text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML", 
+                        reply_to_message_id=reply_to_id
+                    )
+                except Exception:
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=loss_text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML"
+                    )
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             
             del self.pending_pvp[cid]
@@ -4732,8 +4760,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     logger.warning(f"Failed to remove button from old cashout message: {e}")
 
             # DISABLED: redundant message during game progress
-            reply_to_id = challenge.get('message_id')
-            sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
+            reply_to_id = challenge.get('match_accepted_msg_id') or challenge.get('message_id')
+            try:
+                sent_msg = await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=text, 
+                    reply_markup=InlineKeyboardMarkup(kb), 
+                    parse_mode="HTML", 
+                    reply_to_message_id=reply_to_id
+                )
+            except Exception:
+                sent_msg = await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=text, 
+                    reply_markup=InlineKeyboardMarkup(kb), 
+                    parse_mode="HTML"
+                )
             challenge['cashout_msg_id'] = sent_msg.message_id
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         
