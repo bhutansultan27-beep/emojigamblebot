@@ -1467,10 +1467,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if step == "final":
             pts_val = params.get("pts")
             rolls_val = params.get("rolls")
-            mode_val = params.get("mode")
+            mode_val = params.get("mode", "normal")
             opponent_val = params.get("opponent", "bot")
             
-            start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_game_{pts_val}_{rolls_val}_{mode_val}"
+            start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_{pts_val}_{rolls_val}_{mode_val}"
             
             back_btn = InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{params.get('rolls', 1)}_{params.get('mode', 'normal')}")
             keyboard.append([
