@@ -6891,8 +6891,7 @@ To deposit, send LTC to the address below:
                         
                         # If it's a full "Play Again" / "Double" callback (v2_bot_game_wager_rolls_mode_pts)
                         if len(parts) >= 7:
-                            # Force a new message by ensuring the handler uses send_message
-                            # We still remove buttons from the old message
+                            # Remove buttons from the current message
                             try:
                                 await query.edit_message_reply_markup(reply_markup=None)
                             except:
