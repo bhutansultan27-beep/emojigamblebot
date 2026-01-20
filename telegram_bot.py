@@ -2577,12 +2577,12 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if state['game_over']:
             dealer_cards_str = ""
             for card in game.dealer_hand.cards:
-                dealer_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
+                dealer_cards_str += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')}  "
             message += f"{dealer_cards_str.strip()}\n\n"
         else:
             # Show only first card
             first_card = game.dealer_hand.cards[0]
-            message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}\n\n"
+            message += f"<b>{first_card.rank}</b>{CARD_FACES.get(first_card.suit, '')}\n\n"
             
         # Player Hands section (Support multiple hands from splitting)
         num_player_hands = len(state['player_hands'])
@@ -2590,7 +2590,13 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             hand_label = "Your cards" if num_player_hands == 1 else f"Hand {i+1}"
             current_marker = " ⬅️" if (h['is_current_turn'] and num_player_hands > 1) else ""
             message += f"{hand_label}: <b>{h['value']}</b>{current_marker}\n"
-            message += f"{h['cards']}\n\n"
+            
+            # Format cards with bold ranks manually for player hands too to ensure consistency
+            player_cards_formatted = ""
+            for card in game.player_hands[i]['hand'].cards:
+                player_cards_formatted += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')}  "
+            
+            message += f"{player_cards_formatted.strip()}\n\n"
         
         # Game over - show results
         result_msg = ""
