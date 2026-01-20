@@ -2658,8 +2658,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             current_hand = state['player_hands'][state['current_hand_index']]
             actions = current_hand.get('actions', {})
             
-            keyboard.append([InlineKeyboardButton("              Hit              ", callback_data=f"bj_hit_{user_id}")])
-            keyboard.append([InlineKeyboardButton("              Stand              ", callback_data=f"bj_stand_{user_id}")])
+            keyboard.append([
+                InlineKeyboardButton("              Hit              ", callback_data=f"bj_hit_{user_id}"),
+                InlineKeyboardButton("              Stand              ", callback_data=f"bj_stand_{user_id}")
+            ])
             
             row2 = []
             if actions.get('can_double'):
