@@ -2640,7 +2640,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Re-read user data to ensure balance is accurate in message
             user_data = self.db.get_user(user_id)
 
-        message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
+        total_bet = sum(h['bet'] for h in state['player_hands'])
+        message += f"Bet: <b>${total_bet:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
 
         if result_msg:
