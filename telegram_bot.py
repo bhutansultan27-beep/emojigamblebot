@@ -13,7 +13,6 @@ from typing import Optional, Dict, Any, List
 import sys
 import os
 
-# Try to import from the specific site-packages if needed, but usually just standard import
 try:
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
@@ -24,9 +23,11 @@ try:
         MessageHandler,
         filters
     )
-except (ImportError, AttributeError):
-    # Fallback to direct import if necessary
-    import telegram
+except ImportError:
+    # Try to clean up and force path reload if necessary
+    import sys
+    import os
+    # Basic check for common issues
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
         Application,
