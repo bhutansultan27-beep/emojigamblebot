@@ -6639,7 +6639,6 @@ To deposit, send LTC to the address below:
                     del self._predict_selections[user_id]
                 
                 # IMPORTANT: Remove from pending_pvp to allow new games
-                # We need to find if this user has any pending games in self.pending_pvp
                 for cid in list(self.pending_pvp.keys()):
                     challenge = self.pending_pvp[cid]
                     if (challenge.get('player') == user_id or 
@@ -6657,27 +6656,19 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 try:
-                    # Make original buttons unclickable instead of replacing them
-                    if query.message and query.message.reply_markup:
-                        new_keyboard = []
-                        for row in query.message.reply_markup.inline_keyboard:
-                            new_row = []
-                            for button in row:
-                                new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
-                            new_keyboard.append(new_row)
-                        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
+                    # Delete the match accepted message
+                    await query.message.delete()
                     
-                    if query.message.reply_to_message:
+                    # Try to delete original command message
+                    cmd_id = context.user_data.get('last_dice_cmd_id')
+                    if cmd_id:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=cmd_id)
+                        context.user_data.pop('last_dice_cmd_id', None)
+                    elif query.message.reply_to_message:
                         try:
                             await query.message.reply_to_message.delete()
                         except:
                             pass
-                    else:
-                        # Try to delete original command from user_data
-                        cmd_id = context.user_data.get('last_dice_cmd_id')
-                        if cmd_id:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_id)
-                            context.user_data.pop('last_dice_cmd_id', None)
                 except Exception as e:
                     logger.error(f"Error in setup_cancel: {e}")
                 return
@@ -6705,25 +6696,20 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
 
                 try:
-                    # Make original buttons unclickable instead of replacing them
-                    if query.message and query.message.reply_markup:
-                        new_keyboard = []
-                        for row in query.message.reply_markup.inline_keyboard:
-                            new_row = []
-                            for button in row:
-                                new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
-                            new_keyboard.append(new_row)
-                        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
+                    # Delete the match accepted message
+                    await query.message.delete()
                     
-                    if query.message.reply_to_message:
+                    # Try to delete original command message
+                    last_cmd_id = context.user_data.get('last_dice_cmd_id') or context.user_data.get('last_roll_cmd_id')
+                    if last_cmd_id:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=last_cmd_id)
+                        context.user_data.pop('last_dice_cmd_id', None)
+                        context.user_data.pop('last_roll_cmd_id', None)
+                    elif query.message.reply_to_message:
                         try:
                             await query.message.reply_to_message.delete()
                         except:
                             pass
-                    else:
-                        last_cmd_id = context.user_data.get('last_roll_cmd_id')
-                        if last_cmd_id:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=last_cmd_id)
                 except Exception as e:
                     logger.error(f"Error in setup_cancel_roll: {e}")
                 return
