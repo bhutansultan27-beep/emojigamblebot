@@ -272,18 +272,21 @@ class BlackjackGame:
         current_hand_state['hand'].add_card(self.deck.deal_card())
         current_hand_state['actions'] = {} # Reset actions for Hand 1
 
-        # 2. Create the new hand (Hand 2)
+        # Re-splitting is often allowed, but for now we'll allow standard actions on Hand 2
         new_hand_state: Dict[str, Any] = {
             'hand': Hand(cards=[card2], is_split=True), 
             'bet': bet, 
             'status': 'Playing',
-            # Re-splitting Aces is often disallowed, so we keep actions disabled for now.
-            'actions': {'can_split': False, 'can_double': True, 'can_surrender': False} 
+            'actions': {'can_split': True, 'can_double': True, 'can_surrender': False} 
         }
         new_hand_state['hand'].add_card(self.deck.deal_card())
         
         # Insert the new hand immediately after the current one
         self.player_hands.insert(self.current_hand_index + 1, new_hand_state)
+        
+        # Recalculate actions for Hand 2 immediately (in case it can split again)
+        # However, _check_available_actions works on self.current_hand_index
+        # So we just ensure it's actionable when we get to it.
         
         message = f"Split successful. You now have {len(self.player_hands)} hands."
         

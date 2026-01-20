@@ -2584,12 +2584,12 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             first_card = game.dealer_hand.cards[0]
             message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}\n\n"
             
-        # Player section
-        message += f"Your cards: <b>{state['player_hands'][0]['value']}</b>\n"
-        player_cards_str = ""
-        for card in game.player_hands[0]['hand'].cards:
-            player_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
-        message += f"{player_cards_str.strip()}\n\n"
+        # Player Hands section (Support multiple hands from splitting)
+        for i, h in enumerate(state['player_hands']):
+            hand_label = "Your cards" if len(state['player_hands']) == 1 else f"Hand {i+1}"
+            current_marker = " ⬅️" if h['is_current_turn'] else ""
+            message += f"{hand_label}: <b>{h['value']}</b>{current_marker}\n"
+            message += f"{h['cards']}\n\n"
         
         # Game over - show results
         result_msg = ""
@@ -2633,11 +2633,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Re-read user data to ensure balance is accurate in message
             user_data = self.db.get_user(user_id)
 
-        if result_msg:
-            message += f"\n{result_msg}\n"
-
         message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
+
+        if result_msg:
+            message += f"\n{result_msg}\n"
         
         # Clean up session ONLY IF GAME IS OVER
         if state['game_over']:
