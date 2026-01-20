@@ -230,16 +230,29 @@ class AntariaCasinoBot:
         
         logger.info("Bot commands menu initialized for all scopes (Default, Private, Groups)")
 
-    def __init__(self, token: str):
+    def __init__(self, token: Optional[str] = None):
         self.token = token
-        # Initialize secondary bot for emoji rolls
+        # Initialize bot application
+        # Main bot (responds to commands)
+        main_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        if not main_token:
+            raise ValueError("Invalid or missing TELEGRAM_BOT_TOKEN")
+        
+        # Helper bot (sends emojis)
         secondary_token = os.environ.get("SECONDARY_BOT_TOKEN")
         self.secondary_bot = None
         if secondary_token:
             from telegram import Bot
             self.secondary_bot = Bot(token=secondary_token)
             logger.info("Secondary bot initialized for emoji rolls")
-        
+            
+        self.app = Application.builder().token(main_token).post_init(self.post_init).build()
+        self.app.bot_data['casino_bot'] = self # Store reference for access from handlers if needed
+        # Add job queue check
+        if not self.app.job_queue:
+            logger.warning("Job queue is not available. Some features like challenge expiration may not work.")
+        self.setup_handlers()
+
         # Initialize the internal database manager
         self.db = DatabaseManager()
         
@@ -267,23 +280,6 @@ class AntariaCasinoBot:
                 logger.info(f"Loaded {len(self.env_admin_ids)} permanent admin(s) from environment")
             except ValueError:
                 logger.error("Invalid ADMIN_IDS format. Use comma-separated numbers.")
-        
-        # Initialize bot application
-        if not token:
-            token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
-        
-        if token:
-            token = token.strip()
-            
-        if not token or token == "YOUR_BOT_TOKEN_HERE":
-            raise ValueError("Invalid or missing Telegram Bot Token")
-            
-        self.app = Application.builder().token(token).post_init(self.post_init).build()
-        self.app.bot_data['casino_bot'] = self # Store reference for access from handlers if needed
-        # Add job queue check
-        if not self.app.job_queue:
-            logger.warning("Job queue is not available. Some features like challenge expiration may not work.")
-        self.setup_handlers()
         
         # Dictionary to store ongoing PvP challenges
         self.pending_pvp: Dict[str, Any] = self.db.data.get('pending_pvp', {})
