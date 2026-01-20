@@ -6594,9 +6594,15 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 try:
-                    await query.message.delete()
+                    # Replace markup instead of deleting message
+                    dummy_kb = [[InlineKeyboardButton("❌ Cancelled", callback_data="dummy")]]
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
+                    
                     if query.message.reply_to_message:
-                        await query.message.reply_to_message.delete()
+                        try:
+                            await query.message.reply_to_message.delete()
+                        except:
+                            pass
                     else:
                         # Try to delete original command from user_data
                         cmd_id = context.user_data.get('last_dice_cmd_id')
@@ -6630,9 +6636,15 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
 
                 try:
-                    await query.message.delete()
+                    # Replace markup instead of deleting message
+                    dummy_kb = [[InlineKeyboardButton("❌ Cancelled", callback_data="dummy")]]
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
+                    
                     if query.message.reply_to_message:
-                        await query.message.reply_to_message.delete()
+                        try:
+                            await query.message.reply_to_message.delete()
+                        except:
+                            pass
                     else:
                         last_cmd_id = context.user_data.get('last_roll_cmd_id')
                         if last_cmd_id:

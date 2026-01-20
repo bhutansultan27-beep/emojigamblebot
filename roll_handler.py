@@ -94,6 +94,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         await query.answer()
         # Make buttons unclickable by replacing with dummy
         try:
+            # We preserve the original text but replace the keyboard
             dummy_kb = [[InlineKeyboardButton("⏳ Game in Progress...", callback_data="dummy")]]
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
         except Exception as e:
