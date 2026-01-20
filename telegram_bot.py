@@ -6202,40 +6202,48 @@ To deposit, send LTC to the address below:
                 
                 if round_win == "draw":
                     target_pts = challenge.get('pts', 1)
-                    if target_pts > 1:
-                        # Continue the series, just clear the current round's rolls
-                        challenge['p_rolls'] = []
-                        challenge['b_rolls'] = []
-                        
-                        u = self.db.get_user(user_id)
-                        p1_name = u.get('username', f'User{user_id}')
-                        
-                        text = (
-                            f"🤝 <b>Round Draw!</b> No points awarded.\n\n"
-                            f"<b>Score</b>\n"
-                            f"{p1_name}: {challenge['p_pts']}\n"
-                            f"Bot: {challenge['b_pts']}\n\n"
-                            f"<b>{p1_name}</b>, roll again! {emoji}"
-                        )
-                        
-                        kb = [[InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")]]
-                        reply_to_id = challenge.get('message_id')
-                        await context.bot.send_message(
-                            chat_id=chat_id, 
-                            text=text, 
-                            reply_markup=InlineKeyboardMarkup(kb), 
-                            parse_mode="HTML",
-                            reply_to_message_id=reply_to_id
-                        )
-                        self.db.update_pending_pvp(self.pending_pvp)
-                        return
-                    else:
-                        # Standard 1-point game draw: refund
-                        u = self.db.get_user(user_id)
-                        p1_name = u.get('username', f'User{user_id}')
-                        # Refund is handled by the caller or existing logic elsewhere usually
-                        # but we'll stick to the specific behavior for 1-pt games if needed
-                        pass
+                    # For both single and multi-point games, allow rolling again or cashing out
+                    challenge['p_rolls'] = []
+                    challenge['b_rolls'] = []
+                    
+                    u = self.db.get_user(user_id)
+                    p1_name = u.get('username', f'User{user_id}')
+                    
+                    text = (
+                        f"🤝 <b>Round Draw!</b> No points awarded.\n\n"
+                        f"<b>Score</b>\n"
+                        f"{p1_name}: {challenge['p_pts']}\n"
+                        f"Bot: {challenge['b_pts']}\n\n"
+                        f"<b>{p1_name}</b>, roll again! {emoji}"
+                    )
+                    
+                    cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], target_pts, challenge['wager'])
+                    cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
+                    
+                    kb = [
+                        [InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")],
+                        [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
+                    ]
+                    
+                    # Remove button from old cashout message if it exists
+                    old_msg_id = challenge.get('cashout_msg_id')
+                    if old_msg_id:
+                        try:
+                            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
+                        except Exception as e:
+                            logger.warning(f"Failed to remove button from old cashout message on draw: {e}")
+
+                    reply_to_id = challenge.get('message_id')
+                    sent_msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=text, 
+                        reply_markup=InlineKeyboardMarkup(kb), 
+                        parse_mode="HTML",
+                        reply_to_message_id=reply_to_id
+                    )
+                    challenge['cashout_msg_id'] = sent_msg.message_id
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    return
                 
                 target_pts = challenge.get('pts', 1)
                 if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
