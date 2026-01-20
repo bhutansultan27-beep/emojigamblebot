@@ -2263,6 +2263,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
         user_data = self.ensure_user_registered(update)
         
+        if user_data.get('balance', 0) <= 0:
+            await update.message.reply_text("❌ Your balance is $0.00. Please deposit to play!")
+            return
+
         # Default wager $1.00 or balance if lower
         wager = 1.0
         if context.args:
@@ -2286,6 +2290,10 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
         user_data = self.ensure_user_registered(update)
         
+        if user_data.get('balance', 0) <= 0:
+            await update.message.reply_text("❌ Your balance is $0.00. Please deposit to play!")
+            return
+
         wager = 1.0
         if context.args:
             if context.args[0].lower() == "all":
