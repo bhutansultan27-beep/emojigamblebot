@@ -20,7 +20,7 @@ class Card:
 
     def __str__(self):
         """Returns a human-readable and attractive card representation."""
-        return f"[{self.rank}{CARD_FACES.get(self.suit, '')}]"
+        return f"{self.rank}{CARD_FACES.get(self.suit, '')}"
 
 class Deck:
     """Represents the shoe of cards, typically 6-8 decks, shuffled."""
