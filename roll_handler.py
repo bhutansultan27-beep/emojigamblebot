@@ -146,9 +146,10 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         # Bot rolls
         b_tot = 0
         challenge['b_rolls'] = [] # Track bot rolls
+        bot_to_use = bot_instance.secondary_bot if bot_instance.secondary_bot else context.bot
         for _ in range(challenge['rolls']):
             try:
-                d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
+                d = await bot_to_use.send_dice(chat_id=chat_id, emoji=emoji)
                 val = d.dice.value
                 score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
                 b_tot += score

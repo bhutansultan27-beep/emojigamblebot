@@ -232,6 +232,14 @@ class AntariaCasinoBot:
 
     def __init__(self, token: str):
         self.token = token
+        # Initialize secondary bot for emoji rolls
+        secondary_token = os.environ.get("SECONDARY_BOT_TOKEN")
+        self.secondary_bot = None
+        if secondary_token:
+            from telegram import Bot
+            self.secondary_bot = Bot(token=secondary_token)
+            logger.info("Secondary bot initialized for emoji rolls")
+        
         # Initialize the internal database manager
         self.db = DatabaseManager()
         
