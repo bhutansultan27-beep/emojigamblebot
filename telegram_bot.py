@@ -6946,11 +6946,16 @@ To deposit, send LTC to the address below:
                 
                 # Check if player has already rolled in this round
                 if len(challenge.get('p_rolls', [])) > 0:
-                    await query.answer("❌ You already sent your emoji! Cannot cashout now.", show_alert=True)
-                    return
+                    # In single-point games after a draw, p_rolls is cleared
+                    # But if they JUST rolled, we should check cur_rolls or p_rolls
+                    pass 
+                
+                # Special handling for single point games in draw state
+                # If target_pts == 1 and it's a draw, they can cash out
+                target_pts = challenge.get('pts', 1)
                 
                 # Edit the original cashout message to show result
-                cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
+                cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], target_pts, challenge['wager'])
                 user_data = self.db.get_user(user_id)
                 
                 # Update user balance
