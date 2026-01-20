@@ -359,10 +359,8 @@ class AntariaCasinoBot:
         await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
 
     async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End all active games and refund players (Admin only)"""
-        if not self.is_admin(update.effective_user.id):
-            await update.message.reply_text("❌ This command is for administrators only.")
-            return
+        """End all active games and refund players"""
+        # Removed admin restriction so anyone can end games
 
         count = 0
         refunded_amount = 0
@@ -3208,10 +3206,8 @@ Examples:
         await update.message.reply_text(f"✅ Added ${amount:.2f} to your balance.\nNew balance: ${user_data['balance']:.2f}")
 
     async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End all active games and refund players (Admin only)"""
-        if not self.is_admin(update.effective_user.id):
-            await update.message.reply_text("❌ This command is for administrators only.")
-            return
+        """End all active games and refund players"""
+        # Removed admin restriction so anyone can end games
 
         count = 0
         refunded_amount = 0
