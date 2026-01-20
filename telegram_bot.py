@@ -4515,6 +4515,17 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         score = (1 if dice_value >= 4 else 0) if emoji in ["⚽", "🏀"] else dice_value
         
         if cid.startswith("v2_bot_"):
+            # IMMEDIATELY delete or clear the buttons from the previous message
+            # This is the "Cancel" button or the "Roll again" button
+            cancel_msg_id = challenge.get('cashout_msg_id') or challenge.get('message_id')
+            if cancel_msg_id:
+                try:
+                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=cancel_msg_id, reply_markup=None)
+                    # Also clear it from challenge to prevent double-attempt
+                    if 'cashout_msg_id' in challenge: challenge['cashout_msg_id'] = None
+                except Exception as e:
+                    logger.debug(f"Could not remove buttons on manual roll: {e}")
+
             # Check balance if wager not yet deducted
             if not challenge.get('wager_deducted'):
                 user_data = self.db.get_user(user_id)
