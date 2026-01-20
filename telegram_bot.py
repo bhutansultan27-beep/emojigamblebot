@@ -2675,12 +2675,15 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             if user_id in self.blackjack_sessions:
                 del self.blackjack_sessions[user_id]
 
-            # Play Again and Double Bet buttons (styled to match dice losing message)
+            # Play Again buttons (matched to screenshot)
             original_bet = getattr(game, 'initial_bet', total_bet)
+            keyboard.append([InlineKeyboardButton("✅ Start Game", callback_data=f"bj_play_again_{user_id}_{original_bet:.2f}")])
             keyboard.append([
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"bj_play_again_{user_id}_{original_bet:.2f}"),
-                InlineKeyboardButton("💵 Double & Play", callback_data=f"bj_play_again_{user_id}_{original_bet*2:.2f}")
+                InlineKeyboardButton("Half Bet", callback_data=f"bj_play_again_{user_id}_{original_bet/2:.2f}"),
+                InlineKeyboardButton("All-in", callback_data=f"bj_play_again_{user_id}_all"),
+                InlineKeyboardButton("Double Bet", callback_data=f"bj_play_again_{user_id}_{original_bet*2:.2f}")
             ])
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu")])
         
         # Build reply markup
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
@@ -5489,14 +5492,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             parts = data.split("_")
             if len(parts) >= 5:
                 target_user_id = int(parts[3])
-                amount = float(parts[4])
+                amount_str = parts[4]
                 
                 if user_id != target_user_id:
                     await query.answer("❌ This is not your game!", show_alert=True)
                     return
                 
                 # Mock context args to re-trigger blackjack_command
-                context.args = [str(amount)]
+                context.args = [amount_str]
                 await self.blackjack_command(update, context)
                 return
 
