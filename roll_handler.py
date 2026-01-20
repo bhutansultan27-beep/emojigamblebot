@@ -92,13 +92,18 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         await query.answer()
-        # Make buttons unclickable by replacing with dummy
-        try:
-            # We preserve the original text but replace the keyboard
-            dummy_kb = [[InlineKeyboardButton("⏳ Game in Progress...", callback_data="dummy")]]
-            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
-        except Exception as e:
-            logger.error(f"Error making markup unclickable: {e}")
+        # Make buttons unclickable by removing their callback data
+        if query.message and query.message.reply_markup:
+            try:
+                new_keyboard = []
+                for row in query.message.reply_markup.inline_keyboard:
+                    new_row = []
+                    for button in row:
+                        new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
+                    new_keyboard.append(new_row)
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
+            except Exception as e:
+                logger.error(f"Error making markup unclickable: {e}")
         
         emoji = challenge['emoji']
         # Send emojis for user based on number of rolls

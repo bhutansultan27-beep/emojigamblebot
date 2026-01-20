@@ -6594,9 +6594,15 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
                 
                 try:
-                    # Replace markup instead of deleting message
-                    dummy_kb = [[InlineKeyboardButton("❌ Cancelled", callback_data="dummy")]]
-                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
+                    # Make original buttons unclickable instead of replacing them
+                    if query.message and query.message.reply_markup:
+                        new_keyboard = []
+                        for row in query.message.reply_markup.inline_keyboard:
+                            new_row = []
+                            for button in row:
+                                new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
+                            new_keyboard.append(new_row)
+                        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
                     
                     if query.message.reply_to_message:
                         try:
@@ -6636,9 +6642,15 @@ To deposit, send LTC to the address below:
                 self.db.update_pending_pvp(self.pending_pvp)
 
                 try:
-                    # Replace markup instead of deleting message
-                    dummy_kb = [[InlineKeyboardButton("❌ Cancelled", callback_data="dummy")]]
-                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
+                    # Make original buttons unclickable instead of replacing them
+                    if query.message and query.message.reply_markup:
+                        new_keyboard = []
+                        for row in query.message.reply_markup.inline_keyboard:
+                            new_row = []
+                            for button in row:
+                                new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
+                            new_keyboard.append(new_row)
+                        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
                     
                     if query.message.reply_to_message:
                         try:
