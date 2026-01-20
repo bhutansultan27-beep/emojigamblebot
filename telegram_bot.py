@@ -1351,7 +1351,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                     InlineKeyboardButton("Crazy (Lowest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_crazy")
                 ])
         elif step == "rolls":
-            mode = params.get("mode")
+            mode = params.get("mode", "normal")
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
@@ -1364,8 +1364,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 InlineKeyboardButton("2 Rolls", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_2_{mode}")
             ])
         elif step == "points":
-            mode = params.get("mode")
-            rolls = params.get("rolls")
+            mode = params.get("mode", "normal")
+            rolls = params.get("rolls", 1)
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').capitalize()}</b>\n\n"
                 f"Your balance <b>${user_data['balance']:,.2f}</b>\n"
