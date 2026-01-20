@@ -2630,7 +2630,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         # Game over - show results
         if state['game_over']:
-            message += f"\n**Final Result:**\n"
+            message += "\n"
             
             total_payout = state['total_payout']
             total_bet = sum(h['bet'] for h in state['player_hands'])
