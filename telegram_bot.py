@@ -2267,16 +2267,16 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             await update.message.reply_text("❌ Your balance is $0.00. Please deposit to play!")
             return
 
-        # Default wager $1.00 or balance if lower
         wager = 1.0
         if context.args:
-            if context.args[0].lower() == "all":
+            arg = context.args[0].lower().replace('$', '').replace(',', '')
+            if arg == "all":
                 wager = user_data.get('balance', 0)
             else:
                 try:
-                    wager = float(context.args[0])
+                    wager = float(arg)
                 except ValueError:
-                    pass # Fallback to 1.0
+                    pass
 
         if user_data.get('balance', 0) < wager:
             await update.message.reply_text(f"❌ Minimum bet is ${wager:.2f}. Your balance: ${user_data['balance']:.2f}")
@@ -2296,11 +2296,12 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
 
         wager = 1.0
         if context.args:
-            if context.args[0].lower() == "all":
+            arg = context.args[0].lower().replace('$', '').replace(',', '')
+            if arg == "all":
                 wager = user_data.get('balance', 0)
             else:
                 try:
-                    wager = float(context.args[0])
+                    wager = float(arg)
                 except ValueError:
                     pass
 
