@@ -3913,9 +3913,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         """
         Calculate cashout value based on win probability.
         Uses a simplified binomial distribution approximation.
+        Safeguarded against NaN/Inf values.
         """
-        if p_pts >= target_pts: return wager * 2
-        if b_pts >= target_pts: return 0
+        import math
+        if wager <= 0 or target_pts <= 0:
+            return 0.0
+
+        if p_pts >= target_pts: return round(float(wager * 1.95), 2)
+        if b_pts >= target_pts: return 0.0
         
         # Simplified probability: each round is 50/50 (ignoring draws for simplicity)
         # We need to win (target - p_pts) rounds before bot wins (target - b_pts)
@@ -3939,9 +3944,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         elif needed_p == 3 and needed_b == 3: prob = 0.5
 
         # Cashout = (Probability * Total Payout) * (1 - House Edge)
-        # Total Payout is wager * 2. House edge is ~5%.
-        cashout_val = (prob * (wager * 2)) * 0.95
-        return max(0, round(cashout_val, 2))
+        # Total Payout is wager * 1.95 (standard for bot games). House edge is ~5%.
+        cashout_val = (prob * (wager * 1.95)) * 0.95
+        
+        if not math.isfinite(cashout_val) or cashout_val < 0:
+            return 0.0
+            
+        return max(0.0, round(float(cashout_val), 2))
 
     async def handle_emoji_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handles dice/emoji responses from users (for game rolls)"""
