@@ -2582,7 +2582,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         else:
             # Show only first card
             first_card = game.dealer_hand.cards[0]
-            message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}  ??\n\n"
+            message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}\n\n"
             
         # Player section
         message += f"Your cards: <b>{state['player_hands'][0]['value']}</b>\n"
