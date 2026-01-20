@@ -7015,7 +7015,10 @@ To deposit, send LTC to the address below:
                 with self.db.app.app_context():
                     gs = db.session.get(GlobalState, "pending_pvp")
                     if gs:
-                        gs.value = self.pending_pvp
+                        # Ensure we are using the local copy that has the deleted cid
+                        gs.value = dict(self.pending_pvp)
+                        from sqlalchemy.orm.attributes import flag_modified
+                        flag_modified(gs, "value")
                         db.session.commit()
                 return
             
