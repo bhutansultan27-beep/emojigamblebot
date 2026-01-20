@@ -24,13 +24,18 @@ try:
         MessageHandler,
         filters
     )
-except (ImportError, AttributeError) as e:
-    print(f"Standard import failed: {e}")
-    # Fallback or diagnostic
+except (ImportError, AttributeError):
+    # Fallback to direct import if necessary
     import telegram
-    print(f"Telegram package location: {getattr(telegram, '__file__', 'Unknown')}")
-    print(f"Telegram package content: {dir(telegram)}")
-    raise
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        CallbackQueryHandler,
+        ContextTypes,
+        MessageHandler,
+        filters
+    )
 
 # Set up logging
 logging.basicConfig(
@@ -4231,7 +4236,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             self.db.update_house_balance(-(w * 0.95))
                             
                             user_username = u.get('username', f'User{user_id}')
-                            user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
                             win_text = (
                                 f"<b>{u.get('username', f'User{user_id}')}</b> won <b>${payout:,.2f}</b>!"
                             )
@@ -4256,7 +4260,6 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                             self.db.update_house_balance(w)
                             user_data = self.db.get_user(user_id)
                             user_username = user_data.get('username', f'User{user_id}')
-                            user_mention = f'<a href="tg://user?id={user_id}">{user_username}</a>'
                             loss_text = (
                                 f"<b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                             )
@@ -4273,35 +4276,39 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                         del self.pending_pvp[cid]
                     else:
                         # Next round
-                        challenge['waiting_for_emoji'] = True
-                        challenge['p_rolls'] = []
-                        
-                        user_data = self.db.get_user(user_id)
-                        user_username = user_data.get('username', f'User{user_id}')
-                        
-                        round_text = (
-                            f"<b>Score</b>\n\n"
-                            f"{user_username}: {challenge['p_pts']}\n"
-                            f"Rukia: {challenge['b_pts']}\n\n"
-                            f"<b>{user_username}</b>, your turn!"
-                        )
-                        
-                        cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
-                        cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
-                        
-                        keyboard = [[InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]]
-                        reply_markup = InlineKeyboardMarkup(keyboard)
-                        
-                        # Remove button from old cashout message if exists
-                        old_msg_id = challenge.get('cashout_msg_id')
-                        if old_msg_id:
-                            try:
-                                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                            except Exception as e:
-                                logger.warning(f"Failed to remove button from old cashout message: {e}")
+                        if challenge['pts'] > 1:
+                            challenge['waiting_for_emoji'] = True
+                            challenge['p_rolls'] = []
+                            
+                            user_data = self.db.get_user(user_id)
+                            user_username = user_data.get('username', f'User{user_id}')
+                            
+                            round_text = (
+                                f"<b>Score</b>\n\n"
+                                f"{user_username}: {challenge['p_pts']}\n"
+                                f"Rukia: {challenge['b_pts']}\n\n"
+                                f"<b>{user_username}</b>, your turn!"
+                            )
+                            
+                            cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], challenge['pts'], challenge['wager'])
+                            cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
+                            
+                            keyboard = [[InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]]
+                            reply_markup = InlineKeyboardMarkup(keyboard)
+                            
+                            # Remove button from old cashout message if exists
+                            old_msg_id = challenge.get('cashout_msg_id')
+                            if old_msg_id:
+                                try:
+                                    await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
+                                except Exception as e:
+                                    logger.warning(f"Failed to remove button from old cashout message: {e}")
 
-                        sent_msg = await context.bot.send_message(chat_id=chat_id, text=round_text, reply_markup=reply_markup, parse_mode="HTML")
-                        challenge['cashout_msg_id'] = sent_msg.message_id
+                            sent_msg = await context.bot.send_message(chat_id=chat_id, text=round_text, reply_markup=reply_markup, parse_mode="HTML")
+                            challenge['cashout_msg_id'] = sent_msg.message_id
+                        else:
+                            # For 1-point games, we should have ended already
+                            pass
                     
                     with self.db.app.app_context():
                         pending_pvp_state = db.session.get(GlobalState, "pending_pvp")
