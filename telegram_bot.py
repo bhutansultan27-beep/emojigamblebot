@@ -2638,6 +2638,16 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
+            # Record game
+            self.db.record_game({
+                'game_type': 'blackjack',
+                'user_id': user_id,
+                'username': user_data.get('username', 'Unknown'),
+                'wager': total_bet,
+                'payout': total_payout,
+                'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push'))
+            })
+            
             # Re-read user data to ensure balance is accurate in message
             user_data = self.db.get_user(user_id)
 
@@ -2704,16 +2714,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             sent_msg = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
             if not state['game_over']:
                 self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-            
-            # Record game
-            self.db.record_game({
-                'game_type': 'blackjack',
-                'user_id': user_id,
-                'username': user_data.get('username', 'Unknown'),
-                'wager': sum(h['bet'] for h in state['player_hands']),
-                'payout': total_payout if state['game_over'] else 0,
-                'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push')) if state['game_over'] else 'pending'
-            })
             return
 
     async def tip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
