@@ -244,6 +244,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 u = bot_instance.db.get_user(user_id)
                 p1_name = u.get('username', f'User{user_id}')
                 
+                # In Crazy mode, if bot has more points, it means it rolled LOWER more often
                 loss_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
