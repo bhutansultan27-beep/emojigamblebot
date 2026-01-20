@@ -184,15 +184,19 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         if game_mode_type == "crazy": # Crazy mode: Lowest wins
             if p_tot < b_tot: 
                 round_win = "p"
+                logger.info(f"CRAZY MODE WIN: Player {p_tot} < Bot {b_tot}")
             elif b_tot < p_tot: 
                 round_win = "b"
+                logger.info(f"CRAZY MODE WIN: Bot {b_tot} < Player {p_tot}")
             else: 
                 round_win = "draw"
         else: # Normal mode: Highest wins
             if p_tot > b_tot: 
                 round_win = "p"
+                logger.info(f"NORMAL MODE WIN: Player {p_tot} > Bot {b_tot}")
             elif b_tot > p_tot: 
                 round_win = "b"
+                logger.info(f"NORMAL MODE WIN: Bot {b_tot} > Player {p_tot}")
             else: 
                 round_win = "draw"
 
