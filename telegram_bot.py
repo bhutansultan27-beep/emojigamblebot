@@ -4544,6 +4544,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             challenge['p_rolls'].append(score)
             challenge['cur_rolls'] += 1
             
+            # Delete the game details message when user sends their emoji
+            if challenge['cur_rolls'] == 1:
+                game_details_msg_id = challenge.get('message_id')
+                if game_details_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=game_details_msg_id)
+                        challenge['message_id'] = None # Avoid double deletion
+                    except Exception as e:
+                        logger.debug(f"Could not delete game details message: {e}")
+            
             # Ensure bot rolls list exists
             if 'b_rolls' not in challenge:
                 challenge['b_rolls'] = []
