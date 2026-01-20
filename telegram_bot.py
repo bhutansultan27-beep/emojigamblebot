@@ -2596,7 +2596,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         try:
             from blackjack import BlackjackGame
             game = BlackjackGame(bet_amount=wager)
-            game.start_game()
+            start_msg = game.start_game()
             self.blackjack_sessions[user_id] = game
             
             # Show game state

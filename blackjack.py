@@ -148,6 +148,13 @@ class BlackjackGame:
             else:
                 self._resolve_game()
                 return "Blackjack! Game over."
+        
+        # Check if dealer has blackjack (Natural) even if player doesn't
+        if self.dealer_hand.is_blackjack():
+            self.player_hands[0]['status'] = 'Stood' # Player loses
+            self.current_hand_index = 1
+            self._resolve_game()
+            return "Dealer has Blackjack! Game over."
 
         self._check_available_actions()
         return "Game started. Your turn."
