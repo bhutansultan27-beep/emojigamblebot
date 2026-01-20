@@ -40,6 +40,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Ranks mapping for display
+RANKS = {
+    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+    'T': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11
+}
+CARD_FACES = {'H': '♥', 'D': '♦', 'C': '♣', 'S': '♠'}
+
 # --- 1. Database Manager (PostgreSQL) ---
 from flask import Flask
 from models import db, User, Game, Transaction, GlobalState
@@ -2559,32 +2566,37 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         game = self.blackjack_sessions[user_id]
         state = game.get_game_state()
+        user_data = self.db.get_user(user_id)
         
         # Build message text
         message = "🃏 **Blackjack**\n\n"
-        message += f"**Dealer:** {state['dealer']['cards']} "
-        if state['game_over']:
-            message += f"   **{state['dealer']['value']}**\n\n"
-        else:
-            message += f"   **{state['dealer']['value']}**\n\n"
         
-        # 2. Display all player hands
-        for hand in state['player_hands']:
-            hand_status = ""
-            if len(state['player_hands']) > 1:
-                hand_status = f"**Hand {hand['id'] + 1}:** "
+        # Dealer section
+        message += f"Dealer cards: **{state['dealer']['value']}**\n"
+        # Hide dealer cards if game not over
+        if state['game_over']:
+            dealer_cards_str = ""
+            for card in game.dealer_hand.cards:
+                dealer_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
+            message += f"{dealer_cards_str.strip()}\n\n"
+        else:
+            # Show only first card
+            first_card = game.dealer_hand.cards[0]
+            message += f"{first_card.rank} {CARD_FACES.get(first_card.suit, '')}  ??\n\n"
             
-            hand_status += f"{hand['cards']}   **{hand['value']}** "
-            hand_status += f"- Bet: ${hand['bet']:.2f}"
-            
-            if hand['status'] == 'Blackjack':
-                hand_status += " 🎉 BLACKJACK!"
-            elif hand['status'] == 'Bust':
-                hand_status += " 💥 BUST"
-            elif hand['is_current_turn']:
-                hand_status += " ⬅️ Your turn"
-            
-            message += hand_status + "\n"
+        # Player section
+        message += f"Your cards: **{state['player_hands'][0]['value']}**\n"
+        player_cards_str = ""
+        for card in game.player_hands[0]['hand'].cards:
+            player_cards_str += f"{card.rank} {CARD_FACES.get(card.suit, '')}  "
+        message += f"{player_cards_str.strip()}\n\n"
+        
+        message += f"Bet: **${state['player_hands'][0]['bet']:.2f}**\n"
+        message += f"Balance: **${user_data['balance']:.2f}**\n"
+        
+        # If it's your turn
+        if not state['game_over']:
+            message += "⬅️ Your turn\n"
         
         # Action Buttons
         keyboard = []
