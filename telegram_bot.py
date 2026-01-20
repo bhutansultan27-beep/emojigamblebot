@@ -2652,9 +2652,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         # Game over - show results
         result_msg = ""
+        total_payout = 0
+        total_bet = sum(h['bet'] for h in state['player_hands'])
+
         if state['game_over']:
             total_payout = state['total_payout']
-            total_bet = sum(h['bet'] for h in state['player_hands'])
             player_hand = state['player_hands'][0]
             dealer_hand = state['dealer']
             username = user_data.get('username') or update.effective_user.first_name
@@ -2690,21 +2692,20 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
-        # Record game
-        self.db.record_game({
-            'type': 'blackjack',
-            'user_id': user_id,
-            'player_id': user_id,
-            'username': user_data.get('username', 'Unknown'),
-            'wager': total_bet,
-            'payout': total_payout,
-            'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push'))
-        })
+            # Record game
+            self.db.record_game({
+                'type': 'blackjack',
+                'user_id': user_id,
+                'player_id': user_id,
+                'username': user_data.get('username', 'Unknown'),
+                'wager': total_bet,
+                'payout': total_payout,
+                'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push'))
+            })
             
-        # Re-read user data to ensure balance is accurate in message
-        user_data = self.db.get_user(user_id)
+            # Re-read user data to ensure balance is accurate in message
+            user_data = self.db.get_user(user_id)
 
-        total_bet = sum(h['bet'] for h in state['player_hands'])
         message += f"Bet: <b>${total_bet:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
 
