@@ -178,8 +178,10 @@ class BlackjackGame:
             if self.current_hand_index == 0:
                 current_state['actions']['can_surrender'] = True
             
-            # Split only allowed if ranks are equal
-            if hand.cards[0].rank == hand.cards[1].rank:
+            # Split only allowed if ranks are equal OR both are 10-value cards
+            card1 = hand.cards[0]
+            card2 = hand.cards[1]
+            if card1.rank == card2.rank or (card1.value == 10 and card2.value == 10):
                 current_state['actions']['can_split'] = True
 
     def _advance_hand(self):
