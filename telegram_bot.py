@@ -4030,13 +4030,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                     except Exception as e:
                         logger.warning(f"Failed to remove Match Accepted button: {e}")
 
-                # Remove the "Send emoji" button if it exists
-                # User requested to leave the buttons there
-                # if challenge.get('message_id'):
-                #     try:
-                #         await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=challenge['message_id'], reply_markup=None)
-                #     except:
-                #         pass
+                # Disable the game menu buttons after manual roll
+                msg_id = challenge.get('message_id')
+                if msg_id:
+                    try:
+                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=msg_id, reply_markup=None)
+                    except Exception as e:
+                        logger.warning(f"Failed to remove game menu buttons: {e}")
 
                 await self.process_generic_v2_roll(update, context, cid, dice_value, emoji)
                 return
@@ -6651,6 +6651,12 @@ To deposit, send LTC to the address below:
                 return
             
             if data.startswith("setup_predict_select_") or data.startswith("predict_start_"):
+                # Remove buttons when game starts
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                except Exception as e:
+                    logger.error(f"Error removing markup: {e}")
+                    
                 from predict_handler import handle_predict
                 await handle_predict(self, update, context)
                 return
@@ -6789,6 +6795,12 @@ To deposit, send LTC to the address below:
                     self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
             if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
+                # Remove buttons when game starts
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                except:
+                    pass
+
                 parts = data.split('_')
                 if len(parts) >= 3:
                     if data.startswith("v2_bot_"):

@@ -97,6 +97,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         bot_instance.db.update_user(user_id, user_data)
         bot_instance.db.add_transaction(user_id, f"predict_{game_mode}", -wager, f"Prediction bet on {game_mode}")
 
+        # Disable buttons after start
+        if query.message:
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except Exception as e:
+                logger.error(f"Error removing markup in predict_start: {e}")
+
         await query.answer("Game started!")
         
         # Mapping for emoji values
