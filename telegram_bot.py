@@ -2594,10 +2594,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
         
-        # If it's your turn
-        if not state['game_over']:
-            message += "⬅️ Your turn\n"
-        
         # Action Buttons
         keyboard = []
         if not state['game_over']:
