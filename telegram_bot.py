@@ -4747,11 +4747,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         result = "draw"
 
         # Normalize rolls for soccer: 4 and 5 are both goals (value 1), 1-3 are misses (value 0)
-        p_val = player_roll
-        b_val = bot_roll
+        p_val = challenge.get('player_roll', 0)
+        b_val = challenge.get('bot_roll', 0)
         if game_type.startswith("soccer"):
-            p_val = 1 if player_roll >= 4 else 0
-            b_val = 1 if bot_roll >= 4 else 0
+            p_val = 1 if p_val >= 4 else 0
+            b_val = 1 if b_val >= 4 else 0
 
         if p_val > b_val:
             # WIN: Give back initial bet (already deducted) + profit (wager)
@@ -4785,13 +4785,14 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         if result != "draw":
             self._update_user_stats(user_id, wager, profit, result)
         
+        # Record transactions
         self.db.add_transaction(user_id, game_type, profit, f"{game_type.upper().replace('_', ' ')} - Wager: ${wager:.2f}")
         self.db.record_game({
             "type": game_type,
             "player_id": user_id,
             "wager": wager,
-            "player_roll": player_roll,
-            "bot_roll": bot_roll,
+            "player_roll": challenge.get('player_roll', 0),
+            "bot_roll": challenge.get('bot_roll', 0),
             "result": result
         })
         
@@ -6962,7 +6963,8 @@ To deposit, send LTC to the address below:
                 cid = data.replace("v2_cashout_", "")
                 challenge = self.pending_pvp.get(cid)
                 if not challenge or challenge.get('player') != user_id:
-                    await query.answer("❌ Game not found or not yours!", show_alert=True)
+                    # Try to find it if cid was slightly modified or check if it's already resolved
+                    await query.answer("❌ Game already finished or not found!", show_alert=True)
                     return
                 
                 # Check if player has already rolled in this round
