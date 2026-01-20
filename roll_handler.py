@@ -92,11 +92,12 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         await query.answer()
-        # Remove the button immediately when starting rolls
+        # Make buttons unclickable by replacing with dummy
         try:
-            await query.edit_message_reply_markup(reply_markup=None)
+            dummy_kb = [[InlineKeyboardButton("⏳ Game in Progress...", callback_data="dummy")]]
+            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(dummy_kb))
         except Exception as e:
-            logger.error(f"Error removing reply markup: {e}")
+            logger.error(f"Error making markup unclickable: {e}")
         
         emoji = challenge['emoji']
         # Send emojis for user based on number of rolls
