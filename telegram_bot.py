@@ -2564,7 +2564,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         message = "🃏 **Blackjack**\n\n"
         message += f"**Dealer:** {state['dealer']['cards']} "
         if state['game_over']:
-            message += f"(Value: {state['dealer']['value']})\n\n"
+            message += f"(**{state['dealer']['value']}**)\n\n"
         else:
             message += f"(Showing: {state['dealer']['value']})\n\n"
         
@@ -2574,7 +2574,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             if len(state['player_hands']) > 1:
                 hand_status = f"**Hand {hand['id'] + 1}:** "
             
-            hand_status += f"{hand['cards']} (Value: {hand['value']}) "
+            hand_status += f"{hand['cards']} (**{hand['value']}**) "
             hand_status += f"- Bet: ${hand['bet']:.2f}"
             
             if hand['status'] == 'Blackjack':
@@ -2621,7 +2621,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if state['game_over']:
             message += f"\n**Final Result:**\n"
             if state['dealer']['final_status'] == 'Bust':
-                message += f"Dealer busts with {state['dealer']['value']}!\n\n"
+                message += f"Dealer busts with **{state['dealer']['value']}**!\n\n"
             elif state['dealer']['is_blackjack']:
                 message += "Dealer has Blackjack!\n\n"
             
