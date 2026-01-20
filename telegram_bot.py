@@ -6195,6 +6195,11 @@ To deposit, send LTC to the address below:
                     elif b_tot < p_tot: round_win = "b"
                     else: round_win = "draw"
                 
+                # RE-LOAD BEFORE INCREMENTING to ensure we have the most accurate pts
+                self.pending_pvp = self.db.data.get('pending_pvp', {})
+                challenge = self.pending_pvp.get(cid)
+                if not challenge: return
+
                 if round_win == "p":
                     challenge['p_pts'] += 1
                 elif round_win == "b":
