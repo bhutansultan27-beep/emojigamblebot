@@ -2649,7 +2649,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             elif total_payout < 0:
                 message += "**Dealer won!**"
             else:
-                message += "**Push** - Bet returned"
+                message += "**Push!**"
             
             # Update user balance
             user_data = self.db.get_user(user_id)
