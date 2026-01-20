@@ -168,6 +168,20 @@ class DatabaseManager:
             db.session.add(tx)
             db.session.commit()
 
+    def get_user_matches(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get game history for a user"""
+        with self.app.app_context():
+            games = Game.query.order_by(Game.timestamp.desc()).all()
+            user_games = []
+            for g in games:
+                # Check all possible player ID fields in game data
+                g_player_id = g.data.get('player_id') or g.data.get('user_id') or g.data.get('player')
+                if g_player_id == user_id:
+                    user_games.append({**g.data, 'timestamp': g.timestamp})
+                if len(user_games) >= limit:
+                    break
+            return user_games
+
     def record_game(self, game_data: Dict[str, Any]):
         with self.app.app_context():
             g = Game(data=game_data)
@@ -2676,18 +2690,19 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
-            # Record game
-            self.db.record_game({
-                'game_type': 'blackjack',
-                'user_id': user_id,
-                'username': user_data.get('username', 'Unknown'),
-                'wager': total_bet,
-                'payout': total_payout,
-                'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push'))
-            })
+        # Record game
+        self.db.record_game({
+            'type': 'blackjack',
+            'user_id': user_id,
+            'player_id': user_id,
+            'username': user_data.get('username', 'Unknown'),
+            'wager': total_bet,
+            'payout': total_payout,
+            'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push'))
+        })
             
-            # Re-read user data to ensure balance is accurate in message
-            user_data = self.db.get_user(user_id)
+        # Re-read user data to ensure balance is accurate in message
+        user_data = self.db.get_user(user_id)
 
         total_bet = sum(h['bet'] for h in state['player_hands'])
         message += f"Bet: <b>${total_bet:.2f}</b>\n"
@@ -3528,6 +3543,24 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             logger.error(f"Error sending sticker: {e}")
 
     # --- GAME LOGIC ---
+
+    async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show last matches"""
+        user_id = update.effective_user.id
+        # Use records from DB
+        matches = self.db.get_user_matches(user_id, limit=5)
+        
+        if not matches:
+            await update.message.reply_text("No matches found yet. Go play!")
+            return
+            
+        text = "🏆 <b>Last Matches</b>\n\n"
+        for match in matches:
+            date_str = match.get('timestamp', datetime.now()).strftime("%H:%M:%S")
+            res_emoji = "✅" if match.get('result') == "win" else "❌" if match.get('result') == "loss" else "🤝"
+            text += f"{res_emoji} {match.get('type').upper()} | ${match.get('wager'):.2f} | {date_str}\n"
+            
+        await update.message.reply_text(text, parse_mode="HTML")
 
     def _update_user_stats(self, user_id: int, wager: float, profit: float, result: str):
         """Update user statistics after a game."""
@@ -4679,7 +4712,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
         
         # Remove from pending
-        del self.pending_pvp[challenge_id]
+        del self.pending_pvp[cid]
         self.db.data['pending_pvp'] = self.pending_pvp
         
         # Determine result

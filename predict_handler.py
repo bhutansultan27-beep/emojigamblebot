@@ -203,6 +203,16 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance.db.add_transaction(user_id, "predict_win", payout, f"Prediction win on {game_mode}")
             bot_instance.db.update_house_balance(-(payout - wager))
             
+            # Record game for history
+            bot_instance.db.record_game({
+                "type": f"predict_{game_mode}",
+                "player_id": user_id,
+                "user_id": user_id,
+                "wager": wager,
+                "payout": payout,
+                "result": "win"
+            })
+            
             user_username = user_data.get('username', f'User{user_id}')
             win_text = (
                 f"🏆 <b>Game over!</b>\n\n"
@@ -225,6 +235,16 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
             bot_instance.db.update_house_balance(wager)
+            
+            # Record game for history
+            bot_instance.db.record_game({
+                "type": f"predict_{game_mode}",
+                "player_id": user_id,
+                "user_id": user_id,
+                "wager": wager,
+                "payout": 0,
+                "result": "loss"
+            })
             
             loss_text = (
                 f"🏆 <b>Game over!</b>\n\n"
