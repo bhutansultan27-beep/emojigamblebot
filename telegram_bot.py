@@ -2592,9 +2592,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         message += f"{player_cards_str.strip()}\n\n"
         
         # Game over - show results
+        result_msg = ""
         if state['game_over']:
-            message += "\n"
-            
             total_payout = state['total_payout']
             total_bet = sum(h['bet'] for h in state['player_hands'])
             player_hand = state['player_hands'][0]
@@ -2602,17 +2601,17 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             username = user_data.get('username') or update.effective_user.first_name
             
             if player_hand['status'] == 'Blackjack':
-                message += "<b>BLACKJACK!</b>"
+                result_msg = "<b>BLACKJACK!</b>"
             elif player_hand['status'] == 'Bust':
-                message += "<b>Busted. You lost!</b>"
+                result_msg = "<b>Busted. You lost!</b>"
             elif dealer_hand['final_status'] == 'Bust':
-                message += "<b>Dealer bust. You won!</b>"
+                result_msg = "<b>Dealer bust. You won!</b>"
             elif total_payout > 0:
-                message += f"<b>Congratulations {username}, you won!</b>"
+                result_msg = f"<b>Congratulations {username}, you won!</b>"
             elif total_payout < 0:
-                message += "<b>Dealer won!</b>"
+                result_msg = "<b>Dealer won!</b>"
             else:
-                message += "<b>Push!</b>"
+                result_msg = "<b>Push!</b>"
             
             # Update user balance
             user_data = self.db.get_user(user_id)
@@ -2631,8 +2630,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             # Final update for stats
             self.db.update_user(user_id, user_data)
             
-        # Re-read user data to ensure balance is accurate in message
-        user_data = self.db.get_user(user_id)
+            # Re-read user data to ensure balance is accurate in message
+            user_data = self.db.get_user(user_id)
+
+        if result_msg:
+            message += f"\n{result_msg}\n"
 
         message += f"Bet: <b>${state['player_hands'][0]['bet']:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
