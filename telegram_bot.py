@@ -1303,7 +1303,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             if game_mode == "coinflip":
                 details.append(f"• Side: <b>{mode_val.capitalize()}</b>")
             else:
-                details.append(f"• Mode: <b>{'Normal' if mode_val == 'normal' else 'Crazy'}</b>")
+                details.append(f"• Mode: <b>Normal</b>")
         if rolls_val:
             details.append(f"• Rolls: <b>{rolls_val}</b>")
         if pts_val:
@@ -1347,8 +1347,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 ])
             else:
                 keyboard.append([
-                    InlineKeyboardButton("Normal (Highest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_normal"),
-                    InlineKeyboardButton("Crazy (Lowest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_crazy")
+                    InlineKeyboardButton("Normal (Highest)", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_rolls_normal")
                 ])
         elif step == "rolls":
             mode = params.get("mode")
@@ -1387,7 +1386,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             if game_mode == "coinflip":
                 mode_display = mode.capitalize()
             else:
-                mode_display = "Normal" if mode == "normal" else "Crazy"
+                mode_display = "Normal"
             
             text = (
                 f"{current_emoji} <b>{game_mode.replace('_', ' ').title()}</b>\n\n"

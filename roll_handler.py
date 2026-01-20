@@ -176,7 +176,6 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         # NORMAL mode: Highest wins
-        # CRAZY mode: Lowest wins
         
         p_tot = sum(challenge['p_rolls'])
         b_tot = sum(challenge.get('b_rolls', [b_tot]))
@@ -185,13 +184,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         game_mode_type = challenge.get('mode', 'normal') 
         is_crazy = game_mode_type in ["crazy", "inverted"]
         
-        if is_crazy: # Crazy mode: Lowest wins
+        if is_crazy and challenge.get('game') == 'coinflip': # Inverted only for coinflip side betting
             if p_tot < b_tot: 
                 round_win = "p"
-                logger.info(f"CRAZY MODE WIN: Player {p_tot} < Bot {b_tot}")
             elif b_tot < p_tot: 
                 round_win = "b"
-                logger.info(f"CRAZY MODE WIN: Bot {b_tot} < Player {p_tot}")
             else: 
                 round_win = "draw"
         else: # Normal mode: Highest wins
