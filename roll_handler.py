@@ -80,6 +80,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             mode = parts[5]
             pts = int(parts[6])
             
+            logger.info(f"PLAY AGAIN DETECTED: Game:{game} Wager:{wager} Rolls:{rolls} Mode:{mode} Pts:{pts}")
             # Call the bot start function
             await bot_instance.start_generic_v2_bot(update, context, game, wager, rolls, mode, pts)
             return
@@ -226,14 +227,10 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_house_balance(-(payout - w))
                 
                 p1_name = u.get('username', f'User{user_id}')
-                win_text = (
-                    f"🏆 <b>Game over!</b>\n\n"
-                    f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
-                    f"<b>Bot</b> • {challenge['b_pts']}\n\n"
-                    f"<b>{p1_name}</b> won <b>${payout:,.2f}</b>!"
-                )
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}")]]
+                # Use "inverted" if game_mode_type is "crazy" for callback data consistency
+                mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}")]]
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
                 bot_instance.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             else:
@@ -248,8 +245,10 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                 )
                 
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{game_mode_type}_{target_pts}")]]
+                # Use "inverted" if game_mode_type is "crazy" for callback data consistency
+                mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{challenge['game']}_{w*2:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}")]]
                 
                 reply_id = challenge.get('message_id')
                 if challenge.get('msg_id'):

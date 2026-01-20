@@ -1286,8 +1286,15 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Consistent multiplier for PvP/Bot series
         multiplier = 1.95
         
-        # Build current selection details
+        # Mode logic
         mode_val = params.get('mode')
+        if not mode_val and step != "mode":
+             # Try to recover mode from callback data if missing in params
+             if query and query.data:
+                 parts = query.data.split("_")
+                 if "inverted" in parts: mode_val = "inverted"
+                 elif "normal" in parts: mode_val = "normal"
+        
         rolls_val = params.get('rolls')
         pts_val = params.get('pts')
         
@@ -1307,9 +1314,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         # Check if we should skip to game start (last step completed)
         if step == "start_game":
             # Extract collected params
-            mode = params.get('mode', 'normal')
-            rolls = params.get('rolls', 1)
-            pts = params.get('pts', 3)
+            mode = mode_val or 'normal'
+            rolls = rolls_val or 1
+            pts = pts_val or 3
             
             # Start the game
             await self.start_generic_v2_bot(update, context, game_mode, wager, rolls, mode, pts)
