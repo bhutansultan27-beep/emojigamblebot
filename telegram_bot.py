@@ -1292,8 +1292,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
              # Try to recover mode from callback data if missing in params
              if query and query.data:
                  parts = query.data.split("_")
-                 if "inverted" in parts: mode_val = "inverted"
+                 # Format: emoji_setup_{game_mode}_{wager}_{step}_{pts}_{rolls}_{mode}
+                 if "crazy" in parts: mode_val = "crazy"
                  elif "normal" in parts: mode_val = "normal"
+                 elif "heads" in parts: mode_val = "heads"
+                 elif "tails" in parts: mode_val = "tails"
         
         rolls_val = params.get('rolls')
         pts_val = params.get('pts')
