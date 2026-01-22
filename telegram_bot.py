@@ -5432,7 +5432,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         if page < total_pages - 1:
             buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"match_page_{page+1}_{user_id}"))
             
-        reply_markup = InlineKeyboardMarkup([buttons]) if buttons else None
+        keyboard = [buttons] if buttons else []
+        keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data=f"matches_cancel_{user_id}")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -5983,6 +5985,27 @@ To deposit, send LTC to the address below:
                 page = int(parts[2])
                 target_user_id = int(parts[3])
                 await self.show_matches_page(update, page, target_user_id)
+                return
+
+            if data.startswith("matches_cancel_"):
+                parts = data.split('_')
+                target_user_id = int(parts[2])
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your menu!", show_alert=True)
+                    return
+                
+                # Delete user's command if possible (do it first while reference is clear)
+                try:
+                    if query.message.reply_to_message:
+                        await query.message.reply_to_message.delete()
+                except Exception as e:
+                    logger.debug(f"Could not delete user command: {e}")
+
+                # Delete bot's message
+                try:
+                    await query.message.delete()
+                except Exception as e:
+                    logger.debug(f"Could not delete bot message: {e}")
                 return
 
             # Emoji game setup callbacks
