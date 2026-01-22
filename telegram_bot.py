@@ -780,7 +780,9 @@ class AntariaCasinoBot:
         replit_domains = os.environ.get("REPLIT_DOMAINS")
         if replit_domains:
             # Use the first domain in the list (usually just one)
-            web_url = f"https://{replit_domains.split(',')[0]}"
+            # Ensure it has https:// prefix
+            domain = replit_domains.split(',')[0]
+            web_url = f"https://{domain}" if not domain.startswith('http') else domain
         else:
             repl_slug = os.environ.get("REPL_SLUG")
             repl_owner = os.environ.get("REPL_OWNER")
@@ -790,6 +792,13 @@ class AntariaCasinoBot:
                 web_url = os.environ.get("REPL_EXTERNAL_URL", "").rstrip("/")
                 if not web_url:
                     web_url = "https://antaria-casino.repl.co"
+        
+        # Final safety check for web_url
+        if not web_url.startswith("http"):
+            web_url = f"https://{web_url}"
+        
+        # Log the constructed URL for debugging (internal logs)
+        logger.info(f"Constructed WebApp URL: {web_url}")
 
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         
