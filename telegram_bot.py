@@ -803,6 +803,18 @@ class AntariaCasinoBot:
 """
         await update.message.reply_text(welcome_text, parse_mode="HTML")
 
+    async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Crash", "crash", "📈")
+
+    async def plinko_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Plinko", "plinko", "⚪")
+
+    async def limbo_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Limbo", "limbo", "🚀")
+
+    async def mines_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Mines", "mines", "💣")
+
     async def game_launcher(self, update: Update, game_name: str, endpoint: str, emoji: str):
         """Helper to launch web app games"""
         try:
