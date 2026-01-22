@@ -178,11 +178,98 @@ const GameInfo = ({ title, children }: any) => {
     )
 }
 
+const FairnessModal = ({ isOpen, onClose, seed, onChangeClientSeed, onRotateSeed }: any) => {
+    if(!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+             <div className="bg-[#0f172a] border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6">
+                 <div className="flex justify-between items-center">
+                     <h2 className="text-xl font-black text-white uppercase tracking-wider">Fairness Settings</h2>
+                     <button onClick={onClose} className="text-slate-500 hover:text-white">✕</button>
+                 </div>
+                 
+                 <div className="space-y-4">
+                     <div>
+                         <label className="text-xs font-bold text-slate-500 uppercase">Server Seed (Hashed)</label>
+                         <div className="bg-slate-950 p-3 rounded-lg border border-white/5 font-mono text-xs text-emerald-500 break-all">
+                             {/* In a real app this would be SHA256(serverSeed), here we just show a 'hashed' visual for the current seed */}
+                             <span className="blur-[2px] hover:blur-none transition-all cursor-pointer" title="Reveal for verification">{seed.serverSeed}</span>
+                         </div>
+                     </div>
+                     <div>
+                         <label className="text-xs font-bold text-slate-500 uppercase">Client Seed</label>
+                         <input value={seed.clientSeed} onChange={(e)=>onChangeClientSeed(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-indigo-500 outline-none font-mono" />
+                     </div>
+                     <div>
+                         <label className="text-xs font-bold text-slate-500 uppercase">Nonce</label>
+                         <div className="bg-slate-950 p-3 rounded-lg border border-white/5 font-mono text-sm text-white">
+                             {seed.nonce}
+                         </div>
+                     </div>
+                 </div>
+
+                 <div className="flex gap-4">
+                     <Button variant="secondary" className="flex-1 py-3" onClick={onRotateSeed}>Rotate Seed</Button>
+                     <Button className="flex-1 py-3" onClick={onClose}>Save & Close</Button>
+                 </div>
+             </div>
+        </div>
+    )
+}
+
+const GameHistoryTable = ({ bets }: { bets: any[] }) => (
+    <div className="bg-[#0f172a] rounded-2xl border border-white/5 overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4">
+        <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+             <span className="font-bold uppercase text-xs text-slate-400 tracking-wider">Game History</span>
+             <span className="text-[10px] text-slate-600 font-mono">LATEST {Math.min(bets.length, 50)}</span>
+        </div>
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-400 whitespace-nowrap">
+                <thead className="bg-[#0b1221] text-xs uppercase font-bold text-slate-500">
+                    <tr>
+                        <th className="px-6 py-3">Game</th>
+                        <th className="px-6 py-3">Time</th>
+                        <th className="px-6 py-3">Bet</th>
+                        <th className="px-6 py-3">Mult</th>
+                        <th className="px-6 py-3">Payout</th>
+                        <th className="px-6 py-3">Hash</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {bets.length === 0 ? (
+                        <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-600 italic">No bets placed yet. Play a game to see history.</td></tr>
+                    ) : (
+                        bets.map(b => (
+                            <tr key={b.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 font-bold capitalize text-white flex items-center gap-2">
+                                   <span className="text-lg">{b.game==='crash'?'🚀':b.game==='plinko'?'🎱':b.game==='mines'?'💣':b.game==='dice'?'🎲':b.game==='limbo'?'🎯':b.game==='wheel'?'🎡':b.game==='keno'?'🔢':'🎰'}</span>
+                                   {b.game}
+                                </td>
+                                <td className="px-6 py-4 font-mono text-xs">{b.time}</td>
+                                <td className="px-6 py-4 font-mono">${b.wager.toFixed(2)}</td>
+                                <td className={`px-6 py-4 font-bold font-mono ${b.multiplier>=1 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {b.multiplier.toFixed(2)}x
+                                </td>
+                                <td className={`px-6 py-4 font-bold font-mono ${b.payout>0 ? 'text-emerald-500' : 'text-slate-500'}`}>
+                                    ${b.payout.toFixed(2)}
+                                </td>
+                                <td className="px-6 py-4 font-mono text-xs text-slate-600 max-w-[100px] truncate" title={b.hash}>
+                                    {b.hash.substring(0, 10)}...
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+);
+
 // ==========================================
 // GAME: MINES
 // ==========================================
 
-const MinesGame = ({ onResult, balance, seed }: any) => {
+const MinesGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [mineCount, setMineCount] = useState(3);
     const [gameState, setGameState] = useState<'IDLE'|'PLAYING'|'GAMEOVER'|'CASHOUT'>('IDLE');
@@ -202,11 +289,19 @@ const MinesGame = ({ onResult, balance, seed }: any) => {
 
     const startGame = async () => {
         if (balance < bet) return;
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        
+        // Use current nonce
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        
         setBoard(getMinesBoard(hash, mineCount));
         setRevealed(new Array(25).fill(false));
         setGemsFound(0);
         setGameState('PLAYING');
+        
+        // Increment Nonce for next game
+        onNonce();
+        
         onResult({ wager: bet, payout: 0, active: true, hash }); 
     };
 
@@ -219,6 +314,8 @@ const MinesGame = ({ onResult, balance, seed }: any) => {
         if (board[idx]) { // Bomb
             setGameState('GAMEOVER');
             SoundEngine.play('loss');
+            // Reveal ALL tiles on loss
+            setRevealed(new Array(25).fill(true));
             onResult({ wager: 0, payout: 0, multiplier: 0, active: false });
         } else { // Gem
             const newGems = gemsFound + 1;
@@ -280,7 +377,7 @@ const MinesGame = ({ onResult, balance, seed }: any) => {
 // GAME: KENO
 // ==========================================
 
-const KenoGame = ({ onResult, balance, seed }: any) => {
+const KenoGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [selected, setSelected] = useState<number[]>([]);
     const [drawn, setDrawn] = useState<number[]>([]);
@@ -310,9 +407,13 @@ const KenoGame = ({ onResult, balance, seed }: any) => {
         if (balance < bet || selected.length === 0 || playing) return;
         setPlaying(true);
         setDrawn([]);
+        
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         onResult({ wager: bet, payout: 0, active: true });
         
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
         const result = getKenoDraw(hash);
         
         // Animate Draw
@@ -384,7 +485,7 @@ const KenoGame = ({ onResult, balance, seed }: any) => {
 // GAME: PLINKO
 // ==========================================
 
-const PlinkoGame = ({ onResult, balance, seed }: any) => {
+const PlinkoGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [rows, setRows] = useState(16);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -416,7 +517,10 @@ const PlinkoGame = ({ onResult, balance, seed }: any) => {
 
     const dropBall = async () => {
         if(balance < bet) return;
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         const path = getPlinkoPath(hash, rows);
         onResult({ wager: bet, payout: 0, active: true, hash });
         setBalls(prev => [...prev, { id: Date.now(), x: 400, y: 20, vx: 0, vy: 0, path: path, row: 0, dead: false, bet: bet }]);
@@ -510,7 +614,7 @@ const PlinkoGame = ({ onResult, balance, seed }: any) => {
 // GAME: DICE
 // ==========================================
 
-const DiceGame = ({ onResult, balance, seed }: any) => {
+const DiceGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [target, setTarget] = useState(50);
     const [roll, setRoll] = useState<number|null>(null);
@@ -518,7 +622,11 @@ const DiceGame = ({ onResult, balance, seed }: any) => {
     
     const play = async () => {
         if(balance<bet) return;
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         const result = getDiceRoll(hash);
         setRoll(result);
         const win = result >= target;
@@ -565,7 +673,7 @@ const DiceGame = ({ onResult, balance, seed }: any) => {
 // GAME: SLOTS
 // ==========================================
 
-const SlotsGame = ({ onResult, balance, seed }: any) => {
+const SlotsGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [spinning, setSpinning] = useState(false);
     const [reels, setReels] = useState([0,0,0]);
@@ -576,9 +684,13 @@ const SlotsGame = ({ onResult, balance, seed }: any) => {
     const spin = async () => {
         if(balance < bet || spinning) return;
         setSpinning(true);
+        
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         onResult({ wager: bet, payout: 0, active: true });
         
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
         const result = getSlotsResult(hash);
         
         let spinCount = 0;
@@ -639,19 +751,50 @@ const SlotsGame = ({ onResult, balance, seed }: any) => {
 // GAME: LIMBO
 // ==========================================
 
-const LimboGame = ({ onResult, balance, seed }: any) => {
+const LimboGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [targetMult, setTargetMult] = useState(2.0);
     const [result, setResult] = useState<number|null>(null);
+    const [autoRebet, setAutoRebet] = useState(false);
+    const [isBetting, setIsBetting] = useState(false);
+
+    // Ref for accessing latest state during async operations
+    const stateRef = useRef({ autoRebet, balance, bet, targetMult, seed });
+    useEffect(() => {
+        stateRef.current = { autoRebet, balance, bet, targetMult, seed };
+    }, [autoRebet, balance, bet, targetMult, seed]);
 
     const play = async () => {
-        if(balance<bet) return;
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        if (isBetting) return;
+        setIsBetting(true);
+        await processRound();
+        setIsBetting(false);
+    };
+
+    const processRound = async () => {
+        const { balance, bet, targetMult, seed, autoRebet } = stateRef.current;
+        
+        if (balance < bet) return;
+
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         const crash = getCrashPoint(hash);
         setResult(crash);
         const win = crash >= targetMult;
         SoundEngine.play(win ? 'win' : 'loss');
+        
         onResult({ wager: bet, payout: win ? bet * targetMult : 0, multiplier: win?targetMult:0, active: false, hash });
+
+        // Auto Rebet Logic: Only if enabled AND won
+        if (stateRef.current.autoRebet && win) {
+             await new Promise(resolve => setTimeout(resolve, 500));
+             // Check if we can still bet
+             if (stateRef.current.balance >= stateRef.current.bet && stateRef.current.autoRebet) {
+                 await processRound();
+             }
+        }
     };
 
     return (
@@ -660,6 +803,7 @@ const LimboGame = ({ onResult, balance, seed }: any) => {
                 <p>1. Predict the minimum multiplier.</p>
                 <p>2. If the result is higher than your prediction, you win!</p>
                 <p>3. Go safe (1.1x) or moon (1000x).</p>
+                <p>4. Enable Auto-Rebet to automatically replay winning bets.</p>
             </GameInfo>
              <div className="text-center relative py-16 bg-[#0b1221] rounded-3xl border border-white/5 shadow-2xl">
                  <div className={`text-9xl font-black tracking-tighter transition-all duration-200 ${result !== null && result >= targetMult ? 'text-emerald-500 scale-110 drop-shadow-[0_0_30px_rgba(16,185,129,0.5)]' : result !== null ? 'text-rose-500' : 'text-slate-700'}`}>
@@ -673,7 +817,20 @@ const LimboGame = ({ onResult, balance, seed }: any) => {
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Target Multiplier</label>
                     <input type="number" value={targetMult} onChange={e=>setTargetMult(parseFloat(e.target.value))} className="w-full bg-slate-900 rounded-xl py-3 px-4 text-white font-mono font-bold border border-white/5 focus:border-indigo-500/50 focus:outline-none" />
                  </div>
-                 <Button className="w-full py-5 text-xl font-black" onClick={play}>BET</Button>
+                 
+                 <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-white/5">
+                     <button 
+                        onClick={() => setAutoRebet(!autoRebet)}
+                        className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ${autoRebet ? 'bg-indigo-500' : 'bg-slate-700'}`}
+                     >
+                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoRebet ? 'translate-x-5' : 'translate-x-0'}`} />
+                     </button>
+                     <span className="text-xs font-bold text-slate-400 uppercase select-none cursor-pointer" onClick={() => setAutoRebet(!autoRebet)}>Auto-Rebet on Win</span>
+                 </div>
+
+                 <Button className="w-full py-5 text-xl font-black" onClick={play} disabled={isBetting}>
+                    {isBetting && autoRebet ? 'AUTO BETTING...' : 'BET'}
+                 </Button>
              </div>
         </div>
     );
@@ -683,7 +840,7 @@ const LimboGame = ({ onResult, balance, seed }: any) => {
 // GAME: WHEEL
 // ==========================================
 
-const WheelGame = ({ onResult, balance, seed }: any) => {
+const WheelGame = ({ onResult, balance, seed, onNonce }: any) => {
     const [bet, setBet] = useState(10);
     const [spinning, setSpinning] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -739,7 +896,10 @@ const WheelGame = ({ onResult, balance, seed }: any) => {
         setSpinning(true);
         onResult({ wager: bet, payout: 0, active: true });
         
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        onNonce();
+
         const resultIdx = getWheelIndex(hash, segments.length);
         const segAngle = (Math.PI*2)/segments.length;
         const targetRot = (Math.PI*2 * 5) - (resultIdx * segAngle) - (segAngle/2); 
@@ -808,7 +968,7 @@ const WheelGame = ({ onResult, balance, seed }: any) => {
 
 enum GameState { BETTING='BETTING', RUNNING='RUNNING', CRASHED='CRASHED' }
 
-const CrashGame = ({ seed, onPlay, onResult, balance }: any) => {
+const CrashGame = ({ seed, onPlay, onResult, balance, onNonce }: any) => {
   const [bet, setBet] = useState(10);
   const [autoCashout, setAutoCashout] = useState<string>('');
   const [gameState, setGameState] = useState<GameState>(GameState.BETTING);
@@ -837,7 +997,11 @@ const CrashGame = ({ seed, onPlay, onResult, balance }: any) => {
 
      const startGamePhase = async () => {
         setGameState(GameState.RUNNING);
-        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, Date.now());
+        
+        // Use current nonce
+        const currentNonce = seed.nonce;
+        const hash = await getGameHash(seed.serverSeed, seed.clientSeed, currentNonce);
+        
         const cp = getCrashPoint(hash);
         cpRef.current = cp;
         startT.current = Date.now();
@@ -857,6 +1021,8 @@ const CrashGame = ({ seed, onPlay, onResult, balance }: any) => {
              setIsPlayingRound(true);
              setCashedOutAt(null);
              onPlay((u: any) => ({ ...u, balance: u.balance - bet }));
+             // Increment nonce only if we played
+             onNonce();
         } else {
              setIsPlayingRound(false);
         }
@@ -1070,9 +1236,29 @@ const App = () => {
       wins: 0,
       losses: 0
   });
-  const [seed] = useState({ serverSeed: generateRandomHex(), clientSeed: generateRandomHex().slice(0,16) });
+  
+  // Provably Fair State
+  const [seed, setSeed] = useState({ 
+      serverSeed: generateRandomHex(), 
+      clientSeed: generateRandomHex().slice(0,16),
+      nonce: 0 
+  });
+  const [fairnessModalOpen, setFairnessModalOpen] = useState(false);
+
   const [recentWins, setRecentWins] = useState<any[]>([]);
   const [myBets, setMyBets] = useState<any[]>([]);
+
+  const handleNonce = () => {
+      setSeed(s => ({ ...s, nonce: s.nonce + 1 }));
+  }
+  
+  const rotateSeed = () => {
+      setSeed({
+          serverSeed: generateRandomHex(),
+          clientSeed: seed.clientSeed,
+          nonce: 0
+      });
+  }
 
   const handleResult = ({ wager, payout, active, hash }: any) => {
       setUser(u => {
@@ -1091,7 +1277,6 @@ const App = () => {
           };
       });
       
-      // Update History
       if(!active) {
           const multiplier = wager > 0 ? payout / wager : 0;
           setMyBets(prev => [{
@@ -1102,7 +1287,7 @@ const App = () => {
               multiplier,
               hash: hash || '---',
               time: new Date().toLocaleTimeString()
-          }, ...prev].slice(0, 10));
+          }, ...prev].slice(0, 50));
       }
 
       if(payout > 0) {
@@ -1112,18 +1297,27 @@ const App = () => {
   };
 
   const games: any = {
-      'crash': <CrashGame seed={seed} onPlay={setUser} onResult={(m:number, h:string, w:number, p:number) => handleResult({wager:w, payout:p, active:false, hash:h})} balance={user.balance} />,
-      'plinko': <PlinkoGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'mines': <MinesGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'dice': <DiceGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'limbo': <LimboGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'wheel': <WheelGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'keno': <KenoGame seed={seed} onResult={handleResult} balance={user.balance} />,
-      'slots': <SlotsGame seed={seed} onResult={handleResult} balance={user.balance} />,
+      'crash': <CrashGame seed={seed} onNonce={handleNonce} onPlay={setUser} onResult={(m:number, h:string, w:number, p:number) => handleResult({wager:w, payout:p, active:false, hash:h})} balance={user.balance} />,
+      'plinko': <PlinkoGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'mines': <MinesGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'dice': <DiceGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'limbo': <LimboGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'wheel': <WheelGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'keno': <KenoGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
+      'slots': <SlotsGame seed={seed} onNonce={handleNonce} onResult={handleResult} balance={user.balance} />,
   };
 
   return (
     <div className="flex h-screen bg-[#020617] text-slate-200 font-sans selection:bg-indigo-500/30 overflow-hidden">
+      
+      <FairnessModal 
+        isOpen={fairnessModalOpen} 
+        onClose={()=>setFairnessModalOpen(false)} 
+        seed={seed} 
+        onChangeClientSeed={(v:string)=>setSeed(s=>({...s, clientSeed:v}))}
+        onRotateSeed={rotateSeed}
+      />
+
       {/* Sidebar Nav */}
       <aside className="w-20 lg:w-64 bg-[#0f172a] border-r border-white/5 flex flex-col shrink-0 z-30">
         <div className="p-6 flex items-center gap-3 cursor-pointer" onClick={()=>setActiveGame('lobby')}>
@@ -1134,6 +1328,9 @@ const App = () => {
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             <button onClick={()=>setActiveGame('lobby')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-bold transition-all ${activeGame==='lobby'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-white/5'}`}>
                 <span>🏠</span><span className="hidden lg:block">Lobby</span>
+            </button>
+            <button onClick={()=>setActiveGame('history')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-bold transition-all ${activeGame==='history'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-white/5'}`}>
+                <span>📜</span><span className="hidden lg:block">History</span>
             </button>
             <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 pt-4 pb-2 hidden lg:block">Games</div>
             {Object.keys(games).map(g => (
@@ -1154,10 +1351,12 @@ const App = () => {
             </div>
         </div>
 
-        <div className="p-4 bg-[#0b1221] border-t border-white/5">
+        <div className="p-4 bg-[#0b1221] border-t border-white/5 space-y-3">
              <div className="flex justify-between items-center mb-1">
                  <span className="text-[10px] font-bold text-slate-500 uppercase">Wallet</span>
-                 <span className="text-[10px] font-bold text-emerald-500">VERIFIED</span>
+                 <button onClick={()=>setFairnessModalOpen(true)} className="text-[10px] font-bold text-indigo-400 hover:text-white flex items-center gap-1">
+                     <span>⚖️</span> FAIRNESS
+                 </button>
              </div>
              <div className="text-xl font-mono font-bold text-white mb-2">${user.balance.toFixed(2)}</div>
              <button className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase rounded-lg shadow-lg shadow-emerald-500/20" onClick={()=>setUser(u=>({...u, balance: u.balance+1000}))}>Deposit</button>
@@ -1205,6 +1404,13 @@ const App = () => {
                          ))}
                      </div>
                  </div>
+             ) : activeGame === 'history' ? (
+                <div className="max-w-7xl mx-auto h-full flex flex-col animate-in zoom-in-95 duration-300">
+                     <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-8 flex items-center gap-3">
+                         <span className="text-indigo-500">📜</span> Game History
+                     </h2>
+                     <GameHistoryTable bets={myBets} />
+                </div>
              ) : (
                 <div className="max-w-[1600px] mx-auto h-full flex flex-col animate-in zoom-in-95 duration-300">
                     <div className="flex items-center gap-4 mb-6">
@@ -1221,37 +1427,7 @@ const App = () => {
                     </div>
 
                     {/* My Bets History Table */}
-                    <div className="bg-[#0f172a] rounded-2xl border border-white/5 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-white/5 font-bold uppercase text-xs text-slate-400">My Bets</div>
-                        <table className="w-full text-left text-sm text-slate-400">
-                            <thead className="bg-[#0b1221] text-xs uppercase font-bold text-slate-500">
-                                <tr>
-                                    <th className="px-6 py-3">Game</th>
-                                    <th className="px-6 py-3">Bet</th>
-                                    <th className="px-6 py-3">Mult</th>
-                                    <th className="px-6 py-3">Payout</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {myBets.length === 0 ? (
-                                    <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-600 italic">No bets placed yet.</td></tr>
-                                ) : (
-                                    myBets.map(b => (
-                                        <tr key={b.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                            <td className="px-6 py-4 font-bold capitalize text-white">{b.game}</td>
-                                            <td className="px-6 py-4">${b.wager.toFixed(2)}</td>
-                                            <td className={`px-6 py-4 font-bold ${b.multiplier>=1 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                {b.multiplier.toFixed(2)}x
-                                            </td>
-                                            <td className={`px-6 py-4 font-bold ${b.payout>0 ? 'text-emerald-500' : 'text-slate-500'}`}>
-                                                ${b.payout.toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <GameHistoryTable bets={myBets} />
                 </div>
              )}
          </div>
