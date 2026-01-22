@@ -779,9 +779,7 @@ class AntariaCasinoBot:
         # Prefer the modern REPLIT_DOMAINS environment variable
         replit_domains = os.environ.get("REPLIT_DOMAINS")
         if replit_domains:
-            # Use the first domain in the list (usually just one)
-            # Ensure it has https:// prefix
-            domain = replit_domains.split(',')[0]
+            domain = replit_domains.split(',')[0].strip()
             web_url = f"https://{domain}" if not domain.startswith('http') else domain
         else:
             repl_slug = os.environ.get("REPL_SLUG")
@@ -794,20 +792,16 @@ class AntariaCasinoBot:
                     web_url = "https://antaria-casino.repl.co"
         
         # Final safety check for web_url
+        web_url = web_url.strip()
         if not web_url.startswith("http"):
             web_url = f"https://{web_url}"
         
-        # Log the constructed URL for debugging (internal logs)
-        logger.info(f"Constructed WebApp URL: {web_url}")
+        logger.info(f"Final WebApp URL: {web_url}")
 
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         
-        # Ensure URL is absolute and properly formatted
-        if not web_url.startswith("http"):
-            web_url = f"https://{web_url}"
-            
         keyboard = [
-            [InlineKeyboardButton("🎰 Play Web Apps (Crash, Plinko, etc)", web_app=WebAppInfo(url=web_url))],
+            [InlineKeyboardButton("🎰 Play Web Apps", web_app=WebAppInfo(url=web_url))],
             [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
              InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
             [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
