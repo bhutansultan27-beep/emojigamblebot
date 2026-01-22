@@ -7597,7 +7597,8 @@ if __name__ == '__main__':
         lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Use a high port number that is unlikely to be used by other processes
         # but is within the internal range.
-        lock_socket.bind(('127.0.0.1', 47123))
+        # Changed from 47123 to 3001 to avoid potential conflicts in some environments
+        lock_socket.bind(('127.0.0.1', 3001))
     except socket.error:
         print("Another instance of the bot is already running. Exiting.")
         sys.exit(1)
