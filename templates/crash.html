@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crash - Antaria Casino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        .multiplier-text { font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 flex flex-col">
+    <nav class="border-b border-white/5 bg-slate-900/50 p-4 flex justify-between items-center">
+        <a href="/" class="text-slate-400 hover:text-white font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+            ← Back to Games
+        </a>
+        <div class="bg-slate-950 px-4 py-2 rounded-full border border-white/10 text-emerald-400 font-mono font-bold" id="balance">$0.00</div>
+    </nav>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Controls -->
+        <div class="bg-slate-900 p-6 rounded-[2rem] border border-white/5 space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">$</span>
+                    <input type="number" id="bet-amount" value="10" class="w-full bg-slate-950 border border-white/10 rounded-xl pl-8 pr-4 py-3 font-mono text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="adjustBet(0.5)" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg text-xs font-bold">1/2</button>
+                    <button onclick="adjustBet(2)" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg text-xs font-bold">2X</button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auto Cashout</label>
+                <input type="number" id="auto-cashout" value="2.00" step="0.1" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <button id="play-btn" onclick="toggleGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transform active:scale-95 transition-all">
+                BET
+            </button>
+        </div>
+
+        <!-- Game Area -->
+        <div class="lg:col-span-2 bg-slate-900 rounded-[2rem] border border-white/5 relative overflow-hidden flex flex-col">
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                <div id="multiplier" class="text-8xl md:text-9xl font-black multiplier-text">1.00x</div>
+                <div id="game-status" class="text-rose-500 font-bold uppercase tracking-[0.3em] mt-4 opacity-0 transition-opacity">CRASHED</div>
+            </div>
+            <canvas id="crash-canvas" class="w-full h-full opacity-50"></canvas>
+        </div>
+    </main>
+
+    <script>
+        let balance = 0;
+        let isRunning = false;
+        let multiplier = 1.00;
+        let crashPoint = 0;
+        let animationId;
+        let startTime;
+
+        const canvas = document.getElementById('crash-canvas');
+        const ctx = canvas.getContext('2d');
+        const multDisplay = document.getElementById('multiplier');
+        const statusDisplay = document.getElementById('game-status');
+        const playBtn = document.getElementById('play-btn');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        async function fetchUser() {
+            const res = await fetch('/api/user');
+            const data = await res.json();
+            balance = data.balance;
+            document.getElementById('balance').textContent = '$' + balance.toFixed(2);
+        }
+
+        function adjustBet(factor) {
+            const input = document.getElementById('bet-amount');
+            input.value = (parseFloat(input.value) * factor).toFixed(2);
+        }
+
+        async function toggleGame() {
+            if (isRunning) {
+                cashout();
+                return;
+            }
+            
+            const bet = parseFloat(document.getElementById('bet-amount').value);
+            if (bet > balance) return;
+
+            isRunning = true;
+            statusDisplay.classList.add('opacity-0');
+            multDisplay.classList.remove('text-rose-500', 'text-emerald-400');
+            playBtn.textContent = 'CASHOUT';
+            playBtn.classList.replace('bg-indigo-600', 'bg-emerald-500');
+            playBtn.classList.replace('hover:bg-indigo-500', 'hover:bg-emerald-400');
+
+            // Place bet
+            const res = await fetch('/api/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'crash', bet })
+            });
+            const data = await res.json();
+            crashPoint = data.crash_point;
+            
+            startTime = Date.now();
+            update();
+        }
+
+        function update() {
+            const elapsed = Date.now() - startTime;
+            multiplier = Math.max(1, Math.floor(Math.pow(Math.E, 0.00006 * elapsed) * 100) / 100);
+            multDisplay.textContent = multiplier.toFixed(2) + 'x';
+
+            const autoCashout = parseFloat(document.getElementById('auto-cashout').value);
+            if (autoCashout > 1 && multiplier >= autoCashout) {
+                cashout();
+                return;
+            }
+
+            if (multiplier >= crashPoint) {
+                crash();
+            } else {
+                draw();
+                animationId = requestAnimationFrame(update);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Simple grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<5; i++) {
+                const y = (canvas.height/5) * i;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+            
+            // Curve
+            const progress = Math.min(1, (multiplier - 1) / 5);
+            const x = progress * canvas.width;
+            const y = canvas.height - (progress * canvas.height);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.quadraticCurveTo(x/2, canvas.height, x, y);
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+
+        async function cashout() {
+            cancelAnimationFrame(animationId);
+            isRunning = false;
+            multDisplay.classList.add('text-emerald-400');
+            resetUI();
+            
+            const res = await fetch('/api/result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'crash', multiplier })
+            });
+            await fetchUser();
+        }
+
+        function crash() {
+            cancelAnimationFrame(animationId);
+            isRunning = false;
+            multDisplay.classList.add('text-rose-500');
+            statusDisplay.classList.remove('opacity-0');
+            resetUI();
+            fetchUser();
+        }
+
+        function resetUI() {
+            playBtn.textContent = 'BET';
+            playBtn.classList.replace('bg-emerald-500', 'bg-indigo-600');
+            playBtn.classList.replace('hover:bg-emerald-400', 'hover:bg-indigo-500');
+        }
+
+        fetchUser();
+    </script>
+</body>
+</html>

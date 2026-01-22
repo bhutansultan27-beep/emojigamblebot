@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limbo - Antaria Casino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 flex flex-col">
+    <nav class="border-b border-white/5 bg-slate-900/50 p-4 flex justify-between items-center">
+        <a href="/" class="text-slate-400 hover:text-white font-bold uppercase tracking-widest text-xs">← Back</a>
+        <div class="bg-slate-950 px-4 py-2 rounded-full border border-white/10 text-emerald-400 font-mono font-bold" id="balance">$0.00</div>
+    </nav>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-slate-900 p-6 rounded-[2rem] border border-white/5 space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                <input type="number" id="bet-amount" value="10" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-white focus:outline-none focus:border-rose-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Target Multiplier</label>
+                <input type="number" id="target-mult" value="2.00" step="0.1" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-white focus:outline-none focus:border-rose-500">
+            </div>
+            <button id="bet-btn" onclick="playLimbo()" class="w-full bg-rose-600 hover:bg-rose-500 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 transition-all">
+                BET
+            </button>
+        </div>
+
+        <div class="lg:col-span-2 bg-slate-900 rounded-[2.5rem] border border-white/5 relative flex flex-col items-center justify-center p-12">
+            <div id="result" class="text-[120px] md:text-[180px] font-black tracking-tighter transition-all duration-500 text-slate-800">1.00x</div>
+            <div id="status" class="text-slate-500 font-bold uppercase tracking-[0.3em]">Wait for launch</div>
+        </div>
+    </main>
+
+    <script>
+        async function playLimbo() {
+            const bet = parseFloat(document.getElementById('bet-amount').value);
+            const target = parseFloat(document.getElementById('target-mult').value);
+            const btn = document.getElementById('bet-btn');
+            const resultDiv = document.getElementById('result');
+            const statusDiv = document.getElementById('status');
+            
+            btn.disabled = true;
+            resultDiv.classList.remove('text-emerald-400', 'text-rose-500');
+            resultDiv.classList.add('text-slate-800');
+            
+            const res = await fetch('/api/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'limbo', bet, target })
+            });
+            const data = await res.json();
+            
+            // Animation
+            let current = 1.00;
+            const interval = setInterval(() => {
+                current += 0.05;
+                resultDiv.textContent = current.toFixed(2) + 'x';
+                if (current >= data.result) {
+                    clearInterval(interval);
+                    finish(data.result, target);
+                }
+            }, 20);
+            
+            function finish(result, target) {
+                resultDiv.textContent = result.toFixed(2) + 'x';
+                if (result >= target) {
+                    resultDiv.classList.replace('text-slate-800', 'text-emerald-400');
+                    statusDiv.textContent = 'WINNER';
+                } else {
+                    resultDiv.classList.replace('text-slate-800', 'text-rose-500');
+                    statusDiv.textContent = 'LOST';
+                }
+                btn.disabled = false;
+                updateBalance();
+            }
+        }
+
+        async function updateBalance() {
+            const res = await fetch('/api/user');
+            const data = await res.json();
+            document.getElementById('balance').textContent = '$' + data.balance.toFixed(2);
+        }
+        updateBalance();
+    </script>
+</body>
+</html>

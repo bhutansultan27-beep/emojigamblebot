@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mines - Antaria Casino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        .mine-cell { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .mine-cell:hover:not(:disabled) { transform: scale(1.05); background: #1e293b; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 flex flex-col">
+    <nav class="border-b border-white/5 bg-slate-900/50 p-4 flex justify-between items-center">
+        <a href="/" class="text-slate-400 hover:text-white font-bold uppercase tracking-widest text-xs">← Back</a>
+        <div class="bg-slate-950 px-4 py-2 rounded-full border border-white/10 text-emerald-400 font-mono font-bold" id="balance">$0.00</div>
+    </nav>
+
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-slate-900 p-6 rounded-[2rem] border border-white/5 space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                <input type="number" id="bet-amount" value="10" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-white focus:outline-none focus:border-amber-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mines (1-24)</label>
+                <input type="number" id="mines-count" value="3" min="1" max="24" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-white focus:outline-none focus:border-amber-500">
+            </div>
+            <button id="play-btn" onclick="startGame()" class="w-full bg-amber-600 hover:bg-amber-500 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-amber-500/20 transition-all">
+                BET
+            </button>
+            <button id="cashout-btn" onclick="cashout()" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black uppercase tracking-widest opacity-50 disabled:cursor-not-allowed">
+                CASHOUT
+            </button>
+        </div>
+
+        <div class="lg:col-span-2 bg-slate-900 rounded-[2.5rem] border border-white/5 p-8 flex flex-col items-center justify-center">
+            <div id="grid" class="grid grid-cols-5 gap-3 w-full max-w-[400px] aspect-square">
+                <!-- Cells will be injected here -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let isRunning = false;
+        let revealed = [];
+        let multiplier = 1.00;
+
+        function initGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for(let i=0; i<25; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'mine-cell bg-slate-950 rounded-xl border border-white/5 text-2xl flex items-center justify-center';
+                cell.onclick = () => reveal(i);
+                cell.disabled = true;
+                grid.appendChild(cell);
+            }
+        }
+
+        async function startGame() {
+            const bet = parseFloat(document.getElementById('bet-amount').value);
+            const mines = parseInt(document.getElementById('mines-count').value);
+            
+            const res = await fetch('/api/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'mines', bet, mines })
+            });
+            
+            isRunning = true;
+            revealed = [];
+            const cells = document.querySelectorAll('.mine-cell');
+            cells.forEach(c => {
+                c.disabled = false;
+                c.textContent = '';
+                c.className = 'mine-cell bg-slate-950 rounded-xl border border-white/5 text-2xl flex items-center justify-center';
+            });
+            
+            document.getElementById('play-btn').disabled = true;
+            document.getElementById('cashout-btn').disabled = false;
+            document.getElementById('cashout-btn').classList.remove('opacity-50');
+        }
+
+        async function reveal(i) {
+            if (!isRunning || revealed.includes(i)) return;
+            
+            const res = await fetch('/api/mines/reveal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: i })
+            });
+            const data = await res.json();
+            
+            revealed.push(i);
+            const cell = document.querySelectorAll('.mine-cell')[i];
+            
+            if (data.is_mine) {
+                cell.textContent = '💣';
+                cell.classList.add('bg-rose-500/20', 'border-rose-500');
+                gameOver(false);
+            } else {
+                cell.textContent = '💎';
+                cell.classList.add('bg-emerald-500/20', 'border-emerald-500');
+                multiplier = data.multiplier;
+                document.getElementById('cashout-btn').textContent = `CASHOUT ($${(data.multiplier * parseFloat(document.getElementById('bet-amount').value)).toFixed(2)})`;
+            }
+        }
+
+        async function cashout() {
+            const res = await fetch('/api/result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'mines', multiplier })
+            });
+            gameOver(true);
+        }
+
+        function gameOver(win) {
+            isRunning = false;
+            document.getElementById('play-btn').disabled = false;
+            document.getElementById('cashout-btn').disabled = true;
+            document.getElementById('cashout-btn').classList.add('opacity-50');
+            document.getElementById('cashout-btn').textContent = 'CASHOUT';
+            const cells = document.querySelectorAll('.mine-cell');
+            cells.forEach(c => c.disabled = true);
+            updateBalance();
+        }
+
+        async function updateBalance() {
+            const res = await fetch('/api/user');
+            const data = await res.json();
+            document.getElementById('balance').textContent = '$' + data.balance.toFixed(2);
+        }
+
+        initGrid();
+        updateBalance();
+    </script>
+</body>
+</html>

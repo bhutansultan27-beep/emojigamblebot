@@ -1,11 +1,16 @@
 import os
 import logging
-from flask import Flask, render_template_string
+import random
+import time
+from flask import Flask, render_template, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-from models import db
 
-logging.basicConfig(level=logging.DEBUG)
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
@@ -22,69 +27,164 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 db.init_app(app)
 
+# Simplified models for the web app
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    telegram_id = db.Column(db.BigInteger, unique=True)
+    username = db.Column(db.String(64))
+    balance = db.Column(db.Float, default=1000.0)
+
 with app.app_context():
     db.create_all()
 
+@app.before_request
+def ensure_user():
+    # Mocking user session for demo/migration
+    if 'user_id' not in session:
+        user = User.query.first()
+        if not user:
+            user = User(telegram_id=12345, username="DemoUser", balance=1000.0)
+            db.session.add(user)
+            db.session.commit()
+        session['user_id'] = user.id
+
 @app.route('/')
 def index():
-    return render_template_string('''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Antaria Casino Bot</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-        }
-        .container {
-            text-align: center;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            margin: 20px;
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-            background: linear-gradient(45deg, #e94560, #f39c12);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .emoji { font-size: 4rem; margin-bottom: 20px; }
-        p { font-size: 1.1rem; line-height: 1.6; opacity: 0.9; margin-bottom: 20px; }
-        .status {
-            display: inline-block;
-            padding: 10px 20px;
-            background: rgba(39, 174, 96, 0.3);
-            border: 1px solid #27ae60;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-        .status::before { content: "●"; margin-right: 8px; color: #27ae60; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="emoji">🎰</div>
-        <h1>Antaria Casino Bot</h1>
-        <p>Welcome to Antaria Casino! This is a Telegram-based casino bot featuring dice games, blackjack, roulette, coinflip, and more!</p>
-        <div class="status">Bot is running</div>
-    </div>
-</body>
-</html>
-''')
+    return render_template('index.html')
+
+@app.route('/crash')
+def crash_page():
+    return render_template('crash.html')
+
+@app.route('/plinko')
+def plinko_page():
+    return render_template('plinko.html') # Need to create this
+
+@app.route('/limbo')
+def limbo_page():
+    return render_template('limbo.html') # Need to create this
+
+@app.route('/mines')
+def mines_page():
+    return render_template('mines.html') # Need to create this
+
+@app.route('/api/user')
+def get_user():
+    user = User.query.get(session['user_id'])
+    return jsonify({
+        'username': user.username,
+        'balance': user.balance
+    })
+
+@app.route('/api/play', methods=['POST'])
+def play_game():
+    data = request.json
+    game = data.get('game')
+    bet = float(data.get('bet', 0))
+    
+    user = User.query.get(session['user_id'])
+    if bet > user.balance or bet <= 0:
+        return jsonify({'error': 'Insufficient balance'}), 400
+        
+    user.balance -= bet
+    db.session.commit()
+    
+    # Game specific logic
+    if game == 'crash':
+        # Generate crash point (99% RTP logic)
+        r = random.random()
+        if r < 0.03: # 3% chance of instant crash
+            crash_point = 1.00
+        else:
+            crash_point = 0.99 / (1 - random.random())
+            crash_point = max(1.01, round(crash_point, 2))
+        
+        session['last_bet'] = bet
+        session['crash_point'] = crash_point
+        return jsonify({'crash_point': crash_point})
+    
+    if game == 'plinko':
+        # Simple random outcome for plinko
+        mult = random.choice([0.3, 0.6, 1.1, 2, 4, 11, 33])
+        payout = bet * mult
+        user.balance += payout
+        db.session.commit()
+        return jsonify({'multiplier': mult, 'payout': payout})
+
+    if game == 'limbo':
+        # Generate limbo result
+        r = 0.99 / (1 - random.random())
+        r = max(1.00, round(r, 2))
+        session['last_bet'] = bet
+        session['limbo_result'] = r
+        return jsonify({'result': r})
+
+    if game == 'mines':
+        mines_count = int(data.get('mines', 3))
+        board = [False] * 25
+        indices = list(range(25))
+        random.shuffle(indices)
+        for i in range(mines_count):
+            board[indices[i]] = True
+        
+        session['mines_board'] = board
+        session['mines_bet'] = bet
+        session['mines_count'] = mines_count
+        session['mines_revealed'] = []
+        return jsonify({'status': 'started'})
+        
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/mines/reveal', methods=['POST'])
+def mines_reveal():
+    index = request.json.get('index')
+    board = session.get('mines_board')
+    revealed = session.get('mines_revealed', [])
+    mines_count = session.get('mines_count', 3)
+    
+    if index in revealed:
+        return jsonify({'error': 'Already revealed'}), 400
+        
+    revealed.append(index)
+    session['mines_revealed'] = revealed
+    
+    is_mine = board[index]
+    if is_mine:
+        return jsonify({'is_mine': True})
+    
+    # Calculate multiplier: (25! / (25-rev)!) / ((25-mines)! / (25-mines-rev)!)
+    def fact(n):
+        res = 1
+        for i in range(2, n + 1): res *= i
+        return res
+    
+    def nCr(n, r):
+        return fact(n) // (fact(r) * fact(n - r))
+    
+    rev_count = len(revealed)
+    # Simplified multiplier logic for mines
+    mult = 0.99 * (nCr(25, rev_count) / nCr(25 - mines_count, rev_count))
+    
+    return jsonify({'is_mine': False, 'multiplier': round(mult, 2)})
+
+@app.route('/api/result', methods=['POST'])
+def game_result():
+    data = request.json
+    game = data.get('game')
+    multiplier = float(data.get('multiplier', 0))
+    
+    user = User.query.get(session['user_id'])
+    bet = session.get('last_bet', 0)
+    
+    if game == 'crash':
+        crash_point = session.get('crash_point', 0)
+        if multiplier <= crash_point:
+            payout = bet * multiplier
+            user.balance += payout
+            db.session.commit()
+            return jsonify({'payout': payout, 'balance': user.balance})
+            
+    return jsonify({'error': 'Invalid result'}), 400
 
 @app.route('/health')
 def health():
