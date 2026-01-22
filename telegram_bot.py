@@ -830,7 +830,7 @@ class AntariaCasinoBot:
                     InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))
                 ],
                 [
-                    InlineKeyboardButton("🎰 All Games Dashboard", web_app=WebAppInfo(url=web_url))
+                    InlineKeyboardButton("🎰 Dashboard", web_app=WebAppInfo(url=web_url))
                 ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
