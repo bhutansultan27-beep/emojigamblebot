@@ -308,6 +308,7 @@ class AntariaCasinoBot:
 
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
+        self.app.add_handler(CommandHandler("play", self.play_command))
         self.app.add_handler(CommandHandler("balance", self.balance_command))
         self.app.add_handler(CommandHandler("bal", self.balance_command))
         self.app.add_handler(CommandHandler("bonus", self.bonus_command))
@@ -775,40 +776,6 @@ class AntariaCasinoBot:
                         parse_mode="Markdown"
                     )
         
-        # Get the web app URL - using a more robust approach for Replit
-        # Prefer the modern REPLIT_DOMAINS environment variable
-        replit_domains = os.environ.get("REPLIT_DOMAINS")
-        if replit_domains:
-            domain = replit_domains.split(',')[0].strip()
-            web_url = f"https://{domain}" if not domain.startswith('http') else domain
-        else:
-            repl_slug = os.environ.get("REPL_SLUG")
-            repl_owner = os.environ.get("REPL_OWNER")
-            if repl_slug and repl_owner:
-                web_url = f"https://{repl_slug}.{repl_owner}.repl.co"
-            else:
-                web_url = os.environ.get("REPL_EXTERNAL_URL", "").rstrip("/")
-                if not web_url:
-                    web_url = "https://antaria-casino.repl.co"
-        
-        # Final safety check for web_url
-        web_url = web_url.strip()
-        if not web_url.startswith("http"):
-            web_url = f"https://{web_url}"
-        
-        logger.info(f"Final WebApp URL: {web_url}")
-
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-        
-        keyboard = [
-            [InlineKeyboardButton("🎰 Play Web Apps", web_app=WebAppInfo(url=web_url))],
-            [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
-             InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
-            [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
-             InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
         welcome_text = f"""
 🎰 <b>Antaria Casino</b>
 💰 Balance: <b>${user_data['balance']:,.2f}</b>
@@ -822,12 +789,49 @@ class AntariaCasinoBot:
 /flip 10 heads - Coin Flip 🪙
 /predict 10 #6 - Predict 🎱
 
+<b>Web Games:</b>
+/play - Open Crash, Plinko, Limbo & Mines 🚀
+
 <b>Menu:</b>
 /bal - Balance
 /bonus - Get bonus
 /stats - Your stats
 """
-        await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="HTML")
+        await update.message.reply_text(welcome_text, parse_mode="HTML")
+
+    async def play_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show Web App game buttons"""
+        user_data = self.ensure_user_registered(update)
+        
+        replit_domains = os.environ.get("REPLIT_DOMAINS")
+        if replit_domains:
+            domain = replit_domains.split(',')[0].strip()
+            web_url = f"https://{domain}" if not domain.startswith('http') else domain
+        else:
+            repl_slug = os.environ.get("REPL_SLUG")
+            repl_owner = os.environ.get("REPL_OWNER")
+            web_url = f"https://{repl_slug}.{repl_owner}.repl.co" if (repl_slug and repl_owner) else "https://antaria-casino.repl.co"
+        
+        web_url = web_url.strip()
+        if not web_url.startswith("http"):
+            web_url = f"https://{web_url}"
+
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+        
+        keyboard = [
+            [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
+             InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
+            [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
+             InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))],
+            [InlineKeyboardButton("🎰 All Web Games", web_app=WebAppInfo(url=web_url))]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "🎮 **Select a Web Game to Play:**\n\nThese games feature real-time animations and enhanced graphics!",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
     
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
