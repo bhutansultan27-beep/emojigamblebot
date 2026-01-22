@@ -803,107 +803,69 @@ class AntariaCasinoBot:
 """
         await update.message.reply_text(welcome_text, parse_mode="HTML")
 
-    async def play_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show Web App game buttons"""
-        try:
-            user_data = self.ensure_user_registered(update)
-            
-            replit_domains = os.environ.get("REPLIT_DOMAINS")
-            if replit_domains:
-                domain = replit_domains.split(',')[0].strip()
-                web_url = f"https://{domain}" if not domain.startswith('http') else domain
-            else:
-                repl_slug = os.environ.get("REPL_SLUG")
-                repl_owner = os.environ.get("REPL_OWNER")
-                web_url = f"https://{repl_slug}.{repl_owner}.repl.co" if (repl_slug and repl_owner) else "https://antaria-casino.repl.co"
-            
-            web_url = web_url.strip().rstrip("/")
-            if not web_url.startswith("http"):
-                web_url = f"https://{web_url}"
-
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-            
-            # Create WebApp buttons
-            keyboard = [
-                [
-                    InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
-                    InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))
-                ],
-                [
-                    InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
-                    InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))
-                ],
-                [
-                    InlineKeyboardButton("🎰 Dashboard", web_app=WebAppInfo(url=web_url))
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.message.reply_text(
-                "🎮 <b>Select a Web Game to Play:</b>\n\nThese games feature real-time animations and enhanced graphics!",
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Error in play_command: {e}", exc_info=True)
-            await update.message.reply_text("❌ Sorry, there was an error opening the game menu. Please try again later.")
-    
-    async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Crash", "crash", "📈")
-
-    async def plinko_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Plinko", "plinko", "⚪")
-
-    async def limbo_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Limbo", "limbo", "🚀")
-
-    async def mines_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Mines", "mines", "💣")
-
     async def game_launcher(self, update: Update, game_name: str, endpoint: str, emoji: str):
         """Helper to launch web app games"""
         try:
-            # More robust URL detection
+            # Use a more reliable static approach for Replit environment
+            # Telegram Web Apps REQUIRE HTTPS and very specific URL formats
+            web_url = "https://antaria-casino.repl.co" # Default fallback
+            
             replit_domains = os.environ.get("REPLIT_DOMAINS")
             if replit_domains:
                 domain = replit_domains.split(',')[0].strip()
-                web_url = f"https://{domain}" if not domain.startswith('http') else domain
-            else:
-                repl_slug = os.environ.get("REPL_SLUG")
-                repl_owner = os.environ.get("REPL_OWNER")
-                if repl_slug and repl_owner:
-                    web_url = f"https://{repl_slug}.{repl_owner}.repl.co"
-                else:
-                    web_url = os.environ.get("REPL_EXTERNAL_URL", "").rstrip("/")
-                    if not web_url:
-                        # Use a generic fallback if all else fails, or local dev domain
-                        web_url = "https://antaria-casino.repl.co"
+                web_url = f"https://{domain}"
             
-            # Ensure URL is clean and specifically HTTPS for Telegram Web Apps
-            web_url = web_url.strip().rstrip("/")
-            if not web_url.startswith("https://"):
-                if web_url.startswith("http://"):
-                    web_url = "https://" + web_url[7:]
-                else:
-                    web_url = f"https://{web_url}"
+            # Ensure no trailing slash on base and no leading slash on endpoint
+            web_url = web_url.rstrip("/")
+            game_url = f"{web_url}/{endpoint.lstrip('/')}"
             
-            game_url = f"{web_url}/{endpoint}"
             logger.info(f"Launching {game_name} at: {game_url}")
 
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
             
-            # Crucial: WebAppInfo URL MUST be HTTPS and valid
-            keyboard = [[InlineKeyboardButton(text=f"{emoji} Play {game_name}", web_app=WebAppInfo(url=game_url))]]
+            # Simplest possible button construction to avoid API rejection
+            button = InlineKeyboardButton(text=f"{emoji} Open {game_name}", web_app=WebAppInfo(url=game_url))
+            keyboard = [[button]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
-                f"🎮 <b>{game_name}</b>\n\nClick the button below to start playing in the Web App interface!",
+                f"🎰 <b>{game_name}</b>\n\nClick the button below to launch the game!",
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
         except Exception as e:
             logger.error(f"Error in game_launcher for {game_name}: {e}", exc_info=True)
-            await update.message.reply_text(f"❌ Error launching {game_name}. Please use /play for the full menu.")
+            await update.message.reply_text("❌ Error launching game interface.")
+
+    async def play_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show Web App game dashboard"""
+        try:
+            web_url = "https://antaria-casino.repl.co"
+            replit_domains = os.environ.get("REPLIT_DOMAINS")
+            if replit_domains:
+                domain = replit_domains.split(',')[0].strip()
+                web_url = f"https://{domain}"
+            
+            web_url = web_url.rstrip("/")
+            
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+            keyboard = [
+                [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
+                 InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
+                [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
+                 InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))],
+                [InlineKeyboardButton("🎰 Main Dashboard", web_app=WebAppInfo(url=web_url))]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_text(
+                "🎮 <b>Web Games Menu</b>\n\nSelect a game to start playing:",
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Error in play_command: {e}", exc_info=True)
+            await update.message.reply_text("❌ Error opening game menu.")
 
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
