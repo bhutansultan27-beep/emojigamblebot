@@ -775,12 +775,26 @@ class AntariaCasinoBot:
                         parse_mode="Markdown"
                     )
         
-        # Get the web app URL
-        domain = os.environ.get("REPL_SLUG") + "." + os.environ.get("REPL_OWNER") + ".repl.co"
-        web_url = f"https://{domain}"
+        # Get the web app URL - using a more robust approach for Replit
+        repl_slug = os.environ.get("REPL_SLUG")
+        repl_owner = os.environ.get("REPL_OWNER")
         
+        if repl_slug and repl_owner:
+            web_url = f"https://{repl_slug}.{repl_owner}.repl.co"
+        else:
+            # Fallback for when the variables might be different or missing
+            # In Replit, the external domain is often available via REPL_EXTERNAL_URL
+            web_url = os.environ.get("REPL_EXTERNAL_URL", "").rstrip("/")
+            if not web_url:
+                # Last resort - try to construct from what we have or use a placeholder
+                web_url = "https://antaria-casino.repl.co" # Replace with actual if known
+
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         
+        # Ensure URL is absolute and properly formatted
+        if not web_url.startswith("http"):
+            web_url = f"https://{web_url}"
+            
         keyboard = [
             [InlineKeyboardButton("🎰 Play Web Apps (Crash, Plinko, etc)", web_app=WebAppInfo(url=web_url))],
             [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
