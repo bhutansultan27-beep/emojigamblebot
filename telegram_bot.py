@@ -775,6 +775,21 @@ class AntariaCasinoBot:
                         parse_mode="Markdown"
                     )
         
+        # Get the web app URL
+        domain = os.environ.get("REPL_SLUG") + "." + os.environ.get("REPL_OWNER") + ".repl.co"
+        web_url = f"https://{domain}"
+        
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+        
+        keyboard = [
+            [InlineKeyboardButton("🎰 Play Web Apps (Crash, Plinko, etc)", web_app=WebAppInfo(url=web_url))],
+            [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
+             InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
+            [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
+             InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         welcome_text = f"""
 🎰 <b>Antaria Casino</b>
 💰 Balance: <b>${user_data['balance']:,.2f}</b>
@@ -793,7 +808,7 @@ class AntariaCasinoBot:
 /bonus - Get bonus
 /stats - Your stats
 """
-        await update.message.reply_text(welcome_text, parse_mode="HTML")
+        await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="HTML")
     
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
