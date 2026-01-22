@@ -309,6 +309,10 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
         self.app.add_handler(CommandHandler("play", self.play_command))
+        self.app.add_handler(CommandHandler("crash", self.crash_command))
+        self.app.add_handler(CommandHandler("plinko", self.plinko_command))
+        self.app.add_handler(CommandHandler("limbo", self.limbo_command))
+        self.app.add_handler(CommandHandler("mines", self.mines_command))
         self.app.add_handler(CommandHandler("balance", self.balance_command))
         self.app.add_handler(CommandHandler("bal", self.balance_command))
         self.app.add_handler(CommandHandler("bonus", self.bonus_command))
@@ -844,6 +848,46 @@ class AntariaCasinoBot:
             logger.error(f"Error in play_command: {e}", exc_info=True)
             await update.message.reply_text("❌ Sorry, there was an error opening the game menu. Please try again later.")
     
+    async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Crash", "crash", "📈")
+
+    async def plinko_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Plinko", "plinko", "⚪")
+
+    async def limbo_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Limbo", "limbo", "🚀")
+
+    async def mines_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.game_launcher(update, "Mines", "mines", "💣")
+
+    async def game_launcher(self, update: Update, game_name: str, endpoint: str, emoji: str):
+        """Helper to launch web app games"""
+        try:
+            replit_domains = os.environ.get("REPLIT_DOMAINS")
+            if replit_domains:
+                domain = replit_domains.split(',')[0].strip()
+                web_url = f"https://{domain}" if not domain.startswith('http') else domain
+            else:
+                repl_slug = os.environ.get("REPL_SLUG")
+                repl_owner = os.environ.get("REPL_OWNER")
+                web_url = f"https://{repl_slug}.{repl_owner}.repl.co" if (repl_slug and repl_owner) else "https://antaria-casino.repl.co"
+            
+            web_url = web_url.strip().rstrip("/")
+            game_url = f"{web_url}/{endpoint}"
+
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+            keyboard = [[InlineKeyboardButton(f"{emoji} Play {game_name}", web_app=WebAppInfo(url=game_url))]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                f"🎮 <b>{game_name}</b>\n\nClick the button below to start playing!",
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Error in game_launcher for {game_name}: {e}")
+            await update.message.reply_text("❌ Error launching game.")
+
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
         now = datetime.now()
