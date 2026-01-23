@@ -1,16 +1,9 @@
 import os
 import logging
 import random
-import time
 from flask import Flask, render_template, request, jsonify, session
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+from models import db, User, GlobalState
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
@@ -27,23 +20,34 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 db.init_app(app)
 
-# Simplified models for the web app
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    telegram_id = db.Column(db.BigInteger, unique=True)
-    username = db.Column(db.String(64))
-    balance = db.Column(db.Float, default=1000.0)
-
 with app.app_context():
     db.create_all()
 
+def get_house_balance():
+    """Get the current house balance"""
+    state = GlobalState.query.filter_by(key='house_balance').first()
+    if state and state.value:
+        return state.value.get('amount', 0.0)
+    return 0.0
+
+def update_house_balance(change):
+    """Update the house balance by a given amount (positive = house gains, negative = house loses)"""
+    state = GlobalState.query.filter_by(key='house_balance').first()
+    if not state:
+        state = GlobalState(key='house_balance', value={'amount': 0.0})
+        db.session.add(state)
+    
+    current = state.value.get('amount', 0.0) if state.value else 0.0
+    state.value = {'amount': current + change}
+    db.session.commit()
+    return state.value['amount']
+
 @app.before_request
 def ensure_user():
-    # Mocking user session for demo/migration
     if 'user_id' not in session:
         user = User.query.first()
         if not user:
-            user = User(telegram_id=12345, username="DemoUser", balance=1000.0)
+            user = User(user_id=12345, username="DemoUser", balance=1000.0)
             db.session.add(user)
             db.session.commit()
         session['user_id'] = user.id
@@ -58,15 +62,15 @@ def crash_page():
 
 @app.route('/plinko')
 def plinko_page():
-    return render_template('plinko.html') # Need to create this
+    return render_template('plinko.html')
 
 @app.route('/limbo')
 def limbo_page():
-    return render_template('limbo.html') # Need to create this
+    return render_template('limbo.html')
 
 @app.route('/mines')
 def mines_page():
-    return render_template('mines.html') # Need to create this
+    return render_template('mines.html')
 
 @app.route('/api/user')
 def get_user():
@@ -89,11 +93,9 @@ def play_game():
     user.balance -= bet
     db.session.commit()
     
-    # Game specific logic
     if game == 'crash':
-        # Generate crash point (99% RTP logic)
         r = random.random()
-        if r < 0.03: # 3% chance of instant crash
+        if r < 0.03:
             crash_point = 1.00
         else:
             crash_point = 0.99 / (1 - random.random())
@@ -104,15 +106,16 @@ def play_game():
         return jsonify({'crash_point': crash_point})
     
     if game == 'plinko':
-        # Simple random outcome for plinko
         mult = random.choice([0.3, 0.6, 1.1, 2, 4, 11, 33])
         payout = bet * mult
+        profit = payout - bet
+        
         user.balance += payout
+        update_house_balance(-profit)
         db.session.commit()
-        return jsonify({'multiplier': mult, 'payout': payout})
+        return jsonify({'multiplier': mult, 'payout': payout, 'balance': user.balance})
 
     if game == 'limbo':
-        # Generate limbo result
         r = 0.99 / (1 - random.random())
         r = max(1.00, round(r, 2))
         session['last_bet'] = bet
@@ -141,6 +144,7 @@ def mines_reveal():
     board = session.get('mines_board')
     revealed = session.get('mines_revealed', [])
     mines_count = session.get('mines_count', 3)
+    bet = session.get('mines_bet', 0)
     
     if index in revealed:
         return jsonify({'error': 'Already revealed'}), 400
@@ -150,9 +154,11 @@ def mines_reveal():
     
     is_mine = board[index]
     if is_mine:
+        update_house_balance(bet)
+        session['mines_board'] = None
+        session['mines_bet'] = 0
         return jsonify({'is_mine': True})
     
-    # Calculate multiplier: (25! / (25-rev)!) / ((25-mines)! / (25-mines-rev)!)
     def fact(n):
         res = 1
         for i in range(2, n + 1): res *= i
@@ -162,10 +168,42 @@ def mines_reveal():
         return fact(n) // (fact(r) * fact(n - r))
     
     rev_count = len(revealed)
-    # Simplified multiplier logic for mines
     mult = 0.99 * (nCr(25, rev_count) / nCr(25 - mines_count, rev_count))
     
     return jsonify({'is_mine': False, 'multiplier': round(mult, 2)})
+
+@app.route('/api/mines/cashout', methods=['POST'])
+def mines_cashout():
+    bet = session.get('mines_bet', 0)
+    revealed = session.get('mines_revealed', [])
+    mines_count = session.get('mines_count', 3)
+    
+    if not bet or not revealed:
+        return jsonify({'error': 'No active game'}), 400
+    
+    def fact(n):
+        res = 1
+        for i in range(2, n + 1): res *= i
+        return res
+    
+    def nCr(n, r):
+        return fact(n) // (fact(r) * fact(n - r))
+    
+    rev_count = len(revealed)
+    mult = 0.99 * (nCr(25, rev_count) / nCr(25 - mines_count, rev_count))
+    payout = bet * mult
+    profit = payout - bet
+    
+    user = User.query.get(session['user_id'])
+    user.balance += payout
+    update_house_balance(-profit)
+    db.session.commit()
+    
+    session['mines_board'] = None
+    session['mines_bet'] = 0
+    session['mines_revealed'] = []
+    
+    return jsonify({'payout': payout, 'balance': user.balance})
 
 @app.route('/api/result', methods=['POST'])
 def game_result():
@@ -180,11 +218,36 @@ def game_result():
         crash_point = session.get('crash_point', 0)
         if multiplier <= crash_point:
             payout = bet * multiplier
+            profit = payout - bet
             user.balance += payout
+            update_house_balance(-profit)
             db.session.commit()
             return jsonify({'payout': payout, 'balance': user.balance})
+        else:
+            update_house_balance(bet)
+            db.session.commit()
+            return jsonify({'payout': 0, 'balance': user.balance})
+    
+    if game == 'limbo':
+        target = float(data.get('target', 2.0))
+        result = session.get('limbo_result', 0)
+        if result >= target:
+            payout = bet * target
+            profit = payout - bet
+            user.balance += payout
+            update_house_balance(-profit)
+            db.session.commit()
+            return jsonify({'payout': payout, 'balance': user.balance, 'result': result, 'win': True})
+        else:
+            update_house_balance(bet)
+            db.session.commit()
+            return jsonify({'payout': 0, 'balance': user.balance, 'result': result, 'win': False})
             
     return jsonify({'error': 'Invalid result'}), 400
+
+@app.route('/api/house_balance')
+def house_balance():
+    return jsonify({'house_balance': get_house_balance()})
 
 @app.route('/health')
 def health():
