@@ -51,6 +51,15 @@ def ensure_user():
             db.session.add(user)
             db.session.commit()
         session['user_id'] = user.id
+    else:
+        user = User.query.get(session['user_id'])
+        if not user:
+            user = User.query.first()
+            if not user:
+                user = User(user_id=12345, username="DemoUser", balance=1000.0)
+                db.session.add(user)
+                db.session.commit()
+            session['user_id'] = user.id
 
 @app.route('/')
 def index():

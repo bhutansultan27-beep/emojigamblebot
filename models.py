@@ -8,7 +8,7 @@ class Base(DeclarativeBase):
 
 db = SQLAlchemy(model_class=Base)
 
-class User(Base):
+class User(db.Model):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
@@ -31,13 +31,13 @@ class User(Base):
     unclaimed_referral_earnings: Mapped[float] = mapped_column(Float, default=0.0)
     achievements: Mapped[dict] = mapped_column(JSON, default=dict)
 
-class Game(Base):
+class Game(db.Model):
     __tablename__ = "games"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     data: Mapped[dict] = mapped_column(JSON)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-class Transaction(Base):
+class Transaction(db.Model):
     __tablename__ = "transactions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -46,7 +46,7 @@ class Transaction(Base):
     description: Mapped[str] = mapped_column(String)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-class GlobalState(Base):
+class GlobalState(db.Model):
     __tablename__ = "global_state"
     key: Mapped[str] = mapped_column(String, primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)
