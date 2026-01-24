@@ -862,10 +862,12 @@ class AntariaCasinoBot:
             
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
             keyboard = [
-                [InlineKeyboardButton("📈 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
-                 InlineKeyboardButton("⚪ Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
+                [InlineKeyboardButton("🎮 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
+                 InlineKeyboardButton("🎱 Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
                 [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
                  InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))],
+                [InlineKeyboardButton("🔢 Keno", web_app=WebAppInfo(url=f"{web_url}/keno")),
+                 InlineKeyboardButton("🎰 Slots", web_app=WebAppInfo(url=f"{web_url}/slots"))],
                 [InlineKeyboardButton("🎰 Main Dashboard", web_app=WebAppInfo(url=web_url))]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
