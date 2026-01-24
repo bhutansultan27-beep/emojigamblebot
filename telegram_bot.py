@@ -1211,7 +1211,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             [InlineKeyboardButton("⚽ Soccer", callback_data=f"setup_mode_soccer_{amount:.2f}"),
              InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
             [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
-             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")]
+             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
+            [InlineKeyboardButton("🔢 Keno", callback_data=f"setup_mode_keno_{amount:.2f}")]
         ]
         
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1232,7 +1233,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     def _get_next_game_mode(self, current: str) -> str:
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
         try:
             idx = modes.index(current)
             return modes[(idx + 1) % len(modes)]
@@ -1240,7 +1241,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return "dice"
 
     def _get_prev_game_mode(self, current: str) -> str:
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
         try:
             idx = modes.index(current)
             return modes[(idx - 1) % len(modes)]
@@ -1363,7 +1364,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             "basketball": "🏀",
             "soccer": "⚽",
             "bowling": "🎳",
-            "coinflip": "🪙"
+            "coinflip": "🪙",
+            "keno": "🔢"
         }
         current_emoji = emoji_map.get(game_mode, "🎲")
         
@@ -1412,7 +1414,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         keyboard = []
         
         # Add mode switching buttons
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
         current_idx = modes.index(game_mode)
         next_mode = modes[(current_idx + 1) % len(modes)]
         prev_mode = modes[(current_idx - 1) % len(modes)]
@@ -2153,7 +2155,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             [InlineKeyboardButton("⚽ Soccer", callback_data=f"setup_mode_soccer_{amount:.2f}"),
              InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
             [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
-             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")]
+             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
+            [InlineKeyboardButton("🔢 Keno", callback_data=f"setup_mode_keno_{amount:.2f}")]
         ]
         
         reply_markup = InlineKeyboardMarkup(keyboard)
