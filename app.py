@@ -24,14 +24,12 @@ with app.app_context():
     db.create_all()
 
 def get_house_balance():
-    """Get the current house balance"""
     state = GlobalState.query.filter_by(key='house_balance').first()
     if state and state.value:
         return state.value.get('amount', 0.0)
     return 0.0
 
 def update_house_balance(change):
-    """Update the house balance by a given amount (positive = house gains, negative = house loses)"""
     state = GlobalState.query.filter_by(key='house_balance').first()
     if not state:
         state = GlobalState(key='house_balance', value={'amount': 0.0})
@@ -110,15 +108,11 @@ def play_game():
     user.balance -= bet
     db.session.commit()
     
+    session['last_bet'] = bet
+    
     if game == 'crash':
         r = random.random()
-        if r < 0.03:
-            crash_point = 1.00
-        else:
-            crash_point = 0.99 / (1 - random.random())
-            crash_point = max(1.01, round(crash_point, 2))
-        
-        session['last_bet'] = bet
+        crash_point = 1.00 if r < 0.03 else max(1.01, round(0.99 / (1 - random.random()), 2))
         session['crash_point'] = crash_point
         return jsonify({'crash_point': crash_point})
     
@@ -126,16 +120,13 @@ def play_game():
         mult = random.choice([0.3, 0.6, 1.1, 2, 4, 11, 33])
         payout = bet * mult
         profit = payout - bet
-        
         user.balance += payout
         update_house_balance(-profit)
         db.session.commit()
         return jsonify({'multiplier': mult, 'payout': payout, 'balance': user.balance})
 
     if game == 'limbo':
-        r = 0.99 / (1 - random.random())
-        r = max(1.00, round(r, 2))
-        session['last_bet'] = bet
+        r = max(1.00, round(0.99 / (1 - random.random()), 2))
         session['limbo_result'] = r
         return jsonify({'result': r})
 
@@ -182,6 +173,7 @@ def mines_reveal():
         return res
     
     def nCr(n, r):
+        if r < 0 or r > n: return 0
         return fact(n) // (fact(r) * fact(n - r))
     
     rev_count = len(revealed)
@@ -204,6 +196,7 @@ def mines_cashout():
         return res
     
     def nCr(n, r):
+        if r < 0 or r > n: return 0
         return fact(n) // (fact(r) * fact(n - r))
     
     rev_count = len(revealed)
@@ -231,36 +224,28 @@ def game_result():
     user = User.query.get(session['user_id'])
     bet = session.get('last_bet', 0)
     
+    if bet <= 0:
+        return jsonify({'error': 'No active bet found'}), 400
+
+    # Verification for Crash/Limbo
     if game == 'crash':
-        crash_point = session.get('crash_point', 0)
-        if multiplier <= crash_point:
-            payout = bet * multiplier
-            profit = payout - bet
-            user.balance += payout
-            update_house_balance(-profit)
-            db.session.commit()
-            return jsonify({'payout': payout, 'balance': user.balance})
-        else:
-            update_house_balance(bet)
-            db.session.commit()
-            return jsonify({'payout': 0, 'balance': user.balance})
-    
-    if game == 'limbo':
+        cp = session.get('crash_point', 0)
+        if multiplier > cp: multiplier = 0
+    elif game == 'limbo':
+        lr = session.get('limbo_result', 0)
         target = float(data.get('target', 2.0))
-        result = session.get('limbo_result', 0)
-        if result >= target:
-            payout = bet * target
-            profit = payout - bet
-            user.balance += payout
-            update_house_balance(-profit)
-            db.session.commit()
-            return jsonify({'payout': payout, 'balance': user.balance, 'result': result, 'win': True})
-        else:
-            update_house_balance(bet)
-            db.session.commit()
-            return jsonify({'payout': 0, 'balance': user.balance, 'result': result, 'win': False})
-            
-    return jsonify({'error': 'Invalid result'}), 400
+        if lr < target: multiplier = 0
+
+    payout = bet * multiplier
+    profit = payout - bet
+    
+    user.balance += payout
+    update_house_balance(-profit)
+    db.session.commit()
+    
+    session['last_bet'] = 0
+    
+    return jsonify({'payout': payout, 'balance': user.balance})
 
 @app.route('/api/house_balance')
 def house_balance():
