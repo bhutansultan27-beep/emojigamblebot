@@ -1,7 +1,7 @@
 import os
 import logging
 import random
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from models import db, User, GlobalState
 
@@ -42,22 +42,50 @@ def update_house_balance(change):
 
 @app.before_request
 def ensure_user():
-    if 'user_id' not in session:
-        user = User.query.first()
-        if not user:
-            user = User(user_id=12345, username="DemoUser", balance=1000.0)
-            db.session.add(user)
-            db.session.commit()
-        session['user_id'] = user.id
-    else:
-        user = User.query.get(session['user_id'])
-        if not user:
-            user = User.query.first()
-            if not user:
-                user = User(user_id=12345, username="DemoUser", balance=1000.0)
-                db.session.add(user)
-                db.session.commit()
-            session['user_id'] = user.id
+    public_endpoints = ['login', 'do_login', 'static']
+    if request.endpoint in public_endpoints:
+        return
+    
+    if 'telegram_user_id' not in session:
+        if request.endpoint not in ['login', 'do_login']:
+            return redirect(url_for('login'))
+        return
+    
+    telegram_user_id = session.get('telegram_user_id')
+    user = User.query.filter_by(user_id=telegram_user_id).first()
+    if not user:
+        session.pop('telegram_user_id', None)
+        return redirect(url_for('login'))
+
+@app.route('/login')
+def login():
+    if 'telegram_user_id' in session:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+@app.route('/login', methods=['POST'])
+def do_login():
+    telegram_id = request.form.get('telegram_id', '').strip()
+    
+    if not telegram_id:
+        return render_template('login.html', error='Please enter your Telegram User ID')
+    
+    try:
+        telegram_id = int(telegram_id)
+    except ValueError:
+        return render_template('login.html', error='Invalid Telegram User ID. It should be a number.')
+    
+    user = User.query.filter_by(user_id=telegram_id).first()
+    if not user:
+        return render_template('login.html', error='No account found with this Telegram User ID. Please use the Telegram bot first to create an account.')
+    
+    session['telegram_user_id'] = telegram_id
+    return redirect(url_for('index'))
+
+@app.route('/logout')
+def logout():
+    session.pop('telegram_user_id', None)
+    return redirect(url_for('login'))
 
 @app.route('/')
 def index():
@@ -89,7 +117,8 @@ def slots_page():
 
 @app.route('/api/user')
 def get_user():
-    user = User.query.get(session['user_id'])
+    telegram_user_id = session.get('telegram_user_id')
+    user = User.query.filter_by(user_id=telegram_user_id).first()
     return jsonify({
         'username': user.username,
         'balance': user.balance
@@ -101,7 +130,8 @@ def play_game():
     game = data.get('game')
     bet = float(data.get('bet', 0))
     
-    user = User.query.get(session['user_id'])
+    telegram_user_id = session.get('telegram_user_id')
+    user = User.query.filter_by(user_id=telegram_user_id).first()
     if bet > user.balance or bet <= 0:
         return jsonify({'error': 'Insufficient balance'}), 400
         
@@ -204,7 +234,8 @@ def mines_cashout():
     payout = bet * mult
     profit = payout - bet
     
-    user = User.query.get(session['user_id'])
+    telegram_user_id = session.get('telegram_user_id')
+    user = User.query.filter_by(user_id=telegram_user_id).first()
     user.balance += payout
     update_house_balance(-profit)
     db.session.commit()
@@ -221,7 +252,8 @@ def game_result():
     game = data.get('game')
     multiplier = float(data.get('multiplier', 0))
     
-    user = User.query.get(session['user_id'])
+    telegram_user_id = session.get('telegram_user_id')
+    user = User.query.filter_by(user_id=telegram_user_id).first()
     bet = session.get('last_bet', 0)
     
     if bet <= 0:

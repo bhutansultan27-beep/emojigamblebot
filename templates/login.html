@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Antaria Casino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        .gradient-text { background: linear-gradient(45deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div class="max-w-md w-full mx-4">
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center gap-2 mb-4">
+                <span class="text-4xl">🎰</span>
+                <span class="font-black tracking-tighter text-3xl gradient-text">ANTARIA</span>
+            </div>
+            <h1 class="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+            <p class="text-slate-400">Enter your Telegram User ID to access your account</p>
+        </div>
+
+        <div class="bg-slate-900 rounded-3xl p-8 border border-white/10">
+            {% if error %}
+            <div class="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/login">
+                <div class="mb-6">
+                    <label for="telegram_id" class="block text-sm font-bold text-slate-400 mb-2">Telegram User ID</label>
+                    <input type="text" id="telegram_id" name="telegram_id" 
+                           class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                           placeholder="Enter your Telegram User ID">
+                </div>
+                <button type="submit" 
+                        class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all">
+                    Login
+                </button>
+            </form>
+
+            <div class="mt-6 p-4 bg-slate-800/50 rounded-xl">
+                <p class="text-slate-400 text-sm">
+                    <strong class="text-white">How to find your Telegram User ID:</strong><br>
+                    1. Open the Antaria Casino bot on Telegram<br>
+                    2. Send the <code class="bg-slate-700 px-1 rounded">/start</code> command<br>
+                    3. Your User ID will be shown in the welcome message
+                </p>
+            </div>
+        </div>
+
+        <p class="text-center text-slate-500 text-sm mt-6">
+            Don't have an account? <a href="https://t.me/your_bot" class="text-indigo-400 hover:text-indigo-300">Start with our Telegram bot</a>
+        </p>
+    </div>
+</body>
+</html>
