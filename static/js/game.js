@@ -149,6 +149,7 @@ const App = () => {
     }, []);
 
     if(game === 'keno') return <KenoGame balance={balance} onResult={fetchUser} />;
+    if(game === 'slots') return <SlotsGame balance={balance} onResult={fetchUser} />;
     
     return (
         <div className="text-center p-12">
@@ -157,6 +158,88 @@ const App = () => {
         </div>
     );
 };
+
+const SlotsGame = ({ balance, onResult }) => {
+    const [bet, setBet] = useState(10);
+    const [spinning, setSpinning] = useState(false);
+    const [reels, setReels] = useState([0, 0, 0]);
+    const symbols = ['🍒', '🍋', '🍇', '🔔', '💎', '7️⃣', '🍀'];
+
+    const spin = async () => {
+        if (balance < bet || spinning) return;
+        setSpinning(true);
+        
+        await fetch('/api/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'slots', bet })
+        });
+
+        let iterations = 0;
+        const interval = setInterval(() => {
+            setReels([
+                Math.floor(Math.random() * symbols.length),
+                Math.floor(Math.random() * symbols.length),
+                Math.floor(Math.random() * symbols.length)
+            ]);
+            SoundEngine.play('click');
+            iterations++;
+            
+            if (iterations > 20) {
+                clearInterval(interval);
+                const finalResult = [
+                    Math.floor(Math.random() * symbols.length),
+                    Math.floor(Math.random() * symbols.length),
+                    Math.floor(Math.random() * symbols.length)
+                ];
+                setReels(finalResult);
+                
+                let mult = 0;
+                if (finalResult[0] === finalResult[1] && finalResult[1] === finalResult[2]) {
+                    mult = 10;
+                    SoundEngine.play('win');
+                } else if (finalResult[0] === finalResult[1] || finalResult[1] === finalResult[2] || finalResult[0] === finalResult[2]) {
+                    mult = 2;
+                    SoundEngine.play('win');
+                } else {
+                    SoundEngine.play('loss');
+                }
+
+                fetch('/api/result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game: 'slots', multiplier: mult })
+                }).then(() => {
+                    setSpinning(false);
+                    onResult();
+                });
+            }
+        }, 50);
+    };
+
+    return (
+        <div className="max-w-xl mx-auto p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl text-center">
+            <h2 className="text-3xl font-black mb-8 gradient-text">SLOTS</h2>
+            <div className="flex justify-center gap-4 mb-8">
+                {reels.map((r, i) => (
+                    <div key={i} className="w-24 h-32 bg-slate-950 border-2 border-white/5 rounded-2xl flex items-center justify-center text-5xl shadow-inner">
+                        {symbols[r]}
+                    </div>
+                ))}
+            </div>
+            <div className="space-y-6">
+                <div className="flex flex-col items-center gap-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                    <input type="number" value={bet} onChange={e => setBet(parseFloat(e.target.value))} className="w-32 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+                <button onClick={spin} disabled={spinning} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95">
+                    {spinning ? 'SPINNING...' : 'SPIN'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
