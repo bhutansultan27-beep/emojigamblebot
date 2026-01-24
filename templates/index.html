@@ -1,91 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antaria Casino - Web Games</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
-        .game-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .game-card:hover { transform: translateY(-5px); }
-        .gradient-text { background: linear-gradient(45deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    </style>
-</head>
-<body class="min-h-screen bg-slate-950">
-    <nav class="border-b border-white/5 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">🎰</span>
-                <span class="font-black tracking-tighter text-xl gradient-text">ANTARIA</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="bg-slate-950 px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
-                    <span class="text-emerald-400">Balance:</span>
-                    <span class="font-mono font-bold" id="user-balance">$0.00</span>
-                </div>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
+{% block content %}
+<header class="text-center mb-16">
+    <h1 class="text-5xl md:text-7xl font-black mb-4 tracking-tighter">PLAY ANYWHERE</h1>
+    <p class="text-slate-400 text-lg">Experience the full Antaria Casino suite directly in your browser.</p>
+</header>
 
-    <main class="max-w-7xl mx-auto px-4 py-12">
-        <header class="text-center mb-16">
-            <h1 class="text-5xl md:text-7xl font-black mb-4 tracking-tighter">PLAY ANYWHERE</h1>
-            <p class="text-slate-400 text-lg">Experience the full Antaria Casino suite directly in your browser.</p>
-        </header>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Crash -->
+    <a href="/crash" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.15)] block">
+        <div class="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📈</div>
+        <h3 class="text-2xl font-black mb-2">CRASH</h3>
+        <p class="text-slate-500 text-sm leading-relaxed mb-6">Ride the multiplier up before it crashes. High risk, high reward.</p>
+        <div class="text-indigo-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
+    </a>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <!-- Crash -->
-            <a href="/crash" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.15)] block">
-                <div class="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📈</div>
-                <h3 class="text-2xl font-black mb-2">CRASH</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-6">Ride the multiplier up before it crashes. High risk, high reward.</p>
-                <div class="text-indigo-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
-            </a>
+    <!-- Plinko -->
+    <a href="/plinko" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-emerald-500/50 hover:shadow-[0_0_50px_rgba(16,185,129,0.15)] block">
+        <div class="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">⚪</div>
+        <h3 class="text-2xl font-black mb-2">PLINKO</h3>
+        <p class="text-slate-500 text-sm leading-relaxed mb-6">Drop the ball and watch it bounce through the pegs for massive multipliers.</p>
+        <div class="text-emerald-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
+    </a>
 
-            <!-- Plinko -->
-            <a href="/plinko" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-emerald-500/50 hover:shadow-[0_0_50px_rgba(16,185,129,0.15)] block">
-                <div class="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">⚪</div>
-                <h3 class="text-2xl font-black mb-2">PLINKO</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-6">Drop the ball and watch it bounce through the pegs for massive multipliers.</p>
-                <div class="text-emerald-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
-            </a>
+    <!-- Limbo -->
+    <a href="/limbo" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-rose-500/50 hover:shadow-[0_0_50px_rgba(244,63,94,0.15)] block">
+        <div class="w-16 h-16 bg-rose-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">🚀</div>
+        <h3 class="text-2xl font-black mb-2">LIMBO</h3>
+        <p class="text-slate-500 text-sm leading-relaxed mb-6">Pick your target and launch. How high will you go?</p>
+        <div class="text-rose-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
+    </a>
 
-            <!-- Limbo -->
-            <a href="/limbo" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-rose-500/50 hover:shadow-[0_0_50px_rgba(244,63,94,0.15)] block">
-                <div class="w-16 h-16 bg-rose-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">🚀</div>
-                <h3 class="text-2xl font-black mb-2">LIMBO</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-6">Pick your target and launch. How high will you go?</p>
-                <div class="text-rose-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
-            </a>
-
-            <!-- Mines -->
-            <a href="/mines" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-amber-500/50 hover:shadow-[0_0_50px_rgba(245,158,11,0.15)] block">
-                <div class="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">💣</div>
-                <h3 class="text-2xl font-black mb-2">MINES</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-6">Navigate the grid carefully. Every diamond increases your win.</p>
-                <div class="text-amber-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
-            </a>
-        </div>
-    </main>
-
-    <footer class="mt-24 border-t border-white/5 py-12 text-center text-slate-500">
-        <p class="text-xs uppercase tracking-widest font-bold">Powered by Antaria Engine v1.0</p>
-    </footer>
-
-    <script>
-        // Placeholder for user state management
-        async function fetchUser() {
-            // In a real app, this would fetch from an API
-            const response = await fetch('/api/user');
-            const data = await response.json();
-            if (data.balance !== undefined) {
-                document.getElementById('user-balance').textContent = '$' + data.balance.toFixed(2);
-            }
-        }
-        fetchUser();
-    </script>
-</body>
-</html>
+    <!-- Mines -->
+    <a href="/mines" class="game-card group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:border-amber-500/50 hover:shadow-[0_0_50px_rgba(245,158,11,0.15)] block">
+        <div class="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">💣</div>
+        <h3 class="text-2xl font-black mb-2">MINES</h3>
+        <p class="text-slate-500 text-sm leading-relaxed mb-6">Navigate the grid carefully. Every diamond increases your win.</p>
+        <div class="text-amber-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">Play Now <i class="fas fa-arrow-right text-[10px]"></i></div>
+    </a>
+</div>
+{% endblock %}

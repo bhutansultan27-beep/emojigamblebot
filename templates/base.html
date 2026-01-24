@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antaria Casino - Web Games</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        .game-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .game-card:hover { transform: translateY(-5px); }
+        .gradient-text { background: linear-gradient(45deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950">
+    <nav class="border-b border-white/5 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🎰</span>
+                <span class="font-black tracking-tighter text-xl gradient-text">ANTARIA</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="bg-slate-950 px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
+                    <span class="text-emerald-400">Balance:</span>
+                    <span class="font-mono font-bold" id="user-balance">$0.00</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-12">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mt-24 border-t border-white/5 py-12 text-center text-slate-500">
+        <p class="text-xs uppercase tracking-widest font-bold">Powered by Antaria Engine v1.0</p>
+    </footer>
+
+    <script>
+        // Placeholder for user state management
+        async function fetchUser() {
+            try {
+                const response = await fetch('/api/user');
+                const data = await response.json();
+                if (data.balance !== undefined) {
+                    document.getElementById('user-balance').textContent = '$' + data.balance.toFixed(2);
+                }
+            } catch (e) {
+                console.error("Error fetching user:", e);
+            }
+        }
+        fetchUser();
+    </script>
+</body>
+</html>
