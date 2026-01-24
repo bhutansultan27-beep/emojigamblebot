@@ -81,6 +81,14 @@ def limbo_page():
 def mines_page():
     return render_template('mines.html')
 
+@app.route('/keno')
+def keno_page():
+    return render_template('keno.html')
+
+@app.route('/slots')
+def slots_page():
+    return render_template('slots.html')
+
 @app.route('/api/user')
 def get_user():
     user = User.query.get(session['user_id'])
