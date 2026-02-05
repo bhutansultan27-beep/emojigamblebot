@@ -127,38 +127,6 @@ const KenoGame = ({ balance, onResult }) => {
     );
 };
 
-const App = () => {
-    const [game, setGame] = useState('lobby');
-    const [balance, setBalance] = useState(0);
-
-    const fetchUser = async () => {
-        const res = await fetch('/api/user');
-        const data = await res.json();
-        setBalance(data.balance);
-    };
-
-    useEffect(() => {
-        fetchUser();
-        const handleHash = () => {
-            const h = window.location.hash.replace('#', '');
-            if(h) setGame(h);
-        };
-        window.addEventListener('hashchange', handleHash);
-        handleHash();
-        return () => window.removeEventListener('hashchange', handleHash);
-    }, []);
-
-    if(game === 'keno') return <KenoGame balance={balance} onResult={fetchUser} />;
-    if(game === 'slots') return <SlotsGame balance={balance} onResult={fetchUser} />;
-    
-    return (
-        <div className="text-center p-12">
-            <h2 className="text-4xl font-black mb-4">LOBBY</h2>
-            <p className="text-slate-400">Please select a game from the main menu.</p>
-        </div>
-    );
-};
-
 const SlotsGame = ({ balance, onResult }) => {
     const [bet, setBet] = useState(10);
     const [spinning, setSpinning] = useState(false);
@@ -240,6 +208,342 @@ const SlotsGame = ({ balance, onResult }) => {
     );
 };
 
+const CrashGame = ({ balance, onResult }) => {
+    const [bet, setBet] = useState(10);
+    const [playing, setPlaying] = useState(false);
+    const [multiplier, setMultiplier] = useState(1.00);
+    const [crashed, setCrashed] = useState(false);
+    const [cashedOut, setCashedOut] = useState(false);
+    const intervalRef = useRef(null);
+    const crashPointRef = useRef(0);
+
+    const startGame = async () => {
+        if (balance < bet || playing) return;
+        setPlaying(true);
+        setCrashed(false);
+        setCashedOut(false);
+        setMultiplier(1.00);
+
+        const res = await fetch('/api/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'crash', bet })
+        });
+        const data = await res.json();
+        crashPointRef.current = data.crash_point;
+
+        intervalRef.current = setInterval(() => {
+            setMultiplier(prev => {
+                const next = parseFloat((prev + 0.01 * (prev * 0.5 + 0.5)).toFixed(2));
+                if (next >= crashPointRef.current) {
+                    clearInterval(intervalRef.current);
+                    setCrashed(true);
+                    setPlaying(false);
+                    SoundEngine.play('loss');
+                    fetch('/api/result', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ game: 'crash', multiplier: 0 })
+                    }).then(() => onResult());
+                    return crashPointRef.current;
+                }
+                return next;
+            });
+        }, 100);
+    };
+
+    const cashOut = () => {
+        if (!playing || crashed || cashedOut) return;
+        clearInterval(intervalRef.current);
+        setCashedOut(true);
+        setPlaying(false);
+        SoundEngine.play('win');
+        fetch('/api/result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'crash', multiplier })
+        }).then(() => onResult());
+    };
+
+    return (
+        <div className="max-w-xl mx-auto p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl text-center">
+            <h2 className="text-3xl font-black mb-8 gradient-text">CRASH</h2>
+            <div className={`text-7xl font-black mb-8 transition-colors ${crashed ? 'text-red-500' : cashedOut ? 'text-emerald-400' : 'text-white'}`}>
+                {multiplier.toFixed(2)}x
+            </div>
+            {crashed && <p className="text-red-400 font-bold mb-4">CRASHED!</p>}
+            {cashedOut && <p className="text-emerald-400 font-bold mb-4">Cashed out at {multiplier.toFixed(2)}x!</p>}
+            <div className="space-y-6">
+                <div className="flex flex-col items-center gap-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                    <input type="number" value={bet} onChange={e => setBet(parseFloat(e.target.value))} disabled={playing} className="w-32 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+                {!playing ? (
+                    <button onClick={startGame} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95">
+                        START
+                    </button>
+                ) : (
+                    <button onClick={cashOut} className="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95 animate-pulse">
+                        CASH OUT ({multiplier.toFixed(2)}x)
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const LimboGame = ({ balance, onResult }) => {
+    const [bet, setBet] = useState(10);
+    const [target, setTarget] = useState(2.0);
+    const [playing, setPlaying] = useState(false);
+    const [result, setResult] = useState(null);
+
+    const play = async () => {
+        if (balance < bet || playing) return;
+        setPlaying(true);
+        setResult(null);
+
+        const res = await fetch('/api/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'limbo', bet })
+        });
+        const data = await res.json();
+        
+        setTimeout(() => {
+            setResult(data.result);
+            const won = data.result >= target;
+            if (won) SoundEngine.play('win'); else SoundEngine.play('loss');
+            
+            fetch('/api/result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'limbo', multiplier: won ? target : 0, target })
+            }).then(() => {
+                setPlaying(false);
+                onResult();
+            });
+        }, 500);
+    };
+
+    return (
+        <div className="max-w-xl mx-auto p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl text-center">
+            <h2 className="text-3xl font-black mb-8 gradient-text">LIMBO</h2>
+            <div className={`text-7xl font-black mb-4 ${result !== null ? (result >= target ? 'text-emerald-400' : 'text-red-500') : 'text-slate-600'}`}>
+                {result !== null ? result.toFixed(2) + 'x' : '?.??x'}
+            </div>
+            <p className="text-slate-400 mb-8 text-sm">Target: {target.toFixed(2)}x ({(100 / target).toFixed(1)}% chance)</p>
+            <div className="space-y-6">
+                <div className="flex justify-center gap-4">
+                    <div className="flex flex-col items-center gap-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet</label>
+                        <input type="number" value={bet} onChange={e => setBet(parseFloat(e.target.value))} className="w-28 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Target</label>
+                        <input type="number" step="0.1" min="1.01" value={target} onChange={e => setTarget(parseFloat(e.target.value) || 2.0)} className="w-28 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                    </div>
+                </div>
+                <button onClick={play} disabled={playing} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95">
+                    {playing ? 'ROLLING...' : 'PLAY LIMBO'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const MinesGame = ({ balance, onResult }) => {
+    const [bet, setBet] = useState(10);
+    const [minesCount, setMinesCount] = useState(3);
+    const [board, setBoard] = useState(Array(25).fill('hidden'));
+    const [playing, setPlaying] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
+    const [currentMultiplier, setCurrentMultiplier] = useState(1.00);
+
+    const startGame = async () => {
+        if (balance < bet || playing) return;
+        setBoard(Array(25).fill('hidden'));
+        setGameOver(false);
+        setCurrentMultiplier(1.00);
+
+        const res = await fetch('/api/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'mines', bet, mines: minesCount })
+        });
+        const data = await res.json();
+        if (data.status === 'started') setPlaying(true);
+    };
+
+    const reveal = async (index) => {
+        if (!playing || board[index] !== 'hidden' || gameOver) return;
+        SoundEngine.play('click');
+
+        const res = await fetch('/api/mines/reveal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index })
+        });
+        const data = await res.json();
+        
+        const newBoard = [...board];
+        if (data.is_mine) {
+            newBoard[index] = 'mine';
+            setBoard(newBoard);
+            setGameOver(true);
+            setPlaying(false);
+            SoundEngine.play('loss');
+            onResult();
+        } else {
+            newBoard[index] = 'safe';
+            setBoard(newBoard);
+            setCurrentMultiplier(data.multiplier);
+            SoundEngine.play('win');
+        }
+    };
+
+    const cashout = async () => {
+        if (!playing) return;
+        const res = await fetch('/api/mines/cashout', { method: 'POST' });
+        const data = await res.json();
+        setPlaying(false);
+        setGameOver(true);
+        SoundEngine.play('win');
+        onResult();
+    };
+
+    return (
+        <div className="max-w-xl mx-auto p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl text-center">
+            <h2 className="text-3xl font-black mb-4 gradient-text">MINES</h2>
+            <p className="text-slate-400 text-sm mb-6">Multiplier: <span className="text-emerald-400 font-bold">{currentMultiplier.toFixed(2)}x</span></p>
+            <div className="grid grid-cols-5 gap-2 mb-6 max-w-xs mx-auto">
+                {board.map((cell, i) => (
+                    <button key={i} onClick={() => reveal(i)} disabled={!playing || cell !== 'hidden'}
+                        className={`aspect-square rounded-xl font-bold text-lg transition-all transform active:scale-90
+                            ${cell === 'hidden' ? 'bg-slate-800 hover:bg-slate-700 text-slate-500' : 
+                              cell === 'safe' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {cell === 'hidden' ? '?' : cell === 'safe' ? '💎' : '💣'}
+                    </button>
+                ))}
+            </div>
+            <div className="space-y-4">
+                {!playing && !gameOver && (
+                    <div className="flex justify-center gap-4 mb-4">
+                        <div className="flex flex-col items-center gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet</label>
+                            <input type="number" value={bet} onChange={e => setBet(parseFloat(e.target.value))} className="w-28 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mines</label>
+                            <input type="number" min="1" max="24" value={minesCount} onChange={e => setMinesCount(parseInt(e.target.value) || 3)} className="w-28 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                        </div>
+                    </div>
+                )}
+                {!playing ? (
+                    <button onClick={startGame} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-4 rounded-2xl font-black uppercase tracking-widest transition-all transform active:scale-95">
+                        {gameOver ? 'PLAY AGAIN' : 'START GAME'}
+                    </button>
+                ) : (
+                    <button onClick={cashout} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95">
+                        CASH OUT ({currentMultiplier.toFixed(2)}x)
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const PlinkoGame = ({ balance, onResult }) => {
+    const [bet, setBet] = useState(10);
+    const [playing, setPlaying] = useState(false);
+    const [result, setResult] = useState(null);
+    const multipliers = [0.3, 0.6, 1.1, 2, 4, 11, 33];
+
+    const play = async () => {
+        if (balance < bet || playing) return;
+        setPlaying(true);
+        setResult(null);
+
+        const res = await fetch('/api/play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'plinko', bet })
+        });
+        const data = await res.json();
+        
+        setTimeout(() => {
+            setResult(data);
+            setPlaying(false);
+            if (data.multiplier >= 2) SoundEngine.play('win'); else SoundEngine.play('loss');
+            onResult();
+        }, 1500);
+    };
+
+    return (
+        <div className="max-w-xl mx-auto p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl text-center">
+            <h2 className="text-3xl font-black mb-8 gradient-text">PLINKO</h2>
+            <div className="flex justify-center gap-2 mb-8">
+                {multipliers.map((m, i) => (
+                    <div key={i} className={`px-3 py-2 rounded-lg font-mono font-bold text-sm
+                        ${result && result.multiplier === m ? 'bg-emerald-500 text-white scale-110' : 
+                          m >= 4 ? 'bg-amber-500/20 text-amber-400' : m >= 2 ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>
+                        {m}x
+                    </div>
+                ))}
+            </div>
+            {result && (
+                <div className={`text-4xl font-black mb-6 ${result.multiplier >= 2 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {result.multiplier}x = ${(result.payout).toFixed(2)}
+                </div>
+            )}
+            <div className="space-y-6">
+                <div className="flex flex-col items-center gap-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bet Amount</label>
+                    <input type="number" value={bet} onChange={e => setBet(parseFloat(e.target.value))} className="w-32 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 font-mono text-center text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+                <button onClick={play} disabled={playing} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-6 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95">
+                    {playing ? 'DROPPING...' : 'DROP BALL'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const App = () => {
+    const [game, setGame] = useState('lobby');
+    const [balance, setBalance] = useState(0);
+
+    const fetchUser = async () => {
+        const res = await fetch('/api/user');
+        const data = await res.json();
+        setBalance(data.balance);
+    };
+
+    useEffect(() => {
+        fetchUser();
+        const handleHash = () => {
+            const h = window.location.hash.replace('#', '');
+            if(h) setGame(h);
+        };
+        window.addEventListener('hashchange', handleHash);
+        handleHash();
+        return () => window.removeEventListener('hashchange', handleHash);
+    }, []);
+
+    if(game === 'keno') return <KenoGame balance={balance} onResult={fetchUser} />;
+    if(game === 'slots') return <SlotsGame balance={balance} onResult={fetchUser} />;
+    if(game === 'crash') return <CrashGame balance={balance} onResult={fetchUser} />;
+    if(game === 'limbo') return <LimboGame balance={balance} onResult={fetchUser} />;
+    if(game === 'mines') return <MinesGame balance={balance} onResult={fetchUser} />;
+    if(game === 'plinko') return <PlinkoGame balance={balance} onResult={fetchUser} />;
+    
+    return (
+        <div className="text-center p-12">
+            <h2 className="text-4xl font-black mb-4">LOBBY</h2>
+            <p className="text-slate-400">Please select a game from the main menu.</p>
+        </div>
+    );
+};
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
