@@ -189,10 +189,12 @@ class DatabaseManager:
                     
                     # Replace specific bot username with "Bot" in the display data
                     # Also handle case-insensitive check just in case
-                    for key in ['bot', 'challenger', 'opponent']:
+                    for key in ['bot', 'challenger', 'opponent', 'winner']:
                         val = game_display_data.get(key)
-                        if isinstance(val, str) and (val.lower() == "@davaulte" or val.lower() == "davaulte"):
-                            game_display_data[key] = 'Bot'
+                        if isinstance(val, str):
+                            lower_val = val.lower()
+                            if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"]:
+                                game_display_data[key] = 'Bot'
                         
                     user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
                 if len(user_games) >= limit:
