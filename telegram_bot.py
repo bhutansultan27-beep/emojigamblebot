@@ -5761,6 +5761,65 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             await query.edit_message_text(weekly_text, reply_markup=reply_markup, parse_mode="HTML")
             return
 
+        # Level Up Bonus Menu
+        if data == "bonus_levelup":
+            user_data = self.db.get_user(user_id)
+            total_wagered = user_data.get('total_wagered', 0)
+            
+            # Example values (ideally calculated from user data)
+            current_level = "🥉 Bronze V"
+            current_wagered = 7858.0
+            next_level = "🥈 Silver I"
+            next_wagered = 10000.0
+            rank = 668
+            wager_to_upgrade = 2141.0
+            bonus_to_claim = 25.0
+            
+            levelup_text = (
+                "🌲 <b>Level Up Bonus</b>\n\n"
+                "Play games, level up and get even more bonuses!\n\n"
+                "Your current level:\n"
+                f"🥉 <b>{current_level} - ${current_wagered:,.0f} wagered</b>\n\n"
+                "Next Level:\n"
+                f"🥈 <b>{next_level} - ${next_wagered:,.0f} wagered</b>\n\n"
+                f"You are ranked <b>#{rank}</b>.\n"
+                f"Wager <b>${wager_to_upgrade:,.0f}</b> more to upgrade your level!"
+            )
+            
+            keyboard = [
+                [InlineKeyboardButton(f"🔒 Claim ${bonus_to_claim:,.0f} Bonus 🔒", callback_data="bonus_levelup_claim_locked")],
+                [InlineKeyboardButton("Levels List", callback_data="bonus_levels_list")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(levelup_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # Levels List Menu
+        if data == "bonus_levels_list":
+            levels_text = (
+                "📊 <b>Levels List</b>\n\n"
+                "🥉 <b>Bronze I</b>: $0 wagered\n"
+                "🥉 <b>Bronze II</b>: $1,000 wagered\n"
+                "🥉 <b>Bronze III</b>: $2,500 wagered\n"
+                "🥉 <b>Bronze IV</b>: $5,000 wagered\n"
+                "🥉 <b>Bronze V</b>: $7,500 wagered\n"
+                "🥈 <b>Silver I</b>: $10,000 wagered\n"
+                "🥈 <b>Silver II</b>: $15,000 wagered\n"
+                "🥈 <b>Silver III</b>: $25,000 wagered\n"
+                "🥈 <b>Silver IV</b>: $50,000 wagered\n"
+                "🥈 <b>Silver V</b>: $75,000 wagered\n"
+                "🥇 <b>Gold I</b>: $100,000 wagered\n\n"
+                "Keep playing to climb the ranks and unlock bigger rewards!"
+            )
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="bonus_levelup")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(levels_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
         # Bonus main menu (back button from weekly/levelup)
         if data == "bonus_main":
             bonus_text = (
