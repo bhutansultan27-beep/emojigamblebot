@@ -973,8 +973,11 @@ class AntariaCasinoBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        if update.callback_query:
+            await update.callback_query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
     
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show player statistics"""
