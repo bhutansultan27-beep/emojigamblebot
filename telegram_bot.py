@@ -5401,7 +5401,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         """Show previous 10 matches with pagination"""
         self.ensure_user_registered(update)
         user_id = update.effective_user.id
-        await self.show_matches_page(update, 0, user_id)
+        await self.show_matches_page(update, context, 0, user_id)
 
     async def fake_matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Populate database with fake matches for testing (Admin only)"""
@@ -5471,7 +5471,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             
         await update.message.reply_text(f"✅ Added {len(fake_games)} fake matches to your history. Use /matches to see them!")
 
-    async def show_matches_page(self, update: Update, page: int, user_id: int):
+    async def show_matches_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page: int, user_id: int):
         # Fetch games from database
         user_games = []
         with self.db.app.app_context():
@@ -6258,7 +6258,7 @@ To deposit, send LTC to the address below:
                     return
                 page = int(parts[2])
                 target_user_id = int(parts[3])
-                await self.show_matches_page(update, page, target_user_id)
+                await self.show_matches_page(update, context, page, target_user_id)
                 return
 
             if data.startswith("matches_cancel_"):
