@@ -234,6 +234,14 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_house_balance(-(payout - w))
                 
                 p1_name = u.get('username', f'User{user_id}')
+                
+                win_text = (
+                    f"🏆 <b>Game over!</b>\n\n"
+                    f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
+                    f"<b>Bot</b> • {challenge['b_pts']}\n\n"
+                    f"✅ <b>{p1_name}</b> won <b>${payout:,.2f}</b>!"
+                )
+                
                 # Use "inverted" if game_mode_type is "crazy" for callback data consistency
                 mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}"),

@@ -611,10 +611,10 @@ class AntariaCasinoBot:
                         
                         # Refund the challenger
                         challenger_id = challenge['challenger']
-                        # challenger_data = self.db.get_user(challenger_id) # Removing duplicate read
+                        challenger_data = self.db.get_user(challenger_id)
                         
                         self.db.update_user(challenger_id, {
-                            'balance': self.db.get_user(challenger_id)['balance'] + wager
+                            'balance': challenger_data['balance'] + wager
                         })
                         
                         if chat_id:
@@ -715,7 +715,7 @@ class AntariaCasinoBot:
                 del self.pending_pvp[challenge_id]
             
             if expired_challenges:
-                self.db.data['pending_pvp'] = self.pending_pvp
+                self.db.update_pending_pvp(self.pending_pvp)
                 logger.info(f"Expired/forfeited {len(expired_challenges)} challenge(s)")
                 
         except Exception as e:
@@ -760,10 +760,14 @@ class AntariaCasinoBot:
         # Remove @ if present
         if identifier.startswith('@'):
             username = identifier[1:]
-            # Search by username
-            for user_data in self.db.data['users'].values():
-                if user_data.get('username', '').lower() == username.lower():
-                    return user_data
+            # Search by username in the database
+            with self.db.app.app_context():
+                from sqlalchemy import select
+                user = db.session.execute(
+                    select(User).filter(User.username.ilike(username))
+                ).scalar_one_or_none()
+                if user:
+                    return self.db._user_to_dict(user)
             return None
         else:
             # Try to parse as user ID
@@ -996,14 +1000,15 @@ class AntariaCasinoBot:
         # Get real dates from games
         with self.db.app.app_context():
             from models import Game
+            from sqlalchemy import or_, cast, String as SAString
             first_game = Game.query.filter(or_(
-                cast(Game.data['player_id'], String) == str(user_id),
-                cast(Game.data['challenger'], String) == str(user_id)
+                cast(Game.data['player_id'], SAString) == str(user_id),
+                cast(Game.data['challenger'], SAString) == str(user_id)
             )).order_by(Game.timestamp.asc()).first()
             
             last_game = Game.query.filter(or_(
-                cast(Game.data['player_id'], String) == str(user_id),
-                cast(Game.data['challenger'], String) == str(user_id)
+                cast(Game.data['player_id'], SAString) == str(user_id),
+                cast(Game.data['challenger'], SAString) == str(user_id)
             )).order_by(Game.timestamp.desc()).first()
 
         first_game_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "Never played"
@@ -1133,61 +1138,41 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
     async def history_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show match history"""
         user_id = update.effective_user.id
-        user_games = self.db.data.get('games', [])
-        
-        # Filter games involving the user (player_id, challenger, or opponent) and get the last 15
-        user_games_filtered = [
-            game for game in user_games 
-            if game.get('player_id') == user_id or 
-               game.get('challenger') == user_id or 
-               game.get('opponent') == user_id
-        ][-15:]
+        # Use the proper DB method to get user matches
+        user_games_filtered = self.db.get_user_matches(user_id, limit=15)
         
         if not user_games_filtered:
             await update.message.reply_text("📜 No history yet")
             return
         
-        history_text = "🎮 **History** (Last 15)\n\n"
-        
-        bot_info = await context.bot.get_me()
-        bot_name = bot_info.first_name
+        history_text = "🎮 <b>History</b> (Last 15)\n\n"
 
-        for game in reversed(user_games_filtered):
+        for game in user_games_filtered:
             game_type = game.get('type', 'unknown')
             timestamp = game.get('timestamp', '')
             
             if timestamp:
-                dt = datetime.fromisoformat(timestamp)
-                time_str = dt.strftime("%m/%d %H:%M")
+                try:
+                    if isinstance(timestamp, str):
+                        dt = datetime.fromisoformat(timestamp)
+                    else:
+                        dt = timestamp
+                    time_str = dt.strftime("%m/%d %H:%M")
+                except (ValueError, AttributeError):
+                    time_str = "Recently"
             else:
                 time_str = "Recently"
             
-            if 'bot' in game_type:
-                result = game.get('result', 'unknown')
-                result_emoji = "✅ Win" if result == "win" else "❌ Loss" if result == "loss" else "🤝 Draw"
-                wager = game.get('wager', 0)
-                
-                if game_type == 'dice_bot':
-                    player_roll = game.get('player_roll', 0)
-                    bot_roll = game.get('bot_roll', 0)
-                    history_text += f"{result_emoji} **Dice vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   You: {player_roll} | {bot_name}: {bot_roll} | {time_str}\n\n"
-                elif game_type == 'coinflip_bot':
-                    choice = game.get('choice', 'unknown')
-                    flip_result = game.get('result', 'unknown')
-                    outcome = game.get('outcome', 'unknown')
-                    result_emoji = "✅ Win" if outcome == "win" else "❌ Loss"
-                    history_text += f"{result_emoji} **CoinFlip vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   Chose: {choice.capitalize()} | Result: {flip_result.capitalize()} | {time_str}\n\n"
-            else:
-                # PvP games
-                p1_id = game.get('challenger')
-                p2_id = game.get('opponent')
-                p1_mention = self.get_mention(p1_id)
-                p2_mention = self.get_mention(p2_id)
-                
-                history_text += f"🎲 **{game_type.replace('_', ' ').title()}**\n"
-                history_text += f"   {p1_mention} vs {p2_mention} | {time_str}\n\n"
+            result = game.get('result', 'unknown')
+            result_emoji = "✅" if result == "win" else "❌" if result == "loss" else "🤝"
+            wager = game.get('wager', 0)
+            payout = game.get('payout', 0)
+            
+            game_display = game_type.replace('_', ' ').title()
+            history_text += f"{result_emoji} <b>{game_display}</b> - ${wager:.2f}"
+            if payout and payout > 0:
+                history_text += f" (Won ${payout:.2f})"
+            history_text += f" | {time_str}\n"
         
         await update.message.reply_text(history_text, parse_mode="HTML")
     
@@ -3368,7 +3353,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         }
         
         self.pending_pvp[game_id] = game_state
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         bot_mention = f"[{context.bot.username or 'Bot'}](tg://user?id={context.bot.id})"
         user_mention = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -3413,7 +3398,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         }
         
         self.pending_pvp[game_id] = game_state
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         bot_mention = f"[{context.bot.username or 'Bot'}](tg://user?id={context.bot.id})"
         user_mention = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -3459,7 +3444,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         }
         
         self.pending_pvp[game_id] = game_state
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         bot_mention = f"[{context.bot.username or 'Bot'}](tg://user?id={context.bot.id})"
         user_mention = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -3505,7 +3490,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         }
         
         self.pending_pvp[game_id] = game_state
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         bot_mention = f"[{context.bot.username or 'Bot'}](tg://user?id={context.bot.id})"
         user_mention = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
@@ -3546,7 +3531,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "waiting_for_challenger_emoji": False,
             "created_at": datetime.now().isoformat()
         }
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         keyboard = [[InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_dice_{challenge_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -3606,7 +3591,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         challenge['waiting_for_emoji'] = False
         challenge['emoji_wait_started'] = datetime.now().isoformat()
         self.pending_pvp[challenge_id] = challenge
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
 
     async def create_emoji_pvp_challenge(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_type: str, emoji: str):
         """Create an emoji-based PvP challenge (darts, basketball, soccer)"""
@@ -3636,7 +3621,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             "waiting_for_challenger_emoji": False,
             "created_at": datetime.now().isoformat()
         }
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         keyboard = [[InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -3699,7 +3684,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         challenge['waiting_for_emoji'] = False
         challenge['emoji_wait_started'] = datetime.now().isoformat()
         self.pending_pvp[challenge_id] = challenge
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
 
     def calculate_cashout(self, p_pts, b_pts, target_pts, wager):
         """
@@ -4051,7 +4036,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 challenge['waiting_for_emoji'] = True
                 challenge['emoji_wait_started'] = datetime.now().isoformat()
                 self.pending_pvp[cid] = challenge
-                self.db.data['pending_pvp'] = self.pending_pvp
+                self.db.update_pending_pvp(self.pending_pvp)
                 
                 acceptor_user = self.db.get_user(challenge['opponent'])
                 # await context.bot.send_message(chat_id=chat_id, text=f"@{acceptor_user['username']} your turn", parse_mode="Markdown")
@@ -4093,7 +4078,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         
         # Remove challenge from pending
         del self.pending_pvp[challenge_id_to_resolve]
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
         
         # Determine winner
         winner_id = None
@@ -7015,19 +7000,23 @@ To withdraw, use:
                     await query.edit_message_text(withdraw_text, parse_mode="Markdown")
 
             elif data == "transactions_history":
-                user_transactions = self.db.data['transactions'].get(str(user_id), [])[-10:] # Last 10
+                with self.db.app.app_context():
+                    from sqlalchemy import select
+                    transactions = db.session.execute(
+                        select(Transaction).filter_by(user_id=user_id).order_by(Transaction.timestamp.desc()).limit(10)
+                    ).scalars().all()
                 
-                if not user_transactions:
+                if not transactions:
                     await query.edit_message_text("📜 No transaction history found.")
                     return
                 
-                history_text = "📜 **Last 10 Transactions**\n\n"
-                for tx in reversed(user_transactions):
-                    time_str = datetime.fromisoformat(tx['timestamp']).strftime("%m/%d %H:%M")
-                    sign = "+" if tx['amount'] >= 0 else ""
-                    history_text += f"*{time_str}* | `{sign}{tx['amount']:.2f}`: {tx['description']}\n"
+                history_text = "📜 <b>Last 10 Transactions</b>\n\n"
+                for tx in transactions:
+                    time_str = tx.timestamp.strftime("%m/%d %H:%M") if tx.timestamp else "Recently"
+                    sign = "+" if tx.amount >= 0 else ""
+                    history_text += f"{time_str} | <code>{sign}{tx.amount:.2f}</code>: {tx.description}\n"
                 
-                await query.edit_message_text(history_text, parse_mode="Markdown")
+                await query.edit_message_text(history_text, parse_mode="HTML")
 
             # Handle decline of PvP (general)
             elif data.startswith("decline_"):
@@ -7214,16 +7203,7 @@ To withdraw, use:
             
             # Log pending withdrawal in DB
             user_data = self.db.get_user(user_id)
-            pending_withdrawals = self.db.data.get('pending_withdrawals', [])
-            pending_withdrawals.append({
-                'user_id': user_id,
-                'username': update.effective_user.username or "Unknown",
-                'amount': amount,
-                'currency': currency,
-                'address': address,
-                'status': 'pending'
-            })
-            self.db.data['pending_withdrawals'] = pending_withdrawals
+            self.db.add_transaction(user_id, "withdrawal_pending", -amount, f"Withdrawal of ${amount:.2f} in {currency} to {address}")
             
             # Deduct balance immediately
             user_data['balance'] -= amount
@@ -7277,8 +7257,8 @@ To withdraw, use:
             from models import GlobalState
             gs = GlobalState.query.filter_by(key='pending_pvp').first()
             if gs:
-                gs.value = '{}'
-                self.db.db.session.commit()
+                gs.value = {}
+                db.session.commit()
         
         await update.message.reply_text("✅ Database reset! All pending games cleared.")
 
@@ -7290,7 +7270,7 @@ To withdraw, use:
 
         await update.message.reply_text("🔄 Initiating hard reset... wiping database and restarting bot.")
 
-        with self.app.app_context():
+        with self.db.app.app_context():
             # Delete all data from tables
             db.session.query(User).delete()
             db.session.query(Game).delete()
