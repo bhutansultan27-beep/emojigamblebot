@@ -941,6 +941,35 @@ class AntariaCasinoBot:
         # Store the message ID of the /bal command itself
         context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
     
+    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show main menu"""
+        user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        
+        main_text = (
+            "🎰 <b>Welcome to Antaria Casino!</b>\n\n"
+            f"Your current balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+            "Select a game or check your stats below."
+        )
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🎮 Play Games", callback_data="menu_games"),
+                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus")
+            ],
+            [
+                InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
+                InlineKeyboardButton("🏆 Leaderboard", callback_data="menu_leaderboard")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if update.callback_query:
+            await update.callback_query.edit_message_text(main_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            sent_msg = await update.message.reply_text(main_text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show bonus status"""
         user_data = self.db.get_user(update.effective_user.id)
@@ -5688,6 +5717,82 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 context.args = [amount_str]
                 await self.blackjack_command(update, context)
                 return
+
+        # Weekly Bonus Menu
+        if data == "bonus_weekly":
+            user_data = self.db.get_user(user_id)
+            # Example values for Level and Wager (would ideally be calculated)
+            current_level = "🥉 Bronze V"
+            next_level = "🥈 Silver I"
+            wager_to_upgrade = 2141.0
+            claim_time = "3h 35m"
+            bonus_amount = 0.00
+            
+            weekly_text = (
+                "🎁 <b>Weekly Bonus</b>\n\n"
+                "Here you can get a percentage of the fees from your games! You can get a bonus for the past week games every Friday. If you don't do it in time - the bonuses will be burned!\n\n"
+                "<b>? Rules</b>\n"
+                "You have the choice of taking your bonus or trying to double it. In the second case we will send a dice and depending on its value you will get a different bonus value (multiplier)\n"
+                "Dice values:\n"
+                "1 - 0x\n"
+                "2 - 0.5x\n"
+                "3 - 1x\n"
+                "4 - 1x\n"
+                "5 - 1.5x\n"
+                "6 - 2x\n\n"
+                f"Your level: {current_level}\n"
+                "Add @dices to your name to boost the rakeback by 20%!\n"
+                "Boost: ❌ Inactive\n\n"
+                f"Next level: {next_level}\n"
+                f"Wager ${wager_to_upgrade:,.0f} more to upgrade your level!\n\n"
+                f"You will be able to claim bonus in <b>{claim_time}</b>\n"
+                f"🎁 Bonus: <b>${bonus_amount:,.2f}</b>"
+            )
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔒 Claim Bonus 🔒", callback_data="bonus_claim_locked"),
+                    InlineKeyboardButton("🔒 Try To Double 🔒", callback_data="bonus_double_locked")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(weekly_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # Bonus main menu (back button from weekly/levelup)
+        if data == "bonus_main":
+            bonus_text = (
+                "🎁 <b>Bonus</b>\n\n"
+                "In this section you can find bonuses that you can get by playing games!\n\n"
+                "💎 <b>Weekly Bonus</b>\n"
+                "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+                "💎 <b>Level Up Bonus</b>\n"
+                "Play games, level up and earn money!"
+            )
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
+                    InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # Start menu back button
+        if data == "start_back":
+            # Re-trigger start command via message-like handling if needed, 
+            # but usually it just shows the main menu again.
+            # For simplicity, we can just call the start_command with a dummy update/context
+            # or just edit the message to main menu text.
+            # Assuming main menu text is what we want here.
+            await self.start_command(update, context)
+            return
 
         if owner_id and owner_id != user_id:
             await query.answer("❌ This menu isn't for you.", show_alert=True)
