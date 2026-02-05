@@ -13,22 +13,20 @@ from typing import Optional, Dict, Any, List
 import sys
 import os
 
+# Use specific import path for python-telegram-bot to avoid conflicts with 'telegram' package
 import sys
 import os
 import logging
 
 # Ensure the correct site-packages is first in sys.path
 lib_path = os.path.join(os.getcwd(), ".pythonlibs", "lib", "python3.11", "site-packages")
-if os.path.exists(lib_path) and lib_path not in sys.path:
+if os.path.exists(lib_path):
+    if lib_path in sys.path:
+        sys.path.remove(lib_path)
     sys.path.insert(0, lib_path)
 
-# Add vendor path as well if it exists
-vendor_path = os.path.join(lib_path, "telegram")
-if os.path.exists(vendor_path) and vendor_path not in sys.path:
-    sys.path.insert(0, vendor_path)
-
 import telegram
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -186,20 +184,24 @@ class DatabaseManager:
             for g in games:
                 if not g.data:
                     continue
+                
                 # Check all possible player ID fields in game data
                 g_player_id = g.data.get('player_id') or g.data.get('user_id') or g.data.get('player')
                 
                 # Ensure we are comparing as strings or ints consistently
                 if str(g_player_id) == str(user_id):
+                    # Local copy to avoid mutating the database object directly if it's reused
+                    game_display_data = dict(g.data)
+                    
                     # Replace specific bot username with "Bot" in the display data
-                    if g.data.get('bot') == '@davaulte':
-                        g.data['bot'] = 'Bot'
-                    if g.data.get('challenger') == '@davaulte':
-                        g.data['challenger'] = 'Bot'
-                    if g.data.get('opponent') == '@davaulte':
-                        g.data['opponent'] = 'Bot'
+                    # Also handle case-insensitive check just in case
+                    bot_name = "@davaulte"
+                    for key in ['bot', 'challenger', 'opponent']:
+                        val = game_display_data.get(key)
+                        if isinstance(val, str) and val.lower() == bot_name.lower():
+                            game_display_data[key] = 'Bot'
                         
-                    user_games.append({**g.data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
+                    user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
                 if len(user_games) >= limit:
                     break
             return user_games
@@ -227,6 +229,7 @@ class AntariaCasinoBot:
     async def post_init(self, application: Application):
         """Set up bot commands menu for all possible scopes"""
         from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
+        # play command removed per request
         commands = [
             BotCommand("start", "Start the bot and see help"),
             BotCommand("balance", "Check your current balance"),
@@ -329,7 +332,7 @@ class AntariaCasinoBot:
 
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
-        self.app.add_handler(CommandHandler("play", self.play_command))
+        # self.app.add_handler(CommandHandler("play", self.play_command))
         self.app.add_handler(CommandHandler("crash", self.crash_command))
         self.app.add_handler(CommandHandler("plinko", self.plinko_command))
         self.app.add_handler(CommandHandler("limbo", self.limbo_command))
@@ -873,36 +876,8 @@ class AntariaCasinoBot:
             await update.message.reply_text("❌ Error launching game interface.")
 
     async def play_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show Web App game dashboard"""
-        try:
-            web_url = "https://antaria-casino.repl.co"
-            replit_domains = os.environ.get("REPLIT_DOMAINS")
-            if replit_domains:
-                domain = replit_domains.split(',')[0].strip()
-                web_url = f"https://{domain}"
-            
-            web_url = web_url.rstrip("/")
-            
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-            keyboard = [
-                [InlineKeyboardButton("🎮 Crash", web_app=WebAppInfo(url=f"{web_url}/crash")),
-                 InlineKeyboardButton("🎱 Plinko", web_app=WebAppInfo(url=f"{web_url}/plinko"))],
-                [InlineKeyboardButton("🚀 Limbo", web_app=WebAppInfo(url=f"{web_url}/limbo")),
-                 InlineKeyboardButton("💣 Mines", web_app=WebAppInfo(url=f"{web_url}/mines"))],
-                [InlineKeyboardButton("🔢 Keno", web_app=WebAppInfo(url=f"{web_url}/keno")),
-                 InlineKeyboardButton("🎰 Slots", web_app=WebAppInfo(url=f"{web_url}/slots"))],
-                [InlineKeyboardButton("🎰 Main Dashboard", web_app=WebAppInfo(url=web_url))]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.message.reply_text(
-                "🎮 <b>Web Games Menu</b>\n\nSelect a game to start playing:",
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Error in play_command: {e}", exc_info=True)
-            await update.message.reply_text("❌ Error opening game menu.")
+        """Deprecated /play command"""
+        await update.message.reply_text("The /play command has been removed. Please use specific game commands like /dice, /blackjack, /roulette, or /coinflip directly.")
 
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
