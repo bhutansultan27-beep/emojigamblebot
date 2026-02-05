@@ -776,54 +776,64 @@ class AntariaCasinoBot:
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Welcome message and initial user setup."""
         user = update.effective_user
-        user_data = self.db.get_user(user.id)
+        user_id = user.id
+        user_data = self.db.get_user(user_id)
         
-        # Get the users chat name
-        chat_name = user.first_name
-        if user.last_name:
-            chat_name += f" {user.last_name}"
-
-        # Update username if it has changed
-        if user_data.get("username") != chat_name:
-            self.db.update_user(user.id, {"username": chat_name})
-            user_data = self.db.get_user(user.id) # Reload data if updated
+        # 1. First Message: Help and Games
+        help_text = (
+            "👉 <b>How to start?</b>\n"
+            "1. Make sure you have a balance. You can deposit by entering the /balance command.\n"
+            "2. Go to one of our groups in @DicesDirectory directory\n"
+            "3. Enter the /dice command and you are ready!\n\n"
+            "📣 <b>What games can I play?</b>\n"
+            "• 🎲 Dice - /dice\n"
+            "• 🎳 Bowling - /bowl\n"
+            "• 🎯 Darts - /darts\n"
+            "• ⚽ Football - /ball\n"
+            "• 🏀 Basketball - /bask\n"
+            "• 🪙 Coinflip - /coin\n"
+            "• 🎰 Slot machine - /slots\n"
+            "• 🎡 Roulette - /roulette\n"
+            "• 🎲 Dice Prediction - /predict\n"
+            "• 🃏 Blackjack - /blackjack\n"
+            "• 💣 Mines - /mines\n"
+            "• 📍 Plinko - /plinko\n"
+            "• 🐒 Monkey Tower - /tower\n"
+            "• 🐔 Crossy Road - /crossyroad\n"
+            "• 🎡 Wheel (NEW!) - /wheel\n"
+            "• More is coming! - /news\n\n"
+            "<b>Enjoy the games!</b> 🍀"
+        )
         
-        # Check for referral link in /start arguments
-        if context.args and context.args[0].startswith('ref_'):
-            ref_code = context.args[0].split('_', 1)[1]
-            if user_data.get('referred_by') is None:
-                referrer_data = self.db.data['users'].get(self.db.data['users'].get(ref_code))
-                if referrer_data and referrer_data['user_id'] != user.id:
-                    self.db.update_user(user.id, {'referred_by': ref_code})
-                    self.db.update_user(referrer_data['user_id'], {'referral_count': referrer_data.get('referral_count', 0) + 1})
-                    await context.bot.send_message(
-                        chat_id=referrer_data['user_id'],
-                        text=f"🎉 **New Referral!** Your link brought in @{user.username or user.first_name}.",
-                        parse_mode="Markdown"
-                    )
+        # 2. Second Message: Balance and Menu
+        menu_text = (
+            "🏠 <b>Menu</b>\n\n"
+            f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+            "Choose the action:"
+        )
         
-        welcome_text = f"""
-🎰 <b>Antaria Casino</b>
-💰 Balance: <b>${user_data['balance']:,.2f}</b>
+        keyboard = [
+            [InlineKeyboardButton("🎮 Play", callback_data="menu_games")],
+            [
+                InlineKeyboardButton("💳 Deposit", callback_data="menu_deposit"),
+                InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
+            ],
+            [
+                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
+                InlineKeyboardButton("📁 More Content", callback_data="menu_more")
+            ],
+            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-<b>Games:</b>
-/dice 10 - Dice 🎲
-/darts 10 - Darts 🎯
-/basketball 10 - Basketball 🏀
-/soccer 10 - Soccer ⚽
-/bowling 10 - Bowling 🎳
-/flip 10 heads - Coin Flip 🪙
-/predict 10 #6 - Predict 🎱
-
-<b>Web Games:</b>
-/play - Open Crash, Plinko, Limbo & Mines 🚀
-
-<b>Menu:</b>
-/bal - Balance
-/bonus - Get bonus
-/stats - Your stats
-"""
-        await update.message.reply_text(welcome_text, parse_mode="HTML")
+        if update.callback_query:
+            await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            # Send first message
+            await update.message.reply_text(help_text, parse_mode="HTML")
+            # Send second message
+            sent_msg = await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self.game_launcher(update, "Crash", "crash", "📈")
@@ -935,34 +945,6 @@ class AntariaCasinoBot:
         # Store the message ID of the /bal command itself
         context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
     
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show main menu"""
-        user_id = update.effective_user.id
-        user_data = self.db.get_user(user_id)
-        
-        main_text = (
-            "🎰 <b>Welcome to Antaria Casino!</b>\n\n"
-            f"Your current balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-            "Select a game or check your stats below."
-        )
-        
-        keyboard = [
-            [
-                InlineKeyboardButton("🎮 Play Games", callback_data="menu_games"),
-                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus")
-            ],
-            [
-                InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
-                InlineKeyboardButton("🏆 Leaderboard", callback_data="menu_leaderboard")
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        if update.callback_query:
-            await update.callback_query.edit_message_text(main_text, reply_markup=reply_markup, parse_mode="HTML")
-        else:
-            sent_msg = await update.message.reply_text(main_text, reply_markup=reply_markup, parse_mode="HTML")
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show bonus status"""
