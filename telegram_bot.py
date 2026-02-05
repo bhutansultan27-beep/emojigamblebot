@@ -7848,7 +7848,11 @@ async def main():
         logger.warning("JobQueue is not available. Timer-based features will not work.")
     
     await bot.app.initialize()
-    await bot.app.bot.set_my_commands(commands)
+    try:
+        # Set a request timeout to avoid startup failure if Telegram is slow
+        await bot.app.bot.set_my_commands(commands, write_timeout=30, read_timeout=30, connect_timeout=30)
+    except Exception as e:
+        logger.error(f"Failed to set bot commands: {e}")
     await bot.app.start()
     await bot.app.updater.start_polling(poll_interval=1.0)
     
