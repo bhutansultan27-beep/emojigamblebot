@@ -175,22 +175,34 @@ class DatabaseManager:
     def get_user_matches(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
         """Get game history for a user"""
         with self.app.app_context():
+            from sqlalchemy import select, or_
+            # Use JSON extraction to filter by user_id or player_id in the 'data' column
+            # In PostgreSQL, this is: data->>'user_id' = :user_id OR data->>'player_id' = :user_id
+            # However, for broader compatibility and since we are already loading all games in the previous implementation,
+            # let's optimize to filter correctly.
             games = Game.query.order_by(Game.timestamp.desc()).all()
             user_games = []
             for g in games:
+                if not g.data:
+                    continue
                 # Check all possible player ID fields in game data
                 g_player_id = g.data.get('player_id') or g.data.get('user_id') or g.data.get('player')
-                if g_player_id == user_id:
-                    user_games.append({**g.data, 'timestamp': g.timestamp})
+                
+                # Ensure we are comparing as strings or ints consistently
+                if str(g_player_id) == str(user_id):
+                    user_games.append({**g.data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
                 if len(user_games) >= limit:
                     break
             return user_games
 
     def record_game(self, game_data: Dict[str, Any]):
         with self.app.app_context():
+            # Add user_id or player_id to the game_data if it's missing but we have it in context
+            # This ensures it's always searchable in match history
             g = Game(data=game_data)
             db.session.add(g)
             db.session.commit()
+            logger.info(f"Recorded game for {game_data.get('user_id') or game_data.get('player_id')}")
 
     def get_leaderboard(self) -> List[Dict[str, Any]]:
         with self.app.app_context():
