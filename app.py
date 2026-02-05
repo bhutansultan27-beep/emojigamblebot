@@ -93,27 +93,27 @@ def index():
 
 @app.route('/crash')
 def crash_page():
-    return render_template('crash.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/plinko')
 def plinko_page():
-    return render_template('plinko.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/limbo')
 def limbo_page():
-    return render_template('limbo.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/mines')
 def mines_page():
-    return render_template('mines.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/keno')
 def keno_page():
-    return render_template('keno.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/slots')
 def slots_page():
-    return render_template('slots.html')
+    return "Game currently unavailable. Please check back later.", 503
 
 @app.route('/api/user')
 def get_user():

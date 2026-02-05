@@ -943,22 +943,28 @@ class AntariaCasinoBot:
     
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show bonus status"""
-        user_data = self.ensure_user_registered(update)
+        user_data = self.db.get_user(update.effective_user.id)
         user_id = update.effective_user.id
         
-        wagered_since_withdrawal = user_data.get('wagered_since_last_withdrawal', 0)
-        bonus_amount = wagered_since_withdrawal * 0.01
+        bonus_text = (
+            "🎁 <b>Bonus</b>\n\n"
+            "In this section you can find bonuses that you can get by playing games!\n\n"
+            "💎 <b>Weekly Bonus</b>\n"
+            "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+            "💎 <b>Level Up Bonus</b>\n"
+            "Play games, level up and earn money!"
+        )
         
-        if bonus_amount < 0.01:
-            await update.message.reply_text("🎁 No bonus available yet\n\nPlay games to earn bonus!", parse_mode="Markdown")
-            return
-        
-        bonus_text = f"🎁 **Bonus Available: ${bonus_amount:.2f}**\n\nClaim it below!"
-        
-        keyboard = [[InlineKeyboardButton("💰 Claim Now", callback_data="claim_daily_bonus")]]
+        keyboard = [
+            [
+                InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
+                InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
+            ],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="Markdown")
+        sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
         self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
     
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
