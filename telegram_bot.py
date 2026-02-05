@@ -13,29 +13,30 @@ from typing import Optional, Dict, Any, List
 import sys
 import os
 
-# Try to import from the specific site-packages if needed, but usually just standard import
-try:
-    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import (
-        Application,
-        CommandHandler,
-        CallbackQueryHandler,
-        ContextTypes,
-        MessageHandler,
-        filters
-    )
-except ImportError:
-    # Fallback or diagnostic
-    import telegram
-    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import (
-        Application,
-        CommandHandler,
-        CallbackQueryHandler,
-        ContextTypes,
-        MessageHandler,
-        filters
-    )
+import sys
+import os
+import logging
+
+# Ensure the correct site-packages is first in sys.path
+lib_path = os.path.join(os.getcwd(), ".pythonlibs", "lib", "python3.11", "site-packages")
+if os.path.exists(lib_path) and lib_path not in sys.path:
+    sys.path.insert(0, lib_path)
+
+# Add vendor path as well if it exists
+vendor_path = os.path.join(lib_path, "telegram")
+if os.path.exists(vendor_path) and vendor_path not in sys.path:
+    sys.path.insert(0, vendor_path)
+
+import telegram
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters
+)
 
 # Set up logging
 logging.basicConfig(
@@ -190,6 +191,14 @@ class DatabaseManager:
                 
                 # Ensure we are comparing as strings or ints consistently
                 if str(g_player_id) == str(user_id):
+                    # Replace specific bot username with "Bot" in the display data
+                    if g.data.get('bot') == '@davaulte':
+                        g.data['bot'] = 'Bot'
+                    if g.data.get('challenger') == '@davaulte':
+                        g.data['challenger'] = 'Bot'
+                    if g.data.get('opponent') == '@davaulte':
+                        g.data['opponent'] = 'Bot'
+                        
                     user_games.append({**g.data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
                 if len(user_games) >= limit:
                     break
