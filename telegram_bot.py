@@ -294,6 +294,7 @@ class AntariaCasinoBot:
         # Admin user IDs from environment variable (permanent admins)
         admin_ids_str = os.getenv("ADMIN_IDS", "")
         self.env_admin_ids = set()
+        self.dynamic_admin_ids = set()
         if admin_ids_str:
             try:
                 self.env_admin_ids = set(int(id.strip()) for id in admin_ids_str.split(",") if id.strip())
@@ -2519,7 +2520,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 return
                 
             recipient_username = context.args[1].lstrip('@')
-            recipient_data = next((u for u in self.db.data['users'].values() if u.get('username') == recipient_username), None)
+            recipient_data = self.find_user_by_username_or_id(f"@{recipient_username}")
             recipient_display_name = recipient_username
 
         if amount <= 0.01:
@@ -3105,16 +3106,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         if self.env_admin_ids:
             admin_text += "**Permanent Admins (from environment):**\n"
             for admin_id in sorted(self.env_admin_ids):
-                user_data = self.db.data['users'].get(str(admin_id))
-                username = user_data.get('username', 'N/A') if user_data else 'N/A'
+                try:
+                    user_data = self.db.get_user(admin_id)
+                    username = user_data.get('username', 'N/A') if user_data else 'N/A'
+                except:
+                    username = 'N/A'
                 admin_text += f"• {admin_id} (@{username})\n"
             admin_text += "\n"
         
-        if self.dynamic_admin_ids:
+        if hasattr(self, 'dynamic_admin_ids') and self.dynamic_admin_ids:
             admin_text += "**Dynamic Admins (added via commands):**\n"
             for admin_id in sorted(self.dynamic_admin_ids):
-                user_data = self.db.data['users'].get(str(admin_id))
-                username = user_data.get('username', 'N/A') if user_data else 'N/A'
+                try:
+                    user_data = self.db.get_user(admin_id)
+                    username = user_data.get('username', 'N/A') if user_data else 'N/A'
+                except:
+                    username = 'N/A'
                 admin_text += f"• {admin_id} (@{username})\n"
         else:
             if not self.env_admin_ids:
@@ -6841,17 +6848,22 @@ To withdraw, use:
                     await query.edit_message_text(withdraw_text, parse_mode="Markdown")
 
             elif data == "transactions_history":
-                user_transactions = self.db.data['transactions'].get(str(user_id), [])[-10:] # Last 10
+                # Fetch last 10 transactions from SQL database
+                with self.db.app.app_context():
+                    from sqlalchemy import select
+                    txs = db.session.execute(
+                        select(Transaction).filter_by(user_id=user_id).order_by(Transaction.timestamp.desc()).limit(10)
+                    ).scalars().all()
                 
-                if not user_transactions:
+                if not txs:
                     await query.edit_message_text("📜 No transaction history found.")
                     return
                 
                 history_text = "📜 **Last 10 Transactions**\n\n"
-                for tx in reversed(user_transactions):
-                    time_str = datetime.fromisoformat(tx['timestamp']).strftime("%m/%d %H:%M")
-                    sign = "+" if tx['amount'] >= 0 else ""
-                    history_text += f"*{time_str}* | `{sign}{tx['amount']:.2f}`: {tx['description']}\n"
+                for tx in txs:
+                    time_str = tx.timestamp.strftime("%m/%d %H:%M") if tx.timestamp else "Recently"
+                    sign = "+" if tx.amount >= 0 else ""
+                    history_text += f"*{time_str}* | `{sign}{tx.amount:.2f}`: {tx.description}\n"
                 
                 await query.edit_message_text(history_text, parse_mode="Markdown")
 
