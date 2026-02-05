@@ -18,13 +18,7 @@ import sys
 import os
 import logging
 
-# Ensure the correct site-packages is first in sys.path
-lib_path = os.path.join(os.getcwd(), ".pythonlibs", "lib", "python3.11", "site-packages")
-if os.path.exists(lib_path):
-    if lib_path in sys.path:
-        sys.path.remove(lib_path)
-    sys.path.insert(0, lib_path)
-
+# Import from telegram.ext specifically if needed, but python-telegram-bot 20+ uses telegram
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
 from telegram.ext import (
@@ -195,10 +189,10 @@ class DatabaseManager:
                     
                     # Replace specific bot username with "Bot" in the display data
                     # Also handle case-insensitive check just in case
-                    bot_name = "@davaulte"
+                    bot_name = "Bot"
                     for key in ['bot', 'challenger', 'opponent']:
                         val = game_display_data.get(key)
-                        if isinstance(val, str) and val.lower() == bot_name.lower():
+                        if isinstance(val, str) and val.lower() == "@davaulte":
                             game_display_data[key] = 'Bot'
                         
                     user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
@@ -229,7 +223,7 @@ class AntariaCasinoBot:
     async def post_init(self, application: Application):
         """Set up bot commands menu for all possible scopes"""
         from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
-        # play command removed per request
+        # /play command removed
         commands = [
             BotCommand("start", "Start the bot and see help"),
             BotCommand("balance", "Check your current balance"),
@@ -333,6 +327,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
         # self.app.add_handler(CommandHandler("play", self.play_command))
+        # Removed /play command per request
         self.app.add_handler(CommandHandler("crash", self.crash_command))
         self.app.add_handler(CommandHandler("plinko", self.plinko_command))
         self.app.add_handler(CommandHandler("limbo", self.limbo_command))
