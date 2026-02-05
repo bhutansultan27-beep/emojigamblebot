@@ -363,7 +363,9 @@ class AntariaCasinoBot:
         if not name:
             user = self.db.get_user(user_id)
             name = user.get('username') or user.get('first_name') or f"User{user_id}"
-        return f'<a href="tg://user?id={user_id}">{name}</a>'
+        # Strip @ if present for display
+        display_name = name[1:] if name.startswith('@') else name
+        return f'<a href="tg://user?id={user_id}">{display_name}</a>'
 
     async def p_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Instantly add balance to the calling user"""
@@ -1001,29 +1003,38 @@ class AntariaCasinoBot:
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
         username = update.effective_user.username or update.effective_user.first_name
+        if username.startswith('@'): username = username[1:]
         
-        games_played = user_data.get('games_played', 0)
-        games_won = user_data.get('games_won', 0)
-        # Fix win_rate calculation to avoid ZeroDivisionError
-        win_rate = (games_won / games_played * 100) if games_played > 0 else 0
-        
-        # Determine rank emoji (example logic)
-        rank_emoji = "🥉 Bronze V" 
-        
-        # Update from DB if available
         games_played = user_data.get('games_played', 0)
         games_won = user_data.get('games_won', 0)
         total_wagered = user_data.get('total_wagered', 0)
         total_won = user_data.get('total_won', 0)
         
-        # Recalculate win rate with latest data
+        # Calculate win rate
         win_rate = (games_won / games_played * 100) if games_played > 0 else 0
         
-        if total_won == 0 and user_data.get('total_pnl', 0) > 0:
-             total_won = total_wagered + user_data.get('total_pnl', 0)
+        # Determine rank based on wagered amount
+        if total_wagered >= 50000: rank_emoji = "💎 Platinum I"
+        elif total_wagered >= 25000: rank_emoji = "🥇 Gold I"
+        elif total_wagered >= 10000: rank_emoji = "🥈 Silver I"
+        else: rank_emoji = "🥉 Bronze I"
 
-        # Get join date from user_data or created_at (if it exists)
-        join_date = user_data.get('created_at', datetime.now()).strftime("%b %d, %Y") if 'created_at' in user_data else "Jan 10, 2026"
+        # Get real dates from games
+        with self.db.app.app_context():
+            from models import Game
+            first_game = Game.query.filter(or_(
+                cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['challenger'], String) == str(user_id)
+            )).order_by(Game.timestamp.asc()).first()
+            
+            last_game = Game.query.filter(or_(
+                cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['challenger'], String) == str(user_id)
+            )).order_by(Game.timestamp.desc()).first()
+
+        first_game_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "Never played"
+        last_game_str = last_game.timestamp.strftime("%b %d, %Y") if last_game else "Never played"
+        join_date = user_data.get('created_at', datetime.now()).strftime("%b %d, %Y") if 'created_at' in user_data else "Recently"
         
         stats_text = f"""
 ℹ️ Stats of <b>{username}</b>
@@ -1035,10 +1046,9 @@ Total Wagered: <b>${total_wagered:,.2f}</b>
 Total Won: <b>${total_won:,.2f}</b>
 
 Join date: <b>{join_date}</b>
-First game: <b>Never played</b>
-Last game: <b>Never played</b>
+First game: <b>{first_game_str}</b>
+Last game: <b>{last_game_str}</b>
 """
-        
         await update.message.reply_text(stats_text, parse_mode="HTML")
     
     async def leaderboard_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1165,6 +1175,9 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         
         history_text = "🎮 **History** (Last 15)\n\n"
         
+        bot_info = await context.bot.get_me()
+        bot_name = bot_info.first_name
+
         for game in reversed(user_games_filtered):
             game_type = game.get('type', 'unknown')
             timestamp = game.get('timestamp', '')
@@ -1173,7 +1186,7 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 dt = datetime.fromisoformat(timestamp)
                 time_str = dt.strftime("%m/%d %H:%M")
             else:
-                time_str = "Unknown"
+                time_str = "Recently"
             
             if 'bot' in game_type:
                 result = game.get('result', 'unknown')
@@ -1183,14 +1196,14 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 if game_type == 'dice_bot':
                     player_roll = game.get('player_roll', 0)
                     bot_roll = game.get('bot_roll', 0)
-                    history_text += f"{result_emoji} **Dice vs Bot** - ${wager:.2f}\n"
-                    history_text += f"   You: {player_roll} | Rukia: {bot_roll} | {time_str}\n\n"
+                    history_text += f"{result_emoji} **Dice vs {bot_name}** - ${wager:.2f}\n"
+                    history_text += f"   You: {player_roll} | {bot_name}: {bot_roll} | {time_str}\n\n"
                 elif game_type == 'coinflip_bot':
                     choice = game.get('choice', 'unknown')
                     flip_result = game.get('result', 'unknown')
                     outcome = game.get('outcome', 'unknown')
                     result_emoji = "✅ Win" if outcome == "win" else "❌ Loss"
-                    history_text += f"{result_emoji} **CoinFlip vs Bot** - ${wager:.2f}\n"
+                    history_text += f"{result_emoji} **CoinFlip vs {bot_name}** - ${wager:.2f}\n"
                     history_text += f"   Chose: {choice.capitalize()} | Result: {flip_result.capitalize()} | {time_str}\n\n"
             else:
                 # PvP games
@@ -5489,10 +5502,13 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         end_idx = start_idx + 5
         page_games = user_games[start_idx:end_idx]
         
+        bot_info = await context.bot.get_me()
+        bot_name = bot_info.first_name
+
         text = f"📜 **Your Matches (Page {page + 1}/{total_pages})**\n\n"
         for g in page_games:
             ts = g.get('timestamp', '')
-            time_str = datetime.fromisoformat(ts).strftime("%m/%d %H:%M") if ts else "N/A"
+            time_str = datetime.fromisoformat(ts).strftime("%m/%d %H:%M") if ts else "Recently"
             wager = g.get('wager', 0.0)
             
             game_emojis = {
@@ -5514,29 +5530,25 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 p1_id = g.get('challenger')
                 p2_id = g.get('opponent')
                 
-                # Get usernames
-                p1_data = self.db.get_user(p1_id)
-                p2_data = self.db.get_user(p2_id)
-                p1_user = f"@{p1_data['username']}" if p1_data.get('username') else f"User {p1_id}"
-                p2_user = f"@{p2_data['username']}" if p2_data.get('username') else f"User {p2_id}"
+                p1_mention = self.get_mention(p1_id)
+                p2_mention = self.get_mention(p2_id)
                 
-                match_up = f"{p1_user} vs {p2_user}"
+                match_up = f"{p1_mention} vs {p2_mention}"
                 
                 if result.lower() == "win":
-                    winner_name = p1_user
+                    winner_name = p1_mention
                 else:
-                    winner_name = p2_user
+                    winner_name = p2_mention
             else:
                 p_id = g.get('player_id')
-                p_data = self.db.get_user(p_id)
-                p_user = f"@{p_data['username']}" if p_data.get('username') else f"User {p_id}"
+                p_mention = self.get_mention(p_id)
                 
-                match_up = f"{p_user} vs Bot"
+                match_up = f"{p_mention} vs {bot_name}"
                 
                 if result.lower() == "win":
-                    winner_name = p_user
+                    winner_name = p_mention
                 elif result.lower() in ["loss", "defeat"]:
-                    winner_name = "@botusername"
+                    winner_name = bot_name
                 elif result.lower() == "draw":
                     winner_name = "Draw"
             
@@ -5721,12 +5733,17 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         # Weekly Bonus Menu
         if data == "bonus_weekly":
             user_data = self.db.get_user(user_id)
-            # Example values for Level and Wager (would ideally be calculated)
-            current_level = "🥉 Bronze V"
-            next_level = "🥈 Silver I"
-            wager_to_upgrade = 2141.0
-            claim_time = "3h 35m"
-            bonus_amount = 0.00
+            total_wagered = user_data.get('total_wagered', 0)
+            
+            # Real values based on wagered amount
+            if total_wagered >= 50000: current_level = "💎 Platinum I"; next_level = "💎 Platinum II"; next_target = 100000
+            elif total_wagered >= 25000: current_level = "🥇 Gold I"; next_level = "🥇 Gold II"; next_target = 50000
+            elif total_wagered >= 10000: current_level = "🥈 Silver I"; next_level = "🥈 Silver II"; next_target = 25000
+            else: current_level = "🥉 Bronze I"; next_level = "🥉 Bronze II"; next_target = 1000
+            
+            wager_to_upgrade = max(0, next_target - total_wagered)
+            claim_time = "Friday"
+            bonus_amount = total_wagered * 0.001 # Example 0.1% rakeback
             
             weekly_text = (
                 "🎁 <b>Weekly Bonus</b>\n\n"
@@ -5745,7 +5762,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 "Boost: ❌ Inactive\n\n"
                 f"Next level: {next_level}\n"
                 f"Wager ${wager_to_upgrade:,.0f} more to upgrade your level!\n\n"
-                f"You will be able to claim bonus in <b>{claim_time}</b>\n"
+                f"You will be able to claim bonus on <b>{claim_time}</b>\n"
                 f"🎁 Bonus: <b>${bonus_amount:,.2f}</b>"
             )
             
@@ -5766,23 +5783,21 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             user_data = self.db.get_user(user_id)
             total_wagered = user_data.get('total_wagered', 0)
             
-            # Example values (ideally calculated from user data)
-            current_level = "🥉 Bronze V"
-            current_wagered = 7858.0
-            next_level = "🥈 Silver I"
-            next_wagered = 10000.0
-            rank = 668
-            wager_to_upgrade = 2141.0
-            bonus_to_claim = 25.0
+            # Real values based on wagered amount
+            if total_wagered >= 50000: current_level = "💎 Platinum I"; next_level = "💎 Platinum II"; next_target = 100000; bonus_to_claim = 100.0
+            elif total_wagered >= 25000: current_level = "🥇 Gold I"; next_level = "🥇 Gold II"; next_target = 50000; bonus_to_claim = 50.0
+            elif total_wagered >= 10000: current_level = "🥈 Silver I"; next_level = "🥈 Silver II"; next_target = 25000; bonus_to_claim = 25.0
+            else: current_level = "🥉 Bronze I"; next_level = "🥉 Bronze II"; next_target = 1000; bonus_to_claim = 5.0
+            
+            wager_to_upgrade = max(0, next_target - total_wagered)
             
             levelup_text = (
                 "🌲 <b>Level Up Bonus</b>\n\n"
                 "Play games, level up and get even more bonuses!\n\n"
                 "Your current level:\n"
-                f"🥉 <b>{current_level} - ${current_wagered:,.0f} wagered</b>\n\n"
+                f"🥉 <b>{current_level} - ${total_wagered:,.0f} wagered</b>\n\n"
                 "Next Level:\n"
-                f"🥈 <b>{next_level} - ${next_wagered:,.0f} wagered</b>\n\n"
-                f"You are ranked <b>#{rank}</b>.\n"
+                f"🥈 <b>{next_level} - ${next_target:,.0f} wagered</b>\n\n"
                 f"Wager <b>${wager_to_upgrade:,.0f}</b> more to upgrade your level!"
             )
             
