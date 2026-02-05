@@ -5369,12 +5369,224 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         # Start menu back button
         if data == "start_back":
-            # Re-trigger start command via message-like handling if needed, 
-            # but usually it just shows the main menu again.
-            # For simplicity, we can just call the start_command with a dummy update/context
-            # or just edit the message to main menu text.
-            # Assuming main menu text is what we want here.
             await self.start_command(update, context)
+            return
+
+        # --- Main Menu Button Handlers ---
+        if data == "menu_games":
+            games_text = (
+                "🎮 <b>Games</b>\n\n"
+                "Choose a game to play:"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎲 Dice", callback_data="setup_mode_dice_1.00"),
+                    InlineKeyboardButton("🎯 Darts", callback_data="setup_mode_darts_1.00")
+                ],
+                [
+                    InlineKeyboardButton("🏀 Basketball", callback_data="setup_mode_basketball_1.00"),
+                    InlineKeyboardButton("⚽ Soccer", callback_data="setup_mode_soccer_1.00")
+                ],
+                [
+                    InlineKeyboardButton("🎳 Bowling", callback_data="setup_mode_bowling_1.00"),
+                    InlineKeyboardButton("🪙 CoinFlip", callback_data="flip_bot_1.00")
+                ],
+                [
+                    InlineKeyboardButton("🃏 Blackjack", callback_data="bj_bot_1.00"),
+                    InlineKeyboardButton("🎡 Roulette", callback_data="roulette_menu_1.00")
+                ],
+                [
+                    InlineKeyboardButton("🎱 Predict", callback_data="setup_mode_predict_1.00_dice"),
+                    InlineKeyboardButton("🎰 Slots", callback_data="slots_1.00")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(games_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_deposit":
+            user_data = self.db.get_user(user_id)
+            ltc_usd_rate = await self.get_live_rate("litecoin")
+            ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+            
+            deposit_text = (
+                "💳 <b>Deposit</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                f"To deposit, send LTC to:\n<code>{ltc_address}</code>\n\n"
+                f"Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
+                "Deposits are processed manually by admin after confirmation."
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_withdraw":
+            user_data = self.db.get_user(user_id)
+            withdraw_text = (
+                f"💸 <b>Withdraw</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                "Select withdrawal currency:"
+            )
+            keyboard = [
+                [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
+                [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
+                 InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+                [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
+                 InlineKeyboardButton("USDC", callback_data="wit_usdc")],
+                [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+                 InlineKeyboardButton("BNB", callback_data="wit_bnb")],
+                [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
+                 InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_bonus":
+            bonus_text = (
+                "🎁 <b>Bonus</b>\n\n"
+                "In this section you can find bonuses that you can get by playing games!\n\n"
+                "💎 <b>Weekly Bonus</b>\n"
+                "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+                "💎 <b>Level Up Bonus</b>\n"
+                "Play games, level up and earn money!"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
+                    InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_more":
+            more_text = (
+                "📁 <b>More Content</b>\n\n"
+                "📊 <b>Statistics</b> - View your game stats\n"
+                "🏆 <b>Leaderboard</b> - See top players\n"
+                "👥 <b>Referral</b> - Invite friends and earn\n"
+                "📜 <b>History</b> - View your match history\n"
+                "💰 <b>House Balance</b> - Check the house pool"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
+                    InlineKeyboardButton("🏆 Leaderboard", callback_data="menu_leaderboard")
+                ],
+                [
+                    InlineKeyboardButton("👥 Referral", callback_data="menu_referral"),
+                    InlineKeyboardButton("📜 History", callback_data="menu_history")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(more_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_settings":
+            settings_text = (
+                "⚙️ <b>Settings</b>\n\n"
+                "Manage your account settings here.\n\n"
+                "🔔 Notifications and preferences coming soon!"
+            )
+            keyboard = [
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(settings_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # Sub-menu handlers for "More Content"
+        if data == "menu_stats":
+            user_data = self.db.get_user(user_id)
+            games_played = user_data.get('games_played', 0)
+            games_won = user_data.get('games_won', 0)
+            total_wagered = user_data.get('total_wagered', 0)
+            win_rate = (games_won / games_played * 100) if games_played > 0 else 0
+            
+            stats_text = (
+                f"📊 <b>Your Statistics</b>\n\n"
+                f"Games Played: <b>{games_played}</b>\n"
+                f"Wins: <b>{games_won} ({win_rate:.1f}%)</b>\n"
+                f"Total Wagered: <b>${total_wagered:,.2f}</b>\n"
+                f"Balance: <b>${user_data['balance']:,.2f}</b>"
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_leaderboard":
+            leaderboard = self.db.get_leaderboard()
+            lb_text = "🏆 <b>Leaderboard</b>\n\n"
+            if not leaderboard:
+                lb_text += "No players yet"
+            else:
+                for idx, player in enumerate(leaderboard[:10], 1):
+                    medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+                    lb_text += f"{medal} <b>{player['username']}</b> - ${player['total_wagered']:,.2f}\n"
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(lb_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_referral":
+            user_data = self.db.get_user(user_id)
+            if not user_data.get('referral_code'):
+                referral_code = hashlib.md5(str(user_id).encode()).hexdigest()[:8]
+                self.db.update_user(user_id, {'referral_code': referral_code})
+                user_data['referral_code'] = referral_code
+            
+            bot_username = (await context.bot.get_me()).username
+            referral_link = f"https://t.me/{bot_username}?start=ref_{user_data['referral_code']}"
+            
+            ref_text = (
+                f"👥 <b>Referral</b>\n\n"
+                f"Your link: <code>{referral_link}</code>\n\n"
+                f"Referrals: <b>{user_data.get('referral_count', 0)}</b>\n"
+                f"Earned: <b>${user_data.get('referral_earnings', 0):.2f}</b>\n"
+                f"Unclaimed: <b>${user_data.get('unclaimed_referral_earnings', 0):.2f}</b>"
+            )
+            keyboard = []
+            if user_data.get('unclaimed_referral_earnings', 0) >= 0.01:
+                keyboard.append([InlineKeyboardButton("💰 Claim Earnings", callback_data="claim_referral")])
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_more")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(ref_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_history":
+            user_games = self.db.get_user_matches(user_id, limit=10)
+            history_text = "📜 <b>Match History</b>\n\n"
+            if not user_games:
+                history_text += "No matches yet. Go play!"
+            else:
+                for game in user_games:
+                    result = game.get('result', 'unknown')
+                    result_emoji = "✅" if result == "win" else "❌" if result == "loss" else "🤝"
+                    wager = game.get('wager', 0)
+                    game_display = game.get('type', 'unknown').replace('_', ' ').title()
+                    history_text += f"{result_emoji} <b>{game_display}</b> - ${wager:.2f}\n"
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(history_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # Locked bonus button responses
+        if data in ("bonus_claim_locked", "bonus_double_locked"):
+            await query.answer("🔒 This bonus can only be claimed on Friday!", show_alert=True)
+            return
+
+        if data == "bonus_levelup_claim_locked":
+            await query.answer("🔒 You need to reach the next level before claiming!", show_alert=True)
             return
 
         if owner_id and owner_id != user_id:
@@ -5462,47 +5674,35 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             amount = float(parts[4])
             
             if action == "approve":
-                # Mark as processed in DB
-                pending = self.db.data.get('pending_withdrawals', [])
-                target_username = "User"
-                for wit in pending:
-                    if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
-                        wit['status'] = 'processed'
-                        target_username = wit.get('username', "User")
-                        break
-                self.db.data['pending_withdrawals'] = pending
+                target_user_data = self.db.get_user(target_user_id)
+                target_username = target_user_data.get('username', 'User')
+                
+                # Record the approval transaction
+                self.db.add_transaction(target_user_id, "withdrawal_approved", -amount, f"Withdrawal approved")
                 
                 # Clickable mention without @ for the approval message in group
                 target_mention = f'<a href="tg://user?id={target_user_id}">{target_username}</a>'
                 await query.edit_message_text(f"✅ Withdrawal of ${amount:,.2f} for user {target_mention} approved!", parse_mode="HTML")
                 # Notify user
                 try:
-                    await self.app.bot.send_message(target_user_id, f"✅ Your withdrawal of **${amount:,.2f}** has been approved and sent!")
+                    await self.app.bot.send_message(target_user_id, f"✅ Your withdrawal of ${amount:,.2f} has been approved and sent!")
                 except:
                     pass
             
             elif action == "deny":
-                # Mark as denied and REFUND balance
-                pending = self.db.data.get('pending_withdrawals', [])
-                target_username = "User"
-                for wit in pending:
-                    if wit['user_id'] == target_user_id and wit.get('status') == 'pending' and wit['amount'] == amount:
-                        wit['status'] = 'denied'
-                        target_username = wit.get('username', "User")
-                        break
-                self.db.data['pending_withdrawals'] = pending
-                
-                # Refund
+                # Refund balance
                 target_user_data = self.db.get_user(target_user_id)
+                target_username = target_user_data.get('username', 'User')
                 target_user_data['balance'] += amount
                 self.db.update_user(target_user_id, target_user_data)
+                self.db.add_transaction(target_user_id, "withdrawal_denied", amount, f"Withdrawal denied - refunded")
                 
                 # Clickable mention without @ for the denial message in group
                 target_mention = f'<a href="tg://user?id={target_user_id}">{target_username}</a>'
                 await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for user {target_mention} denied. Balance refunded.", parse_mode="HTML")
                 # Notify user
                 try:
-                    await self.app.bot.send_message(target_user_id, f"your withdraw of {amount:,.2f} was unsuccesful. Your balance has been refunded")
+                    await self.app.bot.send_message(target_user_id, f"Your withdraw of ${amount:,.2f} was unsuccessful. Your balance has been refunded.")
                 except:
                     pass
             return
@@ -5530,7 +5730,16 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         # Handle Back to balance menu
         if data == "balance_menu":
-            await self.balance_command(update, context)
+            user_data = self.db.get_user(user_id)
+            ltc_usd_rate = await self.get_live_rate("litecoin")
+            ltc_balance = user_data['balance'] / ltc_usd_rate
+            balance_text = f"Your balance <b>${user_data['balance']:,.2f}</b> ({ltc_balance:.5f} LTC)"
+            keyboard = [
+                [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
+                 InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(balance_text, reply_markup=reply_markup, parse_mode="HTML")
             return
 
         # Handle Deposit button from balance menu
@@ -5618,16 +5827,9 @@ To deposit, send LTC to the address below:
                 await query.edit_message_text(deposit_text, parse_mode="Markdown")
                 return
 
-        """Handles all inline button presses."""
-        query = update.callback_query
-        if not query:
-            return
-            
-        # Ensure user is registered and username is updated
-        self.ensure_user_registered(update)
-        
+        # --- Continue handling remaining button callbacks ---
+        # Re-fetch variables after early returns above
         data = query.data
-        user_id = query.from_user.id
         chat_id = query.message.chat_id
         message_id = query.message.message_id
         
@@ -5872,165 +6074,6 @@ To deposit, send LTC to the address below:
                 # For single-point games after a draw, num_rolls=1
                 # This ensures resolve_bot_game is called to calculate the new round result
                 await self.resolve_bot_game(update, context, cid)
-                return
-                
-                await asyncio.sleep(4)
-                
-                # Re-load challenge for safety
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge: 
-                    logger.error(f"Challenge {cid} not found after player rolls")
-                    return
-
-                p_tot = sum(challenge['p_rolls'])
-                # Remove button from old cashout message before bot speaks
-                old_msg_id = challenge.get('cashout_msg_id')
-                if old_msg_id:
-                    try:
-                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                        challenge['cashout_msg_id'] = None
-                        self.db.update_pending_pvp(self.pending_pvp)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove button from old cashout message: {e}")
-
-                # await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
-                
-                # Bot rolls
-                challenge['b_rolls'] = [] # Clear bot rolls for the round
-                for _ in range(challenge['rolls']):
-                    try:
-                        d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                        val = d.dice.value
-                        score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
-                        challenge['b_rolls'].append(score)
-                    except Exception as e:
-                        logger.error(f"Error sending bot dice: {e}")
-                
-                # Re-calculate b_tot from the rolls we just made
-                b_tot = sum(challenge['b_rolls'])
-                
-                # Save bot progress
-                self.db.update_pending_pvp(self.pending_pvp)
-                
-                # Wait for bot dice animation to finish
-                await asyncio.sleep(4)
-                
-                # Re-load challenge for safety to get the absolute latest state
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge:
-                    logger.error(f"Challenge {cid} not found after rolls")
-                    return
-                
-                # RE-CALCULATE totals from the persistent rolls right before comparison
-                # This is critical because challenge['p_rolls'] and challenge['b_rolls'] 
-                # are the source of truth
-                current_p_rolls = challenge.get('p_rolls', [])
-                current_b_rolls = challenge.get('b_rolls', [])
-                p_tot = sum(current_p_rolls)
-                b_tot = sum(current_b_rolls)
-                
-                # Resolve Round/Series
-                round_win = None
-                if challenge.get('mode', 'normal') == "normal":
-                    if p_tot > b_tot: round_win = "p"
-                    elif b_tot > p_tot: round_win = "b"
-                    else: round_win = "draw"
-                else:
-                    if p_tot < b_tot: round_win = "p"
-                    elif b_tot < p_tot: round_win = "b"
-                    else: round_win = "draw"
-                
-                # RE-LOAD BEFORE INCREMENTING to ensure we have the most accurate pts
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge: return
-
-                if round_win == "p":
-                    challenge['p_pts'] += 1
-                elif round_win == "b":
-                    challenge['b_pts'] += 1
-                
-                # Update database IMMEDIATELY after incrementing points
-                self.db.update_pending_pvp(self.pending_pvp)
-                
-                if round_win == "draw":
-                    target_pts = challenge.get('pts', 1)
-                    # SILENCE: No message for draws in both single and multi-point games
-                    challenge['p_rolls'] = []
-                    challenge['b_rolls'] = []
-                    challenge['cur_rolls'] = 0 # Reset cur_rolls to allow cashout/next roll
-                    
-                    # For single point games, we need to show the cashout message buttons so they can keep playing
-                    if target_pts == 1:
-                        u = self.db.get_user(user_id)
-                        p1_name = u.get('username', f'User{user_id}')
-                        
-                        text = (
-                            f"<b>Score</b>\n"
-                            f"{p1_name}: {challenge['p_pts']}\n"
-                            f"Bot: {challenge['b_pts']}\n\n"
-                            f"<b>{p1_name}</b>, your turn! {emoji}"
-                        )
-                        
-                        cashout_val = self.calculate_cashout(challenge['p_pts'], challenge['b_pts'], target_pts, challenge['wager'])
-                        cashout_multiplier = round(cashout_val / challenge['wager'], 2) if challenge['wager'] > 0 else 0
-                        
-                        kb = [
-                            [InlineKeyboardButton("✅ Roll again", callback_data=f"v2_send_emoji_{cid}")],
-                            [InlineKeyboardButton(f"💰 Cashout ${cashout_val:.2f} ({cashout_multiplier}x)", callback_data=f"v2_cashout_{cid}")]
-                        ]
-                        
-                        # Remove button from old cashout message if it exists
-                        old_msg_id = challenge.get('cashout_msg_id')
-                        if old_msg_id:
-                            try:
-                                await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                            except Exception as e:
-                                logger.warning(f"Failed to remove button from old cashout message on draw: {e}")
-
-                        reply_to_id = challenge.get('message_id')
-                        sent_msg = await context.bot.send_message(
-                            chat_id=chat_id, 
-                            text=text, 
-                            reply_markup=InlineKeyboardMarkup(kb), 
-                            parse_mode="HTML",
-                            reply_to_message_id=reply_to_id
-                        )
-                        challenge['cashout_msg_id'] = sent_msg.message_id
-                    
-                    self.db.update_pending_pvp(self.pending_pvp)
-                    return
-                
-                target_pts = challenge.get('pts', 1)
-                if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-                    # Series End - UPDATE BALANCE BUT DON'T SEND MESSAGE
-                    w = challenge['wager']
-                    if challenge['p_pts'] >= target_pts:
-                        payout = w * 1.95
-                        u = self.db.get_user(user_id)
-                        u['balance'] += payout
-                        self.db.update_user(user_id, {'balance': u['balance']})
-                        self.db.update_house_balance(-(payout - w))
-                    else:
-                        self.db.update_house_balance(w)
-                    
-                    del self.pending_pvp[cid]
-                    self.db.update_pending_pvp(self.pending_pvp)
-                    return
-                else:
-                    if target_pts > 1:
-                        # SILENCE: Don't send Score/Cashout message for mid-series rounds
-                        challenge['p_rolls'] = []
-                        challenge['b_rolls'] = []
-                        self.db.update_pending_pvp(self.pending_pvp)
-                        return
-                    else:
-                        # For 1-point games, we don't need a "Next Round" or Cashout message
-                        pass
-                
-                self.db.update_pending_pvp(self.pending_pvp)
                 return
 
             if data == "button_unavailable":
