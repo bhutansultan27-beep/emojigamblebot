@@ -5505,7 +5505,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         bot_info = await context.bot.get_me()
         bot_name = bot_info.first_name
 
-        text = f"📜 **Your Matches (Page {page + 1}/{total_pages})**\n\n"
+        text = f"📜 <b>Your Matches (Page {page + 1}/{total_pages})</b>\n\n"
         for g in page_games:
             ts = g.get('timestamp', '')
             time_str = datetime.fromisoformat(ts).strftime("%m/%d %H:%M") if ts else "Recently"
@@ -5558,7 +5558,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             elif 'p1_pts' in g and 'p2_pts' in g:
                 score = f" (Score: {g['p1_pts']}-{g['p2_pts']})"
             
-            text += f"*{time_str}* | **{g_display}** | Bet: `${wager:.2f}`\n"
+            text += f"<i>{time_str}</i> | <b>{g_display}</b> | Bet: <code>${wager:.2f}</code>\n"
             text += f"{match_up}\n"
             text += f"Winner: {winner_name}{score}\n\n"
             
@@ -5573,9 +5573,9 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
         else:
-            sent_msg = await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+            sent_msg = await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def v2_pvp_accept_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
