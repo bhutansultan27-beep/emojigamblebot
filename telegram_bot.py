@@ -288,6 +288,7 @@ class AntariaCasinoBot:
         self.blackjack_sessions = {}
         self.button_ownership = {}
         self.clicked_buttons = set()
+        self.stickers = self.db.data.get('stickers', {})
         self.pending_pvp = self.db.data.get('pending_pvp', {})
         
         # Admin user IDs from environment variable (permanent admins)
@@ -760,16 +761,27 @@ class AntariaCasinoBot:
         # Remove @ if present
         if identifier.startswith('@'):
             username = identifier[1:]
-            # Search by username
-            for user_data in self.db.data['users'].values():
-                if user_data.get('username', '').lower() == username.lower():
-                    return user_data
+            # Search by username in SQL database
+            with self.db.app.app_context():
+                from sqlalchemy import select, func
+                user = db.session.execute(
+                    select(User).filter(func.lower(User.username) == username.lower())
+                ).scalar_one_or_none()
+                if user:
+                    return self.db._user_to_dict(user)
             return None
         else:
             # Try to parse as user ID
             try:
                 user_id = int(identifier)
-                return self.db.get_user(user_id)
+                with self.db.app.app_context():
+                    from sqlalchemy import select
+                    user = db.session.execute(
+                        select(User).filter_by(user_id=user_id)
+                    ).scalar_one_or_none()
+                    if user:
+                        return self.db._user_to_dict(user)
+                return None
             except ValueError:
                 return None
     
@@ -919,12 +931,23 @@ class AntariaCasinoBot:
 
     async def balance_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show balance with deposit/withdraw buttons"""
-        user_data = self.ensure_user_registered(update)
+        if not update.effective_user:
+            return
         user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        
+        # Update username if needed
+        if update.effective_user:
+            chat_name = update.effective_user.first_name
+            if update.effective_user.last_name:
+                chat_name += f" {update.effective_user.last_name}"
+            if user_data.get("username") != chat_name:
+                self.db.update_user(user_id, {"username": chat_name, "user_id": user_id})
+                user_data = self.db.get_user(user_id)
         
         # Fetch live LTC rate
         ltc_usd_rate = await self.get_live_rate("litecoin")
-        ltc_balance = user_data['balance'] / ltc_usd_rate
+        ltc_balance = user_data['balance'] / ltc_usd_rate if ltc_usd_rate > 0 else 0
         
         balance_text = f"Your balance <b>${user_data['balance']:,.2f}</b> ({ltc_balance:.5f} LTC)"
         
@@ -934,16 +957,24 @@ class AntariaCasinoBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        sent_msg = await update.message.reply_text(
-            balance_text, 
-            reply_markup=reply_markup, 
-            parse_mode="HTML",
-            reply_to_message_id=update.message.message_id
-        )
-        # Store who sent the original command that triggered this balance message
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-        # Store the message ID of the /bal command itself
-        context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
+        if update.callback_query:
+            sent_msg = await update.callback_query.edit_message_text(
+                balance_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        elif update.message:
+            sent_msg = await update.message.reply_text(
+                balance_text, 
+                reply_markup=reply_markup, 
+                parse_mode="HTML",
+                reply_to_message_id=update.message.message_id
+            )
+            # Store who sent the original command that triggered this balance message
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            # Store the message ID of the /bal command itself
+            context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
     
 
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -996,15 +1027,21 @@ class AntariaCasinoBot:
         # Get real dates from games
         with self.db.app.app_context():
             from models import Game
-            first_game = Game.query.filter(or_(
-                cast(Game.data['player_id'], String) == str(user_id),
-                cast(Game.data['challenger'], String) == str(user_id)
-            )).order_by(Game.timestamp.asc()).first()
-            
-            last_game = Game.query.filter(or_(
-                cast(Game.data['player_id'], String) == str(user_id),
-                cast(Game.data['challenger'], String) == str(user_id)
-            )).order_by(Game.timestamp.desc()).first()
+            from sqlalchemy import or_, cast, String as SAString
+            try:
+                first_game = Game.query.filter(or_(
+                    cast(Game.data['player_id'], SAString) == str(user_id),
+                    cast(Game.data['challenger'], SAString) == str(user_id)
+                )).order_by(Game.timestamp.asc()).first()
+                
+                last_game = Game.query.filter(or_(
+                    cast(Game.data['player_id'], SAString) == str(user_id),
+                    cast(Game.data['challenger'], SAString) == str(user_id)
+                )).order_by(Game.timestamp.desc()).first()
+            except Exception as e:
+                logger.error(f"Error querying game history for stats: {e}")
+                first_game = None
+                last_game = None
 
         first_game_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "Never played"
         last_game_str = last_game.timestamp.strftime("%b %d, %Y") if last_game else "Never played"
@@ -1133,61 +1170,33 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
     async def history_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show match history"""
         user_id = update.effective_user.id
-        user_games = self.db.data.get('games', [])
-        
-        # Filter games involving the user (player_id, challenger, or opponent) and get the last 15
-        user_games_filtered = [
-            game for game in user_games 
-            if game.get('player_id') == user_id or 
-               game.get('challenger') == user_id or 
-               game.get('opponent') == user_id
-        ][-15:]
+        # Use the SQL-based get_user_matches method
+        user_games_filtered = self.db.get_user_matches(user_id, limit=15)
         
         if not user_games_filtered:
             await update.message.reply_text("📜 No history yet")
             return
         
-        history_text = "🎮 **History** (Last 15)\n\n"
-        
-        bot_info = await context.bot.get_me()
-        bot_name = bot_info.first_name
+        history_text = "🎮 <b>History</b> (Last 15)\n\n"
 
-        for game in reversed(user_games_filtered):
+        for game in user_games_filtered:
             game_type = game.get('type', 'unknown')
             timestamp = game.get('timestamp', '')
             
             if timestamp:
-                dt = datetime.fromisoformat(timestamp)
-                time_str = dt.strftime("%m/%d %H:%M")
+                try:
+                    dt = datetime.fromisoformat(timestamp)
+                    time_str = dt.strftime("%m/%d %H:%M")
+                except (ValueError, TypeError):
+                    time_str = "Recently"
             else:
                 time_str = "Recently"
             
-            if 'bot' in game_type:
-                result = game.get('result', 'unknown')
-                result_emoji = "✅ Win" if result == "win" else "❌ Loss" if result == "loss" else "🤝 Draw"
-                wager = game.get('wager', 0)
-                
-                if game_type == 'dice_bot':
-                    player_roll = game.get('player_roll', 0)
-                    bot_roll = game.get('bot_roll', 0)
-                    history_text += f"{result_emoji} **Dice vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   You: {player_roll} | {bot_name}: {bot_roll} | {time_str}\n\n"
-                elif game_type == 'coinflip_bot':
-                    choice = game.get('choice', 'unknown')
-                    flip_result = game.get('result', 'unknown')
-                    outcome = game.get('outcome', 'unknown')
-                    result_emoji = "✅ Win" if outcome == "win" else "❌ Loss"
-                    history_text += f"{result_emoji} **CoinFlip vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   Chose: {choice.capitalize()} | Result: {flip_result.capitalize()} | {time_str}\n\n"
-            else:
-                # PvP games
-                p1_id = game.get('challenger')
-                p2_id = game.get('opponent')
-                p1_mention = self.get_mention(p1_id)
-                p2_mention = self.get_mention(p2_id)
-                
-                history_text += f"🎲 **{game_type.replace('_', ' ').title()}**\n"
-                history_text += f"   {p1_mention} vs {p2_mention} | {time_str}\n\n"
+            result = game.get('result', 'unknown')
+            result_emoji = "✅ Win" if result == "win" else "❌ Loss" if result == "loss" else "🤝 Draw"
+            wager = game.get('wager', 0)
+            
+            history_text += f"{result_emoji} <b>{game_type.replace('_', ' ').title()}</b> - ${wager:.2f} | {time_str}\n\n"
         
         await update.message.reply_text(history_text, parse_mode="HTML")
     
@@ -2051,301 +2060,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
     
-    async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play darts game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-        
-        if not context.args:
-            await update.message.reply_text("Usage: `/darts <amount|all>`", parse_mode="Markdown")
-            return
-        
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                wager = round(float(context.args[0]), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount")
-                return
-        
-        if wager <= 0.01:
-            await update.message.reply_text("❌ Min: $0.01")
-            return
-        
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"darts_bot_{wager:.2f}")],
-            [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"darts_player_open_{wager:.2f}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        sent_msg = await update.message.reply_text(
-            f"🎯 **Darts Game**\n\nWager: ${wager:.2f}\n\nChoose your opponent:",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-    
-    async def basketball_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play basketball game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-        
-        if not context.args:
-            await update.message.reply_text("Usage: `/basketball <amount|all>`", parse_mode="Markdown")
-            return
-        
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                wager = round(float(context.args[0]), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount")
-                return
-        
-        if wager <= 0.01:
-            await update.message.reply_text("❌ Min: $0.01")
-            return
-        
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"basketball_bot_{wager:.2f}")],
-            [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"basketball_player_open_{wager:.2f}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        sent_msg = await update.message.reply_text(
-            f"🏀 **Basketball Game**\n\nWager: ${wager:.2f}\n\nChoose your opponent:",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-    
-    async def bet_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: Optional[float] = None):
-        """Unified betting command with game selection menu."""
-        user_id = update.effective_user.id
-        self.db.get_user(user_id) # Ensure registered
-        
-        if amount is None:
-            if not context.args:
-                await update.effective_message.reply_text("Usage: /bet <amount|all>")
-                return
-                
-            amount_str = context.args[0].lower()
-            user_data = self.db.get_user(user_id)
-            
-            if amount_str == 'all':
-                amount = user_data['balance']
-            else:
-                try:
-                    # Remove common currency symbols and commas
-                    clean_str = amount_str.replace('$', '').replace(',', '')
-                    # If there are any letters (excluding 'all' which is handled above), ignore the message
-                    if any(c.isalpha() for c in clean_str):
-                        return
-                    amount = float(clean_str)
-                except ValueError:
-                    # Silently ignore invalid numeric formats with letters
-                    return
-        
-        user_data = self.db.get_user(user_id)
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00")
-            return
-            
-        if amount > user_data['balance']:
-            await update.effective_message.reply_text(f"❌ Insufficient balance! (${user_data['balance']:.2f})")
-            return
-
-        keyboard = [
-            [InlineKeyboardButton("🎲 Dice", callback_data=f"setup_mode_dice_{amount:.2f}"),
-             InlineKeyboardButton("🎱 Predict", callback_data=f"setup_mode_predict_{amount:.2f}")],
-            [InlineKeyboardButton("🎯 Darts", callback_data=f"setup_mode_darts_{amount:.2f}"),
-             InlineKeyboardButton("🏀 Basketball", callback_data=f"setup_mode_basketball_{amount:.2f}")],
-            [InlineKeyboardButton("⚽ Soccer", callback_data=f"setup_mode_soccer_{amount:.2f}"),
-             InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
-            [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
-             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
-            [InlineKeyboardButton("🔢 Keno", callback_data=f"setup_mode_keno_{amount:.2f}")]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                f"💰 **Bet: ${amount:.2f}**\nSelect a game to play:",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-        else:
-            sent_msg = await update.effective_message.reply_text(
-                f"💰 **Bet: ${amount:.2f}**\nSelect a game to play:",
-                reply_markup=reply_markup,
-                parse_mode="Markdown",
-                reply_to_message_id=update.effective_message.message_id
-            )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-
-    async def dice_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play dice game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-        
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "dice")
-
-    async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play darts game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "darts")
-
-    async def basketball_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play basketball game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "basketball")
-
-    async def soccer_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play soccer game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "soccer")
-
-    async def bowling_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play bowling game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "bowling")
-
-    async def _generic_emoji_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, game_name: str, emoji: str):
         """Generic emoji game setup with nested options"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
             return
@@ -2442,168 +2156,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             return
             
         await self._setup_predict_interface(update, context, wager, "dice")
-        """Play dice predict game - predict what you'll roll with multiple choices"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-        
-        if len(context.args) < 2:
-            await update.message.reply_text("Usage: `/predict amount #number1,#number2...`\nExample: `/predict 5 #1,#3,#6`", parse_mode="Markdown")
-            return
-        
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                wager = round(float(arg), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount", parse_mode="HTML")
-                return
-        
-        if wager < 1.0:
-            await update.message.reply_text("❌ Minimum bet is $1.00", parse_mode="HTML")
-            return
-            
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: <b>${user_data['balance']:,.2f}</b>", parse_mode="HTML")
-            return
-
-        # Parse predictions
-        pred_arg = context.args[1]
-        raw_predictions = [p.strip() for p in pred_arg.split(',')]
-        predictions = set()
-        
-        for p in raw_predictions:
-            if not p.startswith('#'):
-                await update.message.reply_text(f"❌ Prediction {p} must start with #", parse_mode="HTML")
-                return
-            try:
-                num = int(p[1:])
-                if 1 <= num <= 6:
-                    predictions.add(num)
-                else:
-                    await update.message.reply_text(f"❌ Number {p} must be between 1 and 6", parse_mode="HTML")
-                    return
-            except ValueError:
-                await update.message.reply_text(f"❌ Invalid prediction: {p}", parse_mode="HTML")
-                return
-
-        if not predictions:
-            await update.message.reply_text("❌ No valid predictions provided", parse_mode="HTML")
-            return
-            
-        if len(predictions) > 5:
-            await update.message.reply_text("❌ You can't predict all 6 numbers (or 5 for logic sanity)", parse_mode="HTML")
-            return
-
-        # Multiplier logic: 6 / number of choices
-        multiplier = round(6.0 / len(predictions), 2)
-        
-        # Deduct wager
-        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
-        
-        # Send the dice
-        dice_message = await update.message.reply_dice(emoji="🎲")
-        actual_roll = dice_message.dice.value
-        
-        await asyncio.sleep(4)
-        
-        if actual_roll in predictions:
-            payout = wager * multiplier
-            profit = payout - wager
-            new_balance = user_data['balance'] + payout # User balance was already deducted
-            
-            self.db.update_user(user_id, {
-                'balance': new_balance,
-                'total_wagered': user_data['total_wagered'] + wager,
-                'wagered_since_last_withdrawal': user_data.get('wagered_since_last_withdrawal', 0) + wager,
-                'games_played': user_data['games_played'] + 1,
-                'games_won': user_data['games_won'] + 1
-            })
-            self.db.update_house_balance(-profit)
-            
-            user_username = user_data.get('username', f'User{user_id}')
-            win_text = (
-                f"🏆 <b>Game over!</b>\n\n"
-                f"{user_username} won <b>${payout:,.2f}</b>!"
-            )
-            
-            # Replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            sent_msg = await update.message.reply_text(
-                win_text,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="HTML",
-                reply_to_message_id=update.message.message_id
-            )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-        else:
-            self.db.update_user(user_id, {
-                'total_wagered': user_data['total_wagered'] + wager,
-                'wagered_since_last_withdrawal': user_data.get('wagered_since_last_withdrawal', 0) + wager,
-                'games_played': user_data['games_played'] + 1
-            })
-            self.db.update_house_balance(wager)
-            
-            loss_text = (
-                f"🏆 <b>Game over!</b>\n\n"
-                f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
-            )
-            
-            # Replay buttons
-            kb = [[
-                InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
-                InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
-            ]]
-            
-            sent_msg = await update.message.reply_text(
-                loss_text,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="HTML",
-                reply_to_message_id=update.message.message_id
-            )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-        
-        self.db.record_game({
-            'type': 'dice_predict',
-            'player_id': user_id,
-            'wager': wager,
-            'predictions': list(predictions),
-            'actual_roll': actual_roll,
-            'result': 'win' if actual_roll in predictions else 'loss',
-            'payout': (wager * multiplier) if actual_roll in predictions else 0
-        })
-    
-    async def coinflip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play coinflip game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-            
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-            
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-        await self._show_game_prediction_menu(update, context, amount, "coinflip")
-    
     async def roulette_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play roulette game"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
@@ -3394,111 +2946,17 @@ Examples:
             f"New balance: ${amount:.2f}"
         )
     
-    async def p_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Instantly add balance to the calling user"""
-        user_id = update.effective_user.id
-        
-        if not context.args:
-            await update.message.reply_text("Usage: /p [amount]\nExample: /p 100")
-            return
-            
-        import math
-        try:
-            amount = float(context.args[0])
-            if not math.isfinite(amount) or amount <= 0:
-                raise ValueError("Invalid amount")
-            
-            # Limit the maximum amount that can be added via /p to prevent overflow
-            # 1 Quadrillion (10^15) is a safe upper limit
-            if amount > 1_000_000_000_000_000:
-                await update.message.reply_text("❌ Amount too large.")
-                return
-        except ValueError:
-            await update.message.reply_text("❌ Invalid amount.")
-            return
-            
-        user_data = self.db.get_user(user_id)
-        new_balance = user_data['balance'] + amount
-        
-        if not math.isfinite(new_balance):
-            await update.message.reply_text("❌ Resulting balance would be invalid.")
-            return
-
-        user_data['balance'] = new_balance
-        self.db.update_user(user_id, user_data)
-        self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
-        
-        await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
-
-    async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End all active games and refund players"""
-        # Removed admin restriction so anyone can end games
-
-        count = 0
-        refunded_amount = 0
-
-        # 1. Refund Blackjack sessions
-        for user_id, game in list(self.blackjack_sessions.items()):
-            try:
-                bet = getattr(game, 'initial_bet', 0)
-                if bet > 0:
-                    user_data = self.db.get_user(user_id)
-                    user_data['balance'] += bet
-                    self.db.update_user(user_id, user_data)
-                    refunded_amount += bet
-                del self.blackjack_sessions[user_id]
-                count += 1
-            except Exception as e:
-                logger.error(f"Error refunding BJ user {user_id}: {e}")
-
-        # 2. Refund PvP / Bot games in GlobalState
-        with self.db.app.app_context():
-            state = db.session.get(GlobalState, "pending_pvp")
-            if state and state.value:
-                pending_pvp = state.value
-                for cid, challenge in list(pending_pvp.items()):
-                    try:
-                        wager = challenge.get('wager', 0)
-                        if cid.startswith("v2_bot_"):
-                            pid = challenge.get('player')
-                            if pid and challenge.get('wager_deducted'):
-                                user_data = self.db.get_user(pid)
-                                user_data['balance'] += wager
-                                self.db.update_user(pid, user_data)
-                                refunded_amount += wager
-                        elif cid.startswith("v2_pvp_"):
-                            p1, p2 = challenge.get('challenger'), challenge.get('opponent')
-                            if p1 and challenge.get('p1_deducted'):
-                                user_data = self.db.get_user(p1)
-                                user_data['balance'] += wager
-                                self.db.update_user(p1, user_data)
-                                refunded_amount += wager
-                            if p2 and challenge.get('p2_deducted'):
-                                user_data = self.db.get_user(p2)
-                                user_data['balance'] += wager
-                                self.db.update_user(p2, user_data)
-                                refunded_amount += wager
-                        
-                        count += 1
-                    except Exception as e:
-                        logger.error(f"Error refunding challenge {cid}: {e}")
-                
-                # Clear the table
-                state.value = {}
-                db.session.commit()
-                # Also clear the in-memory copy
-                self.pending_pvp = {}
-
-        await update.message.reply_text(f"✅ Ended {count} games and refunded a total of ${refunded_amount:.2f}.")
-
-
+        """View all registered users (Admin only)"""
     async def allusers_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all registered users (Admin only)"""
         if not self.is_admin(update.effective_user.id):
             await update.message.reply_text("❌ This command is for administrators only.")
             return
         
-        users = self.db.data['users']
+        # Query users from SQL database
+        with self.db.app.app_context():
+            from sqlalchemy import select
+            users = db.session.execute(select(User).limit(50)).scalars().all()
         
         if not users:
             await update.message.reply_text("No users registered yet.")
@@ -3506,13 +2964,10 @@ Examples:
         
         users_text = f"👥 **All Users ({len(users)})**\n\n"
         
-        for user_id_str, user_data in list(users.items())[:50]:
-            username = user_data.get('username', 'N/A')
-            balance = user_data.get('balance', 0)
-            users_text += f"ID: `{user_id_str}` | @{username} | ${balance:.2f}\n"
-        
-        if len(users) > 50:
-            users_text += f"\n...and {len(users) - 50} more users"
+        for user in users:
+            username = user.username or 'N/A'
+            balance = user.balance or 0
+            users_text += f"ID: `{user.user_id}` | @{username} | ${balance:.2f}\n"
         
         await update.message.reply_text(users_text, parse_mode="Markdown")
     
@@ -5834,12 +5289,194 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
 
         # Start menu back button
         if data == "start_back":
-            # Re-trigger start command via message-like handling if needed, 
-            # but usually it just shows the main menu again.
-            # For simplicity, we can just call the start_command with a dummy update/context
-            # or just edit the message to main menu text.
-            # Assuming main menu text is what we want here.
             await self.start_command(update, context)
+            return
+
+        # Main menu back button (used by coinflip, blackjack, prediction menus)
+        if data == "main_menu":
+            await self.start_command(update, context)
+            return
+
+        # --- Main Menu Sub-Menu Handlers ---
+        if data == "menu_games":
+            user_data = self.db.get_user(user_id)
+            games_text = (
+                "🎮 <b>Play</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                "Choose a game to play:"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎲 Dice", callback_data="emoji_setup_dice_1.00_mode"),
+                    InlineKeyboardButton("🎯 Darts", callback_data="emoji_setup_darts_1.00_mode")
+                ],
+                [
+                    InlineKeyboardButton("🏀 Basketball", callback_data="emoji_setup_basketball_1.00_mode"),
+                    InlineKeyboardButton("⚽ Soccer", callback_data="emoji_setup_soccer_1.00_mode")
+                ],
+                [
+                    InlineKeyboardButton("🎳 Bowling", callback_data="emoji_setup_bowling_1.00_mode"),
+                    InlineKeyboardButton("🪙 Coinflip", callback_data="emoji_setup_coinflip_1.00_mode")
+                ],
+                [
+                    InlineKeyboardButton("🎱 Predict", callback_data="setup_mode_predict_1.00_dice"),
+                    InlineKeyboardButton("🃏 Blackjack", callback_data="bj_bot_1.00")
+                ],
+                [
+                    InlineKeyboardButton("🎡 Roulette", callback_data="roulette_menu_1.00"),
+                    InlineKeyboardButton("🎰 Slots", callback_data="slots_bot_1.00")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(games_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_deposit":
+            # Redirect to the deposit flow
+            if chat.type in ["group", "supergroup"]:
+                try:
+                    await query.answer()
+                    notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to deposit!"
+                    await query.edit_message_text(text=notification_text, parse_mode="HTML")
+                    ltc_usd_rate = await self.get_live_rate("litecoin")
+                    user_data = self.db.get_user(user_id)
+                    ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+                    deposit_text = (
+                        f"💳 <b>LTC Deposit Request</b>\n\n"
+                        f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
+                        f"To deposit, send LTC to the address below:\n"
+                        f"<code>{ltc_address}</code>\n\n"
+                        f"💰 Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
+                        f"⚠️ Deposits are processed manually by admin after confirmation."
+                    )
+                    await self.app.bot.send_message(chat_id=user_id, text=deposit_text, parse_mode="HTML")
+                except Exception as e:
+                    logger.error(f"Error in menu_deposit group: {e}")
+                    await query.answer("❌ Please start a private chat with me first.", show_alert=True)
+            else:
+                ltc_usd_rate = await self.get_live_rate("litecoin")
+                user_data = self.db.get_user(user_id)
+                ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+                deposit_text = (
+                    f"💳 <b>LTC Deposit Request</b>\n\n"
+                    f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
+                    f"To deposit, send LTC to the address below:\n"
+                    f"<code>{ltc_address}</code>\n\n"
+                    f"💰 Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
+                    f"⚠️ Deposits are processed manually by admin after confirmation."
+                )
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                await query.edit_message_text(deposit_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data == "menu_withdraw":
+            user_data = self.db.get_user(user_id)
+            withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+            keyboard = [
+                [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
+                [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
+                 InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+                [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
+                 InlineKeyboardButton("USDC", callback_data="wit_usdc")],
+                [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+                 InlineKeyboardButton("BNB", callback_data="wit_bnb")],
+                [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
+                 InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if chat.type in ["group", "supergroup"]:
+                try:
+                    await query.answer()
+                    notification_text = f"Hey {self.get_mention(user_id, query.from_user.first_name)}, I've sent you a private message with instructions on how to withdraw!"
+                    await query.edit_message_text(text=notification_text, parse_mode="HTML")
+                    await self.app.bot.send_message(chat_id=user_id, text=withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+                except Exception as e:
+                    logger.error(f"Error in menu_withdraw group: {e}")
+                    await query.answer("❌ Please start a private chat with me first.", show_alert=True)
+            else:
+                await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_bonus":
+            bonus_text = (
+                "🎁 <b>Bonus</b>\n\n"
+                "In this section you can find bonuses that you can get by playing games!\n\n"
+                "💎 <b>Weekly Bonus</b>\n"
+                "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+                "💎 <b>Level Up Bonus</b>\n"
+                "Play games, level up and earn money!"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
+                    InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_more":
+            more_text = (
+                "📁 <b>More Content</b>\n\n"
+                "📊 <b>Stats</b> - Check your game statistics\n"
+                "🏆 <b>Leaderboard</b> - View top players\n"
+                "👥 <b>Referral</b> - Earn by inviting friends\n"
+                "📜 <b>History</b> - View your match history\n"
+                "💰 <b>House Balance</b> - View the house balance"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 Stats", callback_data="more_stats"),
+                    InlineKeyboardButton("🏆 Leaderboard", callback_data="more_leaderboard")
+                ],
+                [
+                    InlineKeyboardButton("👥 Referral", callback_data="more_referral"),
+                    InlineKeyboardButton("📜 History", callback_data="more_history")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(more_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_settings":
+            settings_text = (
+                "⚙️ <b>Settings</b>\n\n"
+                "🔔 Notifications and preferences coming soon!\n\n"
+                "For now, you can manage your account via commands:\n"
+                "• /tip - Send money to another player\n"
+                "• /endgames - End all active games\n"
+                "• /logout - Log out of web interface"
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(settings_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        # More Content sub-handlers
+        if data == "more_stats":
+            await query.answer("Use /stats command for detailed statistics", show_alert=True)
+            return
+
+        if data == "more_leaderboard":
+            await query.answer("Use /leaderboard command to view top players", show_alert=True)
+            return
+
+        if data == "more_referral":
+            await query.answer("Use /referral command for your referral link", show_alert=True)
+            return
+
+        if data == "more_history":
+            await query.answer("Use /history command to view match history", show_alert=True)
+            return
+
+        # Locked bonus buttons
+        if data in ("bonus_claim_locked", "bonus_double_locked", "bonus_levelup_claim_locked"):
+            await query.answer("🔒 This bonus is not available yet. Keep playing to unlock!", show_alert=True)
             return
 
         if owner_id and owner_id != user_id:
@@ -6601,23 +6238,8 @@ To deposit, send LTC to the address below:
                             else:
                                 raise ValueError(f"Could not parse game settings from {parts}")
                         
-                        # Remove buttons instead of deleting message
-                        try:
-                            # Update message to include "Send your emoji" and the button
-                            emoji = self.emoji_map.get(g_mode, "🎲")
-                            # Use bold tags for user name as before, but ensure formatting is preserved
-                            # Adding multiple lines of invisible characters to force message width
-                            invisible_padding = "󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡"
-                            # new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
-                            kb = [[
-                                InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel"),
-                                InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_bot_{g_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
-                            ]]
-                            await query.edit_message_text(text=new_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-                        except Exception as e:
-                            logger.error(f"Error updating setup message: {e}")
-
-                        # Start the game (Note: the actual game logic will handle the send_emoji callback)
+                        # Start the game directly instead of showing send_emoji button
+                        await self.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
                         return
                 
                 elif next_step == "start_game":
@@ -6635,19 +6257,8 @@ To deposit, send LTC to the address below:
                             else:
                                 raise ValueError(f"Could not parse game settings from {parts}")
                         
-                        # Remove buttons instead of deleting message
-                        try:
-                            emoji = self.emoji_map.get(g_mode, "🎲")
-                            invisible_padding = "󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡󠁔󠁨󠁩󠁳󠀠󠁴󠁥󠁸󠁴󠀠󠁳󠁨󠁡󠁬󠁬󠀠󠁢󠁥󠁣󠁯󠁭󠁥󠀠󠁩󠁮󠁶󠁩󠁳󠁩󠁢󠁬󠁥󠀡"
-                            # new_text = query.message.text_html + f"\n\n<b>{query.from_user.first_name}</b>, your turn! {emoji}\n{invisible_padding}\n{invisible_padding}"
-                            kb = [[
-                                InlineKeyboardButton("❌ Cancel", callback_data="setup_cancel"),
-                                InlineKeyboardButton("✅ Send emoji", callback_data=f"v2_send_emoji_bot_{g_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
-                            ]]
-                            await query.edit_message_text(text=new_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-                        except Exception as e:
-                            logger.error(f"Error updating setup message: {e}")
-
+                        # Start the game directly
+                        await self.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
                         return
                 
                 elif next_step == "mode":
