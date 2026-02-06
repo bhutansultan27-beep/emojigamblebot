@@ -1,4 +1,4 @@
-modules = ["python-3.11", "nodejs-20", "web", "postgresql-16"]
+modules = ["python-3.11", "nodejs-20", "web"]
 [agent]
 expertMode = true
 
@@ -46,8 +46,8 @@ task = "shell.exec"
 args = "python telegram_bot.py"
 
 [deployment]
-deploymentTarget = "vm"
-run = ["bash", "-c", "gunicorn --bind 0.0.0.0:5000 main:app & python telegram_bot.py"]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [[ports]]
 localPort = 5000
