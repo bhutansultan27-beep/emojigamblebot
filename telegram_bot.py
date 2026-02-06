@@ -181,9 +181,13 @@ class DatabaseManager:
                 
                 # Check all possible player ID fields in game data
                 g_player_id = g.data.get('player_id') or g.data.get('user_id') or g.data.get('player')
+                g_challenger = g.data.get('challenger')
+                g_opponent = g.data.get('opponent')
                 
                 # Ensure we are comparing as strings or ints consistently
-                if str(g_player_id) == str(user_id):
+                if (str(g_player_id) == str(user_id) or 
+                    str(g_challenger) == str(user_id) or 
+                    str(g_opponent) == str(user_id)):
                     # Local copy to avoid mutating the database object directly if it's reused
                     game_display_data = dict(g.data)
                     
@@ -6807,6 +6811,19 @@ To deposit, send LTC to the address below:
                     logger.error(f"Error handling cashout UI: {e}")
                     # Fallback
                     await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                
+                # Record game to match history
+                self.db.record_game({
+                    "type": f"{game}_bot",
+                    "player_id": user_id,
+                    "user_id": user_id,
+                    "wager": w,
+                    "payout": cashout_val,
+                    "p_pts": challenge.get('p_pts', 0),
+                    "b_pts": challenge.get('b_pts', 0),
+                    "result": "win" if profit >= 0 else "loss"
+                })
+                self._update_user_stats(user_id, w, profit, "win" if profit >= 0 else "loss")
                 
                 del self.pending_pvp[cid]
                 

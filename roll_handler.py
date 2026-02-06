@@ -226,8 +226,10 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
             # Series End
             w = challenge['wager']
+            game_type = challenge.get('game', 'dice')
             if challenge['p_pts'] >= target_pts:
                 payout = w * 1.95
+                profit = payout - w
                 u = bot_instance.db.get_user(user_id)
                 u['balance'] += payout
                 bot_instance.db.update_user(user_id, {'balance': u['balance']})
@@ -241,6 +243,19 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"<b>Bot</b> • {challenge['b_pts']}\n\n"
                     f"✅ <b>{p1_name}</b> won <b>${payout:,.2f}</b>!"
                 )
+                
+                # Record game to match history
+                bot_instance.db.record_game({
+                    "type": f"{game_type}_bot",
+                    "player_id": user_id,
+                    "user_id": user_id,
+                    "wager": w,
+                    "payout": payout,
+                    "p_pts": challenge['p_pts'],
+                    "b_pts": challenge['b_pts'],
+                    "result": "win"
+                })
+                bot_instance._update_user_stats(user_id, w, profit, "win")
                 
                 # Use "inverted" if game_mode_type is "crazy" for callback data consistency
                 mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
@@ -259,6 +274,19 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     f"<b>Bot</b> • {challenge['b_pts']}\n\n"
                     f"❌ <b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                 )
+                
+                # Record game to match history
+                bot_instance.db.record_game({
+                    "type": f"{game_type}_bot",
+                    "player_id": user_id,
+                    "user_id": user_id,
+                    "wager": w,
+                    "payout": 0,
+                    "p_pts": challenge['p_pts'],
+                    "b_pts": challenge['b_pts'],
+                    "result": "loss"
+                })
+                bot_instance._update_user_stats(user_id, w, -w, "loss")
                 
                 # Use "inverted" if game_mode_type is "crazy" for callback data consistency
                 mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
