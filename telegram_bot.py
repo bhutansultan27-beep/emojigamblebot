@@ -826,15 +826,16 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
                 InlineKeyboardButton("📁 More Content", callback_data="menu_more")
             ],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
-            if data == "start_back":
-                await query.answer()
-            await query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
+            try:
+                await update.callback_query.answer()
+            except Exception:
+                pass
+            await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             # Send first message
             await update.message.reply_text(help_text, parse_mode="HTML")
@@ -5420,11 +5421,12 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             deposit_text = (
                 "💳 <b>Deposit</b>\n\n"
                 f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-                f"To deposit, send LTC to:\n<code>{ltc_address}</code>\n\n"
-                f"Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
-                "Deposits are processed manually by admin after confirmation."
+                f"To deposit, send LTC to the address below:\n"
+                f"<code>{ltc_address}</code>\n\n"
+                f"💰 Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
+                "⚠️ Deposits are processed manually by admin after confirmation."
             )
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="start_back")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
             return
@@ -5434,7 +5436,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             withdraw_text = (
                 f"💸 <b>Withdraw</b>\n\n"
                 f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-                "Select withdrawal currency:"
+                "🟢 Select withdrawal currency:"
             )
             keyboard = [
                 [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
@@ -5446,7 +5448,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                  InlineKeyboardButton("BNB", callback_data="wit_bnb")],
                 [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
                  InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+                [InlineKeyboardButton("⬅️ Back to Menu", callback_data="start_back")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -5605,7 +5607,11 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         # Handle Withdraw button from balance menu
         if data == "withdraw_mock":
             user_data = self.db.get_user(user_id)
-            withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+            withdraw_text = (
+                f"💸 <b>Withdraw</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                "🟢 Select withdrawal currency:"
+            )
             
             keyboard = [
                 [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
@@ -5669,36 +5675,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
 
-        if data == "start_back":
-            await self.start_command(update, context)
-            return
-
-        if data == "menu_settings":
-            keyboard = [
-                [InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
-                 InlineKeyboardButton("🇷🇺 Russian", callback_data="lang_ru")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("⚙️ <b>Settings</b>\n\nSelect your language:", reply_markup=reply_markup, parse_mode="HTML")
-            return
-
-        if data == "menu_deposit":
-            await self.deposit_command(update, context)
-            return
-
-        if data == "menu_withdraw":
-            await self.withdraw_command(update, context)
-            return
-
-        if data == "menu_bonus":
-            await self.bonus_command(update, context)
-            return
-
-        if data == "menu_more":
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
-            await query.edit_message_text("📁 <b>More Content</b>\n\nComing soon...", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-            return
+        # Note: start_back, menu_settings, menu_deposit, menu_withdraw, menu_bonus, menu_more
+        # are all handled above in the main menu section
 
         # Handle Admin Withdrawal Actions
         if data.startswith("adm_wit_"):
@@ -5751,20 +5729,30 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             context.user_data['wit_currency'] = currency
             user_data = self.db.get_user(user_id)
             
-            # Message as requested from screenshot (without emojis except back)
+            # Map currency names for better display
+            currency_map = {
+                "LTC": "Litecoin", "BTC": "Bitcoin", "ETH": "Ethereum",
+                "SOL": "Solana", "XMR": "Monero", "USDT": "USDT",
+                "USDC": "USDC", "TON": "Toncoin", "BNB": "BNB"
+            }
+            display_currency = currency_map.get(currency, currency)
+            
             withdraw_info_text = (
+                f"💸 <b>{display_currency} Withdrawal</b>\n\n"
                 f"Enter withdrawal amount\n"
                 f"Withdrawal fee: $0.01 + 2.00%\n\n"
-                f"Current balance: ${user_data['balance']:,.2f}"
+                f"Current balance: <b>${user_data['balance']:,.2f}</b>"
             )
             
             context.user_data['awaiting_wit_amount'] = True
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")],
-                        [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]]
+            keyboard = [
+                [InlineKeyboardButton("⬅️ Back", callback_data="menu_withdraw")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]
+            ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.answer()
-            await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup)
+            await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup, parse_mode="HTML")
             return
 
         # Handle Back to balance menu
@@ -5844,28 +5832,23 @@ To deposit, send LTC to the address below:
                     await query.answer("❌ Please start a private chat with me first.", show_alert=True)
                 return
             else:
-                # In private chat, show deposit info (existing logic would be here)
-                # For now, let's implement it here as well since it was likely using balance_command redirection
+                # In private chat, show deposit info
                 ltc_usd_rate = await self.get_live_rate("litecoin")
                 user_data = self.db.get_user(user_id)
                 ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
                 
-                deposit_text = f"""
-💳 **LTC Deposit Request**
-
-Your balance **${user_data['balance']:,.2f}**
-
-To deposit, send LTC to the address below:
-`{ltc_address}`
-
-💰 Current Rate: **1 LTC = ${ltc_usd_rate:,.2f}**
-
-⚠️ Deposits are processed manually by admin after confirmation.
-"""
-                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                deposit_text = (
+                    "💳 <b>Deposit</b>\n\n"
+                    f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                    f"To deposit, send LTC to the address below:\n"
+                    f"<code>{ltc_address}</code>\n\n"
+                    f"💰 Current Rate: <b>1 LTC = ${ltc_usd_rate:,.2f}</b>\n\n"
+                    "⚠️ Deposits are processed manually by admin after confirmation."
+                )
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="balance_menu")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
-                await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="Markdown")
+                await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
 
         # --- Continue handling remaining button callbacks ---
