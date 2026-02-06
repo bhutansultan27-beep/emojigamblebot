@@ -202,13 +202,14 @@ class DatabaseManager:
             return user_games
 
     def record_game(self, game_data: Dict[str, Any]):
-        with self.app.app_context():
+        with self.db.app.app_context():
             # Add user_id or player_id to the game_data if it's missing but we have it in context
             # This ensures it's always searchable in match history
             g = Game(data=game_data)
             db.session.add(g)
             db.session.commit()
-            logger.info(f"Recorded game for {game_data.get('user_id') or game_data.get('player_id')}")
+            game_data['id'] = g.id
+            logger.info(f"Recorded game #{g.id} for {game_data.get('user_id') or game_data.get('player_id')}")
 
     def get_leaderboard(self) -> List[Dict[str, Any]]:
         with self.app.app_context():
