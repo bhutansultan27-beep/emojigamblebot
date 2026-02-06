@@ -365,6 +365,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("ks", self.ks_command))
         self.app.add_handler(CommandHandler("sk", self.sk))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
+        self.app.add_handler(CommandHandler("bet", self.bet_details_command))
         self.app.add_handler(CommandHandler("fake_matches", self.fake_matches_command))
         
         # Message handlers
@@ -5405,6 +5406,54 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
         user_id = update.effective_user.id
         await self.show_matches_page(update, context, 0, user_id)
 
+    async def bet_details_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """View details about a specific bet ID"""
+        if not context.args:
+            await update.message.reply_text("Usage: /bet [bet_id]")
+            return
+            
+        try:
+            bet_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("❌ Invalid Bet ID. It should be a number.")
+            return
+
+        with self.db.app.app_context():
+            from models import Game
+            game = db.session.get(Game, bet_id)
+            
+            if not game:
+                await update.message.reply_text("❌ Bet not found.")
+                return
+                
+            data = game.data
+            ts = game.timestamp
+            time_str = ts.strftime("%Y-%m-%d %H:%M:%S") if ts else "Unknown"
+            wager = data.get('wager', 0.0)
+            
+            raw_type = data.get('type', 'Game')
+            result = data.get('result', data.get('outcome', 'N/A')).capitalize()
+            
+            text = f"🎯 <b>Bet Details #{bet_id}</b>\n\n"
+            text += f"📅 Time: <code>{time_str}</code>\n"
+            text += f"🎮 Game: <b>{raw_type.replace('_', ' ').title()}</b>\n"
+            text += f"💰 Wager: <code>${wager:.2f}</code>\n"
+            text += f"🏆 Result: <b>{result}</b>\n"
+            
+            # Add specific details based on game type
+            if 'p_pts' in data and 'b_pts' in data:
+                text += f"📊 Score: <code>{data['p_pts']}-{data['b_pts']}</code>\n"
+            elif 'p1_pts' in data and 'p2_pts' in data:
+                text += f"📊 Score: <code>{data['p1_pts']}-{data['p2_pts']}</code>\n"
+                
+            if 'multiplier' in data:
+                text += f"📈 Multiplier: <code>{data['multiplier']}x</code>\n"
+                
+            if 'payout' in data:
+                text += f"💵 Payout: <code>${data['payout']:.2f}</code>\n"
+
+            await update.message.reply_text(text, parse_mode="HTML")
+
     async def fake_matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Populate database with fake matches for testing (Admin only)"""
         if not self.is_admin(update.effective_user.id):
@@ -5567,7 +5616,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             
             text += f"<i>{time_str}</i> | <b>{g_display}</b> | Bet: <code>${wager:.2f}</code>\n"
             text += f"{match_up}\n"
-            text += f"Winner: {winner_name}{winner_emoji}{score}\n\n"
+            text += f"Winner: {winner_name}{winner_emoji}\n"
+            text += f"ID: <code>{g.get('id', 'N/A')}</code>\n\n"
             
         buttons = []
         if page > 0:
