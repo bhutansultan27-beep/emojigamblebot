@@ -826,12 +826,15 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
                 InlineKeyboardButton("📁 More Content", callback_data="menu_more")
             ],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")]
+            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
-            await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
+            if data == "start_back":
+                await query.answer()
+            await query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             # Send first message
             await update.message.reply_text(help_text, parse_mode="HTML")
@@ -934,7 +937,8 @@ class AntariaCasinoBot:
         
         keyboard = [
             [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
-             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
+             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -973,8 +977,11 @@ class AntariaCasinoBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+        if update.callback_query:
+            await update.callback_query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
     
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show player statistics"""
@@ -5662,6 +5669,37 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
                 return
 
+        if data == "start_back":
+            await self.start_command(update, context)
+            return
+
+        if data == "menu_settings":
+            keyboard = [
+                [InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
+                 InlineKeyboardButton("🇷🇺 Russian", callback_data="lang_ru")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("⚙️ <b>Settings</b>\n\nSelect your language:", reply_markup=reply_markup, parse_mode="HTML")
+            return
+
+        if data == "menu_deposit":
+            await self.deposit_command(update, context)
+            return
+
+        if data == "menu_withdraw":
+            await self.withdraw_command(update, context)
+            return
+
+        if data == "menu_bonus":
+            await self.bonus_command(update, context)
+            return
+
+        if data == "menu_more":
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            await query.edit_message_text("📁 <b>More Content</b>\n\nComing soon...", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
         # Handle Admin Withdrawal Actions
         if data.startswith("adm_wit_"):
             if not self.is_admin(user_id):
@@ -5721,7 +5759,8 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             )
             
             context.user_data['awaiting_wit_amount'] = True
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")]]
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")],
+                        [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.answer()
@@ -5823,8 +5862,10 @@ To deposit, send LTC to the address below:
 
 ⚠️ Deposits are processed manually by admin after confirmation.
 """
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
-                await query.edit_message_text(deposit_text, parse_mode="Markdown")
+                await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="Markdown")
                 return
 
         # --- Continue handling remaining button callbacks ---
