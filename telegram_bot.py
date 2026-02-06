@@ -935,9 +935,11 @@ class AntariaCasinoBot:
         
         keyboard = [
             [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
-             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
         ]
+        if update.callback_query:
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if update.callback_query:
