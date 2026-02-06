@@ -828,6 +828,8 @@ class AntariaCasinoBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
+            query = update.callback_query
+            data = query.data
             if data == "start_back":
                 await query.answer()
             await query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -938,16 +940,30 @@ class AntariaCasinoBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        sent_msg = await update.message.reply_text(
-            balance_text, 
-            reply_markup=reply_markup, 
-            parse_mode="HTML",
-            reply_to_message_id=update.message.message_id
-        )
+        if update.callback_query:
+            query = update.callback_query
+            await query.answer()
+            await query.edit_message_text(
+                balance_text, 
+                reply_markup=reply_markup, 
+                parse_mode="HTML"
+            )
+            # Use query.message as the sent message for ownership tracking
+            sent_msg = query.message
+        else:
+            sent_msg = await update.message.reply_text(
+                balance_text, 
+                reply_markup=reply_markup, 
+                parse_mode="HTML",
+                reply_to_message_id=update.message.message_id
+            )
+        
         # Store who sent the original command that triggered this balance message
         self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-        # Store the message ID of the /bal command itself
-        context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
+        
+        # Store the message ID of the /bal command itself (only if it's a message)
+        if update.message:
+            context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
     
 
     async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3024,10 +3040,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             try:
                 amount = float(context.args[0])
                 if amount > user_data['balance']:
-                    await update.message.reply_text(
-                        f"Insufficient balance\n Current balance: ${user_data['balance']:,.2f}",
-                        parse_mode="HTML"
-                    )
+                    if update.message:
+                        await update.message.reply_text(
+                            f"Insufficient balance\n Current balance: ${user_data['balance']:,.2f}",
+                            parse_mode="HTML"
+                        )
                     return
             except ValueError:
                 pass
@@ -3035,10 +3052,11 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
         if chat.type in ["group", "supergroup"]:
             # Same behavior as deposit: notify in group and send PM
             try:
-                await update.message.reply_text(
-                    f"Hey {self.get_mention(user.id, user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
-                    parse_mode="HTML"
-                )
+                if update.message:
+                    await update.message.reply_text(
+                        f"Hey {self.get_mention(user.id, user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
+                        parse_mode="HTML"
+                    )
                 
                 # Send private message
                 await self.app.bot.send_message(
@@ -3048,7 +3066,8 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
                 )
             except Exception as e:
                 logger.error(f"Error in group withdraw command: {e}")
-                await update.message.reply_text("❌ Please start a private chat with me first so I can send you withdrawal instructions.")
+                if update.message:
+                    await update.message.reply_text("❌ Please start a private chat with me first so I can send you withdrawal instructions.")
         else:
             # In private chat, redirect to balance menu or show withdraw instructions
             await self.balance_command(update, context)
