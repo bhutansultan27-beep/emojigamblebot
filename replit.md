@@ -26,11 +26,12 @@ Required:
 Optional:
 - `ADMIN_IDS` - Comma-separated list of Telegram user IDs who have admin privileges
 
-## Running the Bot
-The bot runs via the "Telegram Bot" workflow which executes `python main.py`.
+## Running
+- **Web App**: "Start application" workflow runs `gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app`
+- **Telegram Bot**: "Telegram Bot" workflow runs `python telegram_bot.py`
 
 ## Database
-Uses PostgreSQL with the following tables:
+Uses PostgreSQL (Replit built-in) with the following tables:
 - `users` - User accounts with balance, stats, referrals
 - `games` - Game history records
 - `transactions` - Transaction history
