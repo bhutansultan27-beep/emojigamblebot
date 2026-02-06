@@ -5526,6 +5526,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             # Extract result/score/winner
             result = g.get('result', g.get('outcome', 'N/A')).capitalize()
             winner_name = "N/A"
+            winner_emoji = ""
             
             is_pvp = "_pvp" in g.get('type', '')
             if is_pvp:
@@ -5539,18 +5540,22 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 
                 if result.lower() == "win":
                     winner_name = p1_mention
+                    winner_emoji = " ✅" if str(p1_id) == str(user_id) else " ❌"
                 else:
                     winner_name = p2_mention
+                    winner_emoji = " ✅" if str(p2_id) == str(user_id) else " ❌"
             else:
                 p_id = g.get('player_id')
                 p_mention = self.get_mention(p_id)
                 
-                match_up = f"{p_mention} vs {bot_name}"
+                match_up = f"{p_mention} vs Bot"
                 
                 if result.lower() == "win":
                     winner_name = p_mention
+                    winner_emoji = " ✅"
                 elif result.lower() in ["loss", "defeat"]:
-                    winner_name = bot_name
+                    winner_name = "Bot"
+                    winner_emoji = " ❌"
                 elif result.lower() == "draw":
                     winner_name = "Draw"
             
@@ -5562,7 +5567,7 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
             
             text += f"<i>{time_str}</i> | <b>{g_display}</b> | Bet: <code>${wager:.2f}</code>\n"
             text += f"{match_up}\n"
-            text += f"Winner: {winner_name}{score}\n\n"
+            text += f"Winner: {winner_name}{winner_emoji}{score}\n\n"
             
         buttons = []
         if page > 0:
