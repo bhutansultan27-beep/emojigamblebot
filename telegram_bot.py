@@ -6138,10 +6138,6 @@ Your balance **${user_data['balance']:,.2f}**
 
 To deposit, send LTC to the address below:
 `{ltc_address}`
-
-💰 Current Rate: **1 LTC = ${ltc_usd_rate:,.2f}**
-
-⚠️ Deposits are processed manually by admin after confirmation.
 """
                     # Send private message
                     await self.app.bot.send_message(
@@ -6190,10 +6186,6 @@ Your balance **${user_data['balance']:,.2f}**
 
 To deposit, send LTC to the address below:
 `{ltc_address}`
-
-💰 Current Rate: **1 LTC = ${ltc_usd_rate:,.2f}**
-
-⚠️ Deposits are processed manually by admin after confirmation.
 """
                 keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
