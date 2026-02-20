@@ -236,7 +236,6 @@ class AntariaCasinoBot:
             BotCommand("coinflip", "Play Coinflip"),
             BotCommand("stats", "Check your game statistics"),
             BotCommand("leaderboard", "View top players"),
-            BotCommand("history", "View your transaction history"),
             BotCommand("referral", "Get your referral link"),
             BotCommand("tip", "Tip another user"),
             BotCommand("deposit", "Deposit funds"),
@@ -343,7 +342,6 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("referral", self.referral_command))
         self.app.add_handler(CommandHandler("ref", self.referral_command))
         self.app.add_handler(CommandHandler("housebal", self.housebal_command))
-        self.app.add_handler(CommandHandler("history", self.history_command))
         self.app.add_handler(CommandHandler("dice", self.dice_command))
         self.app.add_handler(CommandHandler("darts", self.darts_command))
         self.app.add_handler(CommandHandler("basketball", self.basketball_command))
@@ -1157,66 +1155,6 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
             reply_to_message_id=update.message.message_id
         )
     
-    async def history_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show match history"""
-        user_id = update.effective_user.id
-        user_games = self.db.data.get('games', [])
-        
-        # Filter games involving the user (player_id, challenger, or opponent) and get the last 15
-        user_games_filtered = [
-            game for game in user_games 
-            if game.get('player_id') == user_id or 
-               game.get('challenger') == user_id or 
-               game.get('opponent') == user_id
-        ][-15:]
-        
-        if not user_games_filtered:
-            await update.message.reply_text("📜 No history yet")
-            return
-        
-        history_text = "🎮 **History** (Last 15)\n\n"
-        
-        bot_info = await context.bot.get_me()
-        bot_name = bot_info.first_name
-
-        for game in reversed(user_games_filtered):
-            game_type = game.get('type', 'unknown')
-            timestamp = game.get('timestamp', '')
-            
-            if timestamp:
-                dt = datetime.fromisoformat(timestamp)
-                time_str = dt.strftime("%m/%d %H:%M")
-            else:
-                time_str = "Recently"
-            
-            if 'bot' in game_type:
-                result = game.get('result', 'unknown')
-                result_emoji = "✅ Win" if result == "win" else "❌ Loss" if result == "loss" else "🤝 Draw"
-                wager = game.get('wager', 0)
-                
-                if game_type == 'dice_bot':
-                    player_roll = game.get('player_roll', 0)
-                    bot_roll = game.get('bot_roll', 0)
-                    history_text += f"{result_emoji} **Dice vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   You: {player_roll} | {bot_name}: {bot_roll} | {time_str}\n\n"
-                elif game_type == 'coinflip_bot':
-                    choice = game.get('choice', 'unknown')
-                    flip_result = game.get('result', 'unknown')
-                    outcome = game.get('outcome', 'unknown')
-                    result_emoji = "✅ Win" if outcome == "win" else "❌ Loss"
-                    history_text += f"{result_emoji} **CoinFlip vs {bot_name}** - ${wager:.2f}\n"
-                    history_text += f"   Chose: {choice.capitalize()} | Result: {flip_result.capitalize()} | {time_str}\n\n"
-            else:
-                # PvP games
-                p1_id = game.get('challenger')
-                p2_id = game.get('opponent')
-                p1_mention = self.get_mention(p1_id)
-                p2_mention = self.get_mention(p2_id)
-                
-                history_text += f"🎲 **{game_type.replace('_', ' ').title()}**\n"
-                history_text += f"   {p1_mention} vs {p2_mention} | {time_str}\n\n"
-        
-        await update.message.reply_text(history_text, parse_mode="HTML")
     
     async def bet_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: Optional[float] = None):
         """Unified betting command with game selection menu."""
