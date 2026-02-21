@@ -6358,7 +6358,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             keyboard = [
                 [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]
+                [InlineKeyboardButton("❌ Exit", callback_data="main_menu")]
             ]
             await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
