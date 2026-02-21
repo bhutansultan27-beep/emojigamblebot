@@ -23,6 +23,7 @@ class User(db.Model):
     win_streak: Mapped[int] = mapped_column(Integer, default=0)
     best_win_streak: Mapped[int] = mapped_column(Integer, default=0)
     total_won: Mapped[float] = mapped_column(Float, default=0.0)
+    rakeback_balance: Mapped[float] = mapped_column(Float, default=0.0)
     wagered_since_last_withdrawal: Mapped[float] = mapped_column(Float, default=0.0)
     first_wager_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     referral_code: Mapped[str] = mapped_column(String, nullable=True)
