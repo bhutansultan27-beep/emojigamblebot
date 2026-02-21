@@ -992,7 +992,7 @@ class AntariaCasinoBot:
             "🎁 <b>Bonus</b>\n\n"
             "In this section you can find bonuses that you can get by playing games!\n\n"
             "💎 <b>Weekly Bonus</b>\n"
-            "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+            "Play different games during the week and claim your bonus every Saturday. Just don't slip up or the bonus will burn out!\n\n"
             "💎 <b>Level Up Bonus</b>\n"
             "Play games, level up and earn money!"
         )
@@ -3905,10 +3905,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         update_fields = {
-            'total_wagered': user_data.get('total_wagered', 0) + wager,
-            'total_pnl': user_data.get('total_pnl', 0) + profit,
-            'games_played': user_data.get('games_played', 0) + 1,
+            'total_wagered': (user_data.get('total_wagered', 0) or 0) + wager,
+            'total_pnl': (user_data.get('total_pnl', 0) or 0) + profit,
+            'games_played': (user_data.get('games_played', 0) or 0) + 1,
             'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,
+            'total_won': (user_data.get('total_won', 0) or 0) + (profit + wager if profit > 0 else 0)
         }
 
         # Add to weekly bonus pool (0.1% rakeback)
@@ -3918,10 +3919,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         update_fields['achievements'] = achievements
 
         if result == "win":
-            update_fields['games_won'] = user_data.get('games_won', 0) + 1
-            new_streak = user_data.get('win_streak', 0) + 1
+            update_fields['games_won'] = (user_data.get('games_won', 0) or 0) + 1
+            new_streak = (user_data.get('win_streak', 0) or 0) + 1
             update_fields['win_streak'] = new_streak
-            if new_streak > user_data.get('best_win_streak', 0):
+            if new_streak > (user_data.get('best_win_streak', 0) or 0):
                 update_fields['best_win_streak'] = new_streak
         else:
             update_fields['win_streak'] = 0
@@ -5881,15 +5882,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             # Weekly bonus pool = rakeback accumulated this period
             bonus_pool = achievements.get('weekly_bonus_pool', 0)
 
-            # Check if claim window is open: Friday 9PM EST to Saturday 9PM EST
+            # Check if claim window is open: Saturday 9PM EST to Sunday 9PM EST
             import pytz
             est = pytz.timezone('US/Eastern')
             now_est = datetime.now(est)
 
-            # Find last Friday 9PM EST
-            days_since_friday = (now_est.weekday() - 4) % 7
-            last_friday = now_est - timedelta(days=days_since_friday)
-            claim_open = last_friday.replace(hour=21, minute=0, second=0, microsecond=0)
+            # Find last Saturday 9PM EST
+            days_since_saturday = (now_est.weekday() - 5) % 7
+            last_saturday = now_est - timedelta(days=days_since_saturday)
+            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
             if claim_open > now_est:
                 claim_open -= timedelta(weeks=1)
             claim_close = claim_open + timedelta(hours=24)
@@ -5912,7 +5913,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 time_left = next_open - now_est
                 days_left = time_left.days
                 hours_left = int((time_left.total_seconds() % 86400) // 3600)
-                time_text = f"🔒 Next claim: <b>Friday 9:00 PM EST</b> (in {days_left}d {hours_left}h)"
+                time_text = f"🔒 Next claim: <b>Saturday 9:00 PM EST</b> (in {days_left}d {hours_left}h)"
 
             weekly_text = (
                 "🎁 <b>Weekly Bonus</b>\n\n"
@@ -5947,7 +5948,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         if data == "bonus_weekly_locked":
-            await query.answer("🔒 Bonus can only be claimed on Friday 9PM - Saturday 9PM EST!", show_alert=True)
+            await query.answer("🔒 Bonus can only be claimed on Saturday 9PM - Sunday 9PM EST!", show_alert=True)
             return
 
         if data == "bonus_weekly_none":
@@ -5966,9 +5967,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             import pytz
             est = pytz.timezone('US/Eastern')
             now_est = datetime.now(est)
-            days_since_friday = (now_est.weekday() - 4) % 7
-            last_friday = now_est - timedelta(days=days_since_friday)
-            claim_open = last_friday.replace(hour=21, minute=0, second=0, microsecond=0)
+            days_since_saturday = (now_est.weekday() - 5) % 7
+            last_saturday = now_est - timedelta(days=days_since_saturday)
+            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
             if claim_open > now_est:
                 claim_open -= timedelta(weeks=1)
             claim_close = claim_open + timedelta(hours=24)
@@ -6004,9 +6005,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             import pytz
             est = pytz.timezone('US/Eastern')
             now_est = datetime.now(est)
-            days_since_friday = (now_est.weekday() - 4) % 7
-            last_friday = now_est - timedelta(days=days_since_friday)
-            claim_open = last_friday.replace(hour=21, minute=0, second=0, microsecond=0)
+            days_since_saturday = (now_est.weekday() - 5) % 7
+            last_saturday = now_est - timedelta(days=days_since_saturday)
+            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
             if claim_open > now_est:
                 claim_open -= timedelta(weeks=1)
             claim_close = claim_open + timedelta(hours=24)
@@ -6213,7 +6214,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 "🎁 <b>Bonus</b>\n\n"
                 "In this section you can find bonuses that you can get by playing games!\n\n"
                 "💎 <b>Weekly Bonus</b>\n"
-                "Play different games during the week and claim your bonus every Friday. Just don't slip up or the bonus will burn out!\n\n"
+                "Play different games during the week and claim your bonus every Saturday. Just don't slip up or the bonus will burn out!\n\n"
                 "💎 <b>Level Up Bonus</b>\n"
                 "Play games, level up and earn money!"
             )

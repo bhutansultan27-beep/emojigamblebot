@@ -151,8 +151,42 @@ def play_game():
         payout = bet * mult
         profit = payout - bet
         user.balance += payout
+
+        # Update stats
+        user.total_wagered = (user.total_wagered or 0) + bet
+        user.total_pnl = (user.total_pnl or 0) + profit
+        user.games_played = (user.games_played or 0) + 1
+        if profit > 0:
+            user.games_won = (user.games_won or 0) + 1
+            user.total_won = (user.total_won or 0) + payout
+            user.win_streak = (user.win_streak or 0) + 1
+            if user.win_streak > (user.best_win_streak or 0):
+                user.best_win_streak = user.win_streak
+        else:
+            user.win_streak = 0
+
+        # Add to weekly bonus pool (0.1% rakeback)
+        achievements = user.achievements or {}
+        pool = achievements.get('weekly_bonus_pool', 0)
+        achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+        user.achievements = achievements
+
         update_house_balance(-profit)
         db.session.commit()
+
+        # Record game
+        game_record = Game(data={
+            'game': 'plinko',
+            'user_id': user.user_id,
+            'bet': bet,
+            'multiplier': mult,
+            'payout': payout,
+            'profit': profit,
+            'result': 'win' if profit > 0 else 'loss'
+        })
+        db.session.add(game_record)
+        db.session.commit()
+
         return jsonify({'multiplier': mult, 'payout': payout, 'balance': user.balance})
 
     if game == 'limbo':
@@ -193,6 +227,32 @@ def mines_reveal():
     is_mine = board[index]
     if is_mine:
         update_house_balance(bet)
+        
+        # Update stats for loss
+        telegram_user_id = session.get('telegram_user_id')
+        user = User.query.filter_by(user_id=telegram_user_id).first()
+        user.total_wagered = (user.total_wagered or 0) + bet
+        user.total_pnl = (user.total_pnl or 0) - bet
+        user.games_played = (user.games_played or 0) + 1
+        user.win_streak = 0
+        
+        # Weekly bonus pool
+        achievements = user.achievements or {}
+        pool = achievements.get('weekly_bonus_pool', 0)
+        achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+        user.achievements = achievements
+        
+        # Record game
+        game_record = Game(data={
+            'game': 'mines',
+            'user_id': user.user_id,
+            'bet': bet,
+            'result': 'loss',
+            'payout': 0
+        })
+        db.session.add(game_record)
+        db.session.commit()
+
         session['mines_board'] = None
         session['mines_bet'] = 0
         return jsonify({'is_mine': True})
@@ -237,7 +297,36 @@ def mines_cashout():
     telegram_user_id = session.get('telegram_user_id')
     user = User.query.filter_by(user_id=telegram_user_id).first()
     user.balance += payout
+
+    # Update stats
+    user.total_wagered = (user.total_wagered or 0) + bet
+    user.total_pnl = (user.total_pnl or 0) + profit
+    user.games_played = (user.games_played or 0) + 1
+    user.games_won = (user.games_won or 0) + 1
+    user.total_won = (user.total_won or 0) + payout
+    user.win_streak = (user.win_streak or 0) + 1
+    if user.win_streak > (user.best_win_streak or 0):
+        user.best_win_streak = user.win_streak
+
+    # Weekly bonus pool
+    achievements = user.achievements or {}
+    pool = achievements.get('weekly_bonus_pool', 0)
+    achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+    user.achievements = achievements
+
     update_house_balance(-profit)
+    db.session.commit()
+    
+    # Record game
+    game_record = Game(data={
+        'game': 'mines',
+        'user_id': user.user_id,
+        'bet': bet,
+        'multiplier': round(mult, 2),
+        'payout': payout,
+        'result': 'win'
+    })
+    db.session.add(game_record)
     db.session.commit()
     
     session['mines_board'] = None
@@ -272,7 +361,40 @@ def game_result():
     profit = payout - bet
     
     user.balance += payout
+
+    # Update stats
+    user.total_wagered = (user.total_wagered or 0) + bet
+    user.total_pnl = (user.total_pnl or 0) + profit
+    user.games_played = (user.games_played or 0) + 1
+    if profit > 0:
+        user.games_won = (user.games_won or 0) + 1
+        user.total_won = (user.total_won or 0) + payout
+        user.win_streak = (user.win_streak or 0) + 1
+        if user.win_streak > (user.best_win_streak or 0):
+            user.best_win_streak = user.win_streak
+    else:
+        user.win_streak = 0
+
+    # Add to weekly bonus pool (0.1% rakeback)
+    achievements = user.achievements or {}
+    pool = achievements.get('weekly_bonus_pool', 0)
+    achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+    user.achievements = achievements
+
     update_house_balance(-profit)
+    db.session.commit()
+    
+    # Record game
+    game_record = Game(data={
+        'game': game,
+        'user_id': user.user_id,
+        'bet': bet,
+        'multiplier': multiplier,
+        'payout': payout,
+        'profit': profit,
+        'result': 'win' if profit > 0 else 'loss'
+    })
+    db.session.add(game_record)
     db.session.commit()
     
     session['last_bet'] = 0
