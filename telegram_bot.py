@@ -835,8 +835,7 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
                 InlineKeyboardButton("📁 More Content", callback_data="menu_more")
             ],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
