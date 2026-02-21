@@ -2833,6 +2833,60 @@ class AntariaCasinoBot:
         self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def blackjack_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start a new blackjack game"""
+        user_id = update.effective_user.id
+        if user_id in self.blackjack_sessions:
+            await update.message.reply_text("❌ You already have an active game! Use buttons to play.")
+            return
+
+        if not context.args:
+            await update.message.reply_text("Usage: /blackjack [amount]")
+            return
+
+        try:
+            bet = float(context.args[0])
+            if bet <= 0: raise ValueError
+        except ValueError:
+            await update.message.reply_text("❌ Invalid bet amount.")
+            return
+
+        user_data = self.db.get_user(user_id)
+        if bet > user_data['balance']:
+            await update.message.reply_text(f"❌ Insufficient balance! (${user_data['balance']:.2f})")
+            return
+
+        # Deduct bet
+        self.db.update_user(user_id, {'balance': user_data['balance'] - bet})
+        self.db.add_transaction(user_id, "blackjack_bet", -bet, f"Blackjack bet: ${bet:.2f}")
+
+        game = BlackjackGame(bet)
+        game.start_game()
+        self.blackjack_sessions[user_id] = game
+        
+        # Check if game ended immediately (BJ)
+        state = game.get_game_state()
+        if state['game_over']:
+            payout = state['total_payout']
+            outcome = "win" if payout > 0 else "draw" if payout == 0 else "loss"
+            # initial bet was deducted, so profit is payout
+            self._update_user_stats(user_id, bet, payout, outcome)
+            if payout > 0:
+                user_data = self.db.get_user(user_id)
+                user_data['balance'] += (bet + payout)
+                self.db.update_user(user_id, user_data)
+                self.db.update_house_balance(-payout)
+            elif payout == 0:
+                user_data = self.db.get_user(user_id)
+                user_data['balance'] += bet
+                self.db.update_user(user_id, user_data)
+            else:
+                self.db.update_house_balance(bet)
+            
+            del self.blackjack_sessions[user_id]
+
+        await self._send_blackjack_msg(update, context, user_id)
+
+    async def _send_blackjack_msg(self, update, context, user_id):
         """Start a Blackjack game"""
         if not update.effective_message:
             return
@@ -4381,6 +4435,40 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         return max(0.0, round(float(cashout_val), 2))
 
+    def _update_user_stats(self, user_id: int, wager: float, profit: float, outcome: str):
+        """Update user statistics after a game."""
+        user_data = self.db.get_user(user_id)
+        
+        # Ensure values are not None
+        current_wagered = user_data.get('total_wagered', 0.0) or 0.0
+        current_won = user_data.get('total_won', 0.0) or 0.0
+        current_pnl = user_data.get('total_pnl', 0.0) or 0.0
+        current_played = user_data.get('games_played', 0) or 0
+        current_wins = user_data.get('games_won', 0) or 0
+        current_streak = user_data.get('win_streak', 0) or 0
+        best_streak = user_data.get('best_win_streak', 0) or 0
+        rakeback = user_data.get('rakeback_balance', 0.0) or 0.0
+        since_withdrawal = user_data.get('wagered_since_last_withdrawal', 0.0) or 0.0
+
+        updates = {
+            'total_wagered': current_wagered + wager,
+            'total_pnl': current_pnl + profit,
+            'games_played': current_played + 1,
+            'wagered_since_last_withdrawal': since_withdrawal + wager,
+            'rakeback_balance': rakeback + (wager * 0.001) # 0.1% rakeback
+        }
+
+        if outcome == "win":
+            updates['games_won'] = current_wins + 1
+            updates['total_won'] = current_won + (wager + profit)
+            updates['win_streak'] = current_streak + 1
+            if updates['win_streak'] > best_streak:
+                updates['best_win_streak'] = updates['win_streak']
+        elif outcome == "loss":
+            updates['win_streak'] = 0
+
+        self.db.update_user(user_id, updates)
+
     async def handle_emoji_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handles dice/emoji responses from users (for game rolls)"""
         if not update.message or not update.message.dice:
@@ -4390,6 +4478,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         chat_id = update.effective_chat.id
         dice_value = update.message.dice.value
         emoji = update.message.dice.emoji
+
+        # Normalize score
+        score = (1 if dice_value >= 4 else 0) if emoji in ["⚽", "🏀"] else dice_value
 
         # Determine if this message is a reply to a bot message
         is_reply = False
@@ -4997,13 +5088,30 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 except Exception as e:
                     logger.warning(f"Failed to remove button from final cashout message: {e}")
 
+                # Record the game for stats/matches
+                outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
+                profit = (w * 0.95) if outcome == "win" else -w
+                
+                self._update_user_stats(user_id, w, profit, outcome)
+                self.db.record_game({
+                    "type": f"{challenge['game']}_bot",
+                    "player_id": user_id,
+                    "wager": w,
+                    "result": outcome,
+                    "p_score": challenge['p_pts'],
+                    "b_score": challenge['b_pts']
+                })
+                
                 # Series End logic
-            if challenge['p_pts'] >= target_pts:
-                payout = w * 1.95
-                u = self.db.get_user(user_id)
-                u['balance'] += payout
-                self.db.update_user(user_id, {'balance': u['balance']})
-                self.db.update_house_balance(-(payout - w))
+                if challenge['p_pts'] >= challenge['pts']:
+                    payout = w * 1.95
+                    u = self.db.get_user(user_id)
+                    # Balance already updated in _update_user_stats if we use profit relative to wager
+                    # However, current logic in _update_user_stats might need adjustment or 
+                    # we handle balance here for clarity
+                    u['balance'] += payout
+                    self.db.update_user(user_id, {'balance': u['balance']})
+                    self.db.update_house_balance(-(payout - w))
 
                 p1_name = u.get('username', f'User{user_id}')
                 bold_name = f"<b>{p1_name}</b>"
@@ -5031,7 +5139,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 )
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
                        InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
-
+                
+                # Stats already updated at start of _finalize_v2_round
+                
                 reply_to_id = challenge.get('message_id')
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
@@ -5099,49 +5209,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Random coin flip result
         result = random.choice(['heads', 'tails'])
 
-        # Determine result
-        profit = 0.0
-        outcome = "loss"
-
-        if choice == result:
-            profit = wager
-            outcome = "win"
-            payout = profit + wager
-            # Credit full payout (wager was already deducted)
-            user_data = self.db.get_user(user_id)
-            user_data['balance'] += payout
-            user_data['total_won'] = user_data.get('total_won', 0) + payout
-            self.db.update_user(user_id, user_data)
-            result_text = f"<b>{username}</b> won <b>${payout:,.2f}</b>!"
-            self.db.update_house_balance(-wager)
-        else:
-            profit = -wager
-            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
-            self.db.update_house_balance(wager)
-
         # Determine win/loss/draw
-        outcome = "loss"
-        if p_tot > b_tot: 
-            outcome = "win"
-            profit = wager * 0.95
-        elif p_tot < b_tot:
-            outcome = "loss"
-            profit = -wager
-        else:
-            outcome = "draw"
-            profit = 0
+        outcome = "win" if choice == result else "loss"
+        profit = wager * 0.95 if outcome == "win" else -wager
 
         # Update user stats and database
         self._update_user_stats(user_id, wager, profit, outcome)
-        self.db.record_game({
-            "type": f"{game_type}_bot", 
-            "player_id": user_id, 
-            "wager": wager, 
-            "result": outcome, 
-            "p_score": p_tot, 
-            "b_score": b_tot
-        })
-        self.db.add_transaction(user_id, "coinflip_bot", profit, f"CoinFlip vs Bot - Wager: ${wager:.2f}")
+
+        if outcome == "win":
+            payout = wager * 1.95
+            # Credit full payout (wager was already deducted)
+            user_data = self.db.get_user(user_id)
+            user_data['balance'] += payout
+            self.db.update_user(user_id, {'balance': user_data['balance']})
+            result_text = f"<b>{username}</b> won <b>${payout:,.2f}</b>!"
+            self.db.update_house_balance(-(payout - wager))
+        else:
+            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
+            self.db.update_house_balance(wager)
+
         self.db.record_game({
             "type": "coinflip_bot",
             "player_id": user_id,
@@ -5150,6 +5236,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             "result": result, # The actual flip result
             "outcome": outcome # win or loss
         })
+        self.db.add_transaction(user_id, "coinflip_bot", profit, f"CoinFlip vs Bot - Wager: ${wager:.2f}")
 
         keyboard = [
             [InlineKeyboardButton("Heads again", callback_data=f"flip_bot_{wager:.2f}_heads")],
