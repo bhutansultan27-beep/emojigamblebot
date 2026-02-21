@@ -241,6 +241,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     'user_id': user_id,
                     'wager': w,
                     'payout': payout,
+                    'profit': payout - w,
                     'result': 'win',
                     'timestamp': datetime.now().isoformat()
                 })
@@ -270,6 +271,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                     'user_id': user_id,
                     'wager': w,
                     'payout': 0,
+                    'profit': -w,
                     'result': 'loss',
                     'timestamp': datetime.now().isoformat()
                 })

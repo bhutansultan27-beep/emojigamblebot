@@ -2752,6 +2752,7 @@ class AntariaCasinoBot:
             'predictions': list(predictions),
             'actual_roll': actual_roll,
             'result': 'win' if actual_roll in predictions else 'loss',
+            'profit': (wager * multiplier - wager) if actual_roll in predictions else -wager,
             'payout': (wager * multiplier) if actual_roll in predictions else 0
         })
 
@@ -4817,11 +4818,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         self._update_user_stats(winner_id, wager, winner_profit, "win")
         # Fix: Don't subtract the wager again in _update_user_stats since it was already deducted at start
-        self._update_user_stats(loser_id, wager, 0, "loss")
+        self._update_user_stats(loser_id, wager, -wager, "loss")
 
         self.db.add_transaction(winner_id, f"{game_type}_pvp_win", winner_profit, f"{game_type.upper()} PvP Win vs {self.db.get_user(loser_id)['username']}")
         self.db.add_transaction(loser_id, f"{game_type}_pvp_loss", -wager, f"{game_type.upper()} PvP Loss vs {self.db.get_user(winner_id)['username']}")
-        self.db.record_game({"type": f"{game_type}_pvp", "challenger": challenger_id, "opponent": user_id, "wager": wager, "result": "win"})
+        self.db.record_game({
+            "type": f"{game_type}_pvp", 
+            "challenger": challenger_id, 
+            "opponent": user_id, 
+            "wager": wager, 
+            "profit": winner_profit,
+            "result": "win"
+        })
 
         winner_username = winner_user.get('username', f'User{winner_id}')
         final_text = (
@@ -5545,10 +5553,20 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         loser_id = p2_id if winner_id == p1_id else p1_id
         # Both players already had wager deducted when accepting/starting
         # Winner gets (wager * 2) total payout
-        self.db.update_user(winner_id, {'balance': self.db.get_user(winner_id)['balance'] + wager})
+        self.db.update_user(winner_id, {'balance': self.db.get_user(winner_id)['balance'] + wager * 2})
         self._update_user_stats(winner_id, wager, wager, "win")
         # Fix: Don't subtract the wager again in _update_user_stats since it was already deducted at start
-        self._update_user_stats(loser_id, wager, 0, "loss")
+        self._update_user_stats(loser_id, wager, -wager, "loss")
+
+        self.db.record_game({
+            "type": f"{challenge['game']}_pvp",
+            "challenger": p1_id,
+            "opponent": p2_id,
+            "wager": wager,
+            "profit": wager,
+            "result": "win",
+            "winner_id": winner_id
+        })
 
         winner_data = self.db.get_user(winner_id)
         winner_username = winner_data.get('username', f'User{winner_id}')
