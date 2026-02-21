@@ -772,71 +772,31 @@ class AntariaCasinoBot:
                 return None
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Welcome message and initial user setup."""
-        user = update.effective_user
-        user_id = user.id
-        user_data = self.db.get_user(user_id)
-        
-        # 1. First Message: Help and Games
-        help_text = (
-            "👉 <b>How to start?</b>\n"
-            "1. Make sure you have a balance. You can deposit by entering the /balance command.\n"
-            "2. Go to one of our groups in @DicesDirectory directory\n"
-            "3. Enter the /dice command and you are ready!\n\n"
-            "📣 <b>What games can I play?</b>\n"
-            "• 🎲 Dice - /dice\n"
-            "• 🎳 Bowling - /bowl\n"
-            "• 🎯 Darts - /darts\n"
-            "• ⚽ Football - /ball\n"
-            "• 🏀 Basketball - /bask\n"
-            "• 🪙 Coinflip - /coin\n"
-            "• 🎰 Slot machine - /slots\n"
-            "• 🎡 Roulette - /roulette\n"
-            "• 🎲 Dice Prediction - /predict\n"
-            "• 🃏 Blackjack - /blackjack\n"
-            "• 💣 Mines - /mines\n"
-            "• 📍 Plinko - /plinko\n"
-            "• 🐒 Monkey Tower - /tower\n"
-            "• 🐔 Crossy Road - /crossyroad\n"
-            "• 🎡 Wheel (NEW!) - /wheel\n"
-            "• More is coming! - /news\n\n"
-            "<b>Enjoy the games!</b> 🍀"
-        )
-        
-        # 2. Second Message: Balance and Menu
-        menu_text = (
-            "🏠 <b>Menu</b>\n\n"
-            f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
-            "Choose the action:"
-        )
+        """Show main menu with buttons only"""
+        user_id = update.effective_user.id
+        self.db.get_user(user_id) # Ensure registered
         
         keyboard = [
-            [InlineKeyboardButton("🎮 Play", callback_data="menu_games")],
-            [
-                InlineKeyboardButton("💳 Deposit", callback_data="menu_deposit"),
-                InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
-            ],
-            [
-                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
-                InlineKeyboardButton("📁 More Content", callback_data="menu_more")
-            ],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("💰 Balance", callback_data="balance_menu"),
+             InlineKeyboardButton("🎁 Bonus", callback_data="claim_bonus")],
+            [InlineKeyboardButton("🎲 Dice", callback_data="setup_mode_dice_10.00"),
+             InlineKeyboardButton("🃏 Blackjack", callback_data="bj_bot_10.00")],
+            [InlineKeyboardButton("🎰 Roulette", callback_data="roulette_menu"),
+             InlineKeyboardButton("🪙 Coinflip", callback_data="flip_bot_10.00")],
+            [InlineKeyboardButton("🏆 Leaderboard", callback_data="lb_page_0"),
+             InlineKeyboardButton("📊 Stats", callback_data="user_stats")],
+            [InlineKeyboardButton("👥 Referral", callback_data="referral_menu")],
+            [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
+             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
         ]
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
-
+        text = "🎮 **Welcome to Antaria Casino**"
+        
         if update.callback_query:
-            query = update.callback_query
-            data = query.data
-            if data == "start_back":
-                await query.answer()
-            await query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
+            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
         else:
-            # Send first message
-            await update.message.reply_text(help_text, parse_mode="HTML")
-            # Send second message
-            sent_msg = await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
     async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self.game_launcher(update, "Crash", "crash", "📈")
