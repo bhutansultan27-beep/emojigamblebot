@@ -202,9 +202,7 @@ class DatabaseManager:
             return user_games
 
     def record_game(self, game_data: Dict[str, Any]):
-        with self.db.app.app_context():
-            # Add user_id or player_id to the game_data if it's missing but we have it in context
-            # This ensures it's always searchable in match history
+        with self.app.app_context():
             g = Game(data=game_data)
             db.session.add(g)
             db.session.commit()
@@ -7776,7 +7774,7 @@ To withdraw, use:
             gs = GlobalState.query.filter_by(key='pending_pvp').first()
             if gs:
                 gs.value = '{}'
-                self.db.db.session.commit()
+                db.session.commit()
         
         await update.message.reply_text("✅ Database reset! All pending games cleared.")
 
