@@ -28,7 +28,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             await query.edit_message_reply_markup(reply_markup=None)
         except Exception as e:
             logger.error(f"Error removing markup in setup_mode_predict: {e}")
-            
+
         parts = data.split("_")
         try:
             wager = float(parts[3])
@@ -45,13 +45,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         wager = float(parts[3])
         prediction = parts[4]
         game_mode = parts[5]
-        
+
         if not hasattr(bot_instance, "_predict_selections"):
             bot_instance._predict_selections = {}
-        
+
         if user_id not in bot_instance._predict_selections:
             bot_instance._predict_selections[user_id] = {}
-            
+
         if game_mode not in bot_instance._predict_selections[user_id]:
             bot_instance._predict_selections[user_id][game_mode] = set()
 
@@ -65,14 +65,14 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 if current_len >= 2:
                     await query.answer("❌ Can't pick all options!", show_alert=True)
                     return
-            
+
             if len(bot_instance._predict_selections[user_id][game_mode]) < 5:
                 bot_instance._predict_selections[user_id][game_mode].add(prediction)
                 await query.answer("Added selection")
             else:
                 await query.answer("❌ Max 5 selections!", show_alert=True)
                 return
-                
+
         await bot_instance._setup_predict_interface(update, context, wager, game_mode)
         return
 
@@ -80,7 +80,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         parts = data.split("_")
         wager = float(parts[2])
         game_mode = parts[3]
-        
+
         user_selections = bot_instance._predict_selections.get(user_id, {})
         selections = user_selections.get(game_mode, set())
         if not selections:
@@ -94,7 +94,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
 
         # Deduct wager
         user_data['balance'] -= wager
-        bot_instance.db.update_user(user_id, user_data)
+        bot_instance.db.update_user(user_id, {'balance': user_data['balance']})
         bot_instance.db.add_transaction(user_id, f"predict_{game_mode}", -wager, f"Prediction bet on {game_mode}")
 
         # Make buttons unclickable - DISABLED as per user request to remove "game in progress" feel
@@ -112,7 +112,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         #         logger.error(f"Error making markup unclickable in predict_start: {e}")
 
         # await query.answer("Game started!")
-        
+
         # Mapping for emoji values
         # Dice: 1-6
         # Darts: 1-6
@@ -124,11 +124,11 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
 
         sent_dice = await context.bot.send_dice(chat_id=chat_id, emoji=bot_instance.emoji_map.get(game_mode, "🎲"))
         result_val = sent_dice.dice.value
-        
+
         # Determine win/loss based on game mode and value
         win = False
         result_label = str(result_val)
-        
+
         if game_mode in ["dice", "darts", "bowling"]:
             if str(result_val) in selections:
                 win = True
@@ -156,9 +156,9 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         # Calculate multiplier with 0.5% house edge
         # Multiplier = (Total Outcomes / Selected Outcomes) * (1 - House Edge)
         house_edge = 0.005
-        
+
         import math
-        
+
         if game_mode in ["dice", "darts", "bowling"]:
             multipliers = {
                 1: 5.85,
@@ -198,11 +198,21 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         if win:
             payout = wager * multiplier
             user_data = bot_instance.db.get_user(user_id)
-            user_data['balance'] += payout
-            bot_instance.db.update_user(user_id, {'balance': user_data['balance']})
+            achievements = user_data.get('achievements', {}) or {}
+            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * 0.001, 2)
+            bot_instance.db.update_user(user_id, {
+                'balance': user_data['balance'] + payout,
+                'total_wagered': user_data.get('total_wagered', 0) + wager,
+                'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,
+                'total_pnl': user_data.get('total_pnl', 0) + (payout - wager),
+                'games_played': user_data.get('games_played', 0) + 1,
+                'games_won': user_data.get('games_won', 0) + 1,
+                'total_won': user_data.get('total_won', 0) + payout,
+                'achievements': achievements,
+            })
             bot_instance.db.add_transaction(user_id, "predict_win", payout, f"Prediction win on {game_mode}")
             bot_instance.db.update_house_balance(-(payout - wager))
-            
+
             # Record game for history
             bot_instance.db.record_game({
                 "type": f"predict_{game_mode}",
@@ -210,25 +220,21 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 "user_id": user_id,
                 "wager": wager,
                 "payout": payout,
-                "result": "win",
-                "timestamp": datetime.now().isoformat()
+                "result": "win"
             })
-            
-            # Update user stats
-            bot_instance._update_user_stats(user_id, wager, payout - wager, "win")
-            
+
             user_username = user_data.get('username', f'User{user_id}')
             win_text = (
                 f"🏆 <b>Game over!</b>\n\n"
                 f"{user_username} won <b>${payout:,.2f}</b>!"
             )
-            
+
             # Replay buttons
             kb = [[
                 InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
                 InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
             ]]
-            
+
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
                 text=win_text,
@@ -239,7 +245,18 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
         else:
             bot_instance.db.update_house_balance(wager)
-            
+            user_data = bot_instance.db.get_user(user_id)
+            achievements = user_data.get('achievements', {}) or {}
+            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * 0.001, 2)
+            bot_instance.db.update_user(user_id, {
+                'total_wagered': user_data.get('total_wagered', 0) + wager,
+                'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,
+                'total_pnl': user_data.get('total_pnl', 0) - wager,
+                'games_played': user_data.get('games_played', 0) + 1,
+                'win_streak': 0,
+                'achievements': achievements,
+            })
+
             # Record game for history
             bot_instance.db.record_game({
                 "type": f"predict_{game_mode}",
@@ -247,25 +264,20 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 "user_id": user_id,
                 "wager": wager,
                 "payout": 0,
-                "result": "loss",
-                "timestamp": datetime.now().isoformat()
+                "result": "loss"
             })
-            
-            # Update user stats
-            bot_instance._update_user_stats(user_id, wager, -wager, "loss")
-            
-            user_data = bot_instance.db.get_user(user_id)
-            user_username = user_data.get('username', f'User{user_id}')
+
+            loss_text = (
                 f"🏆 <b>Game over!</b>\n\n"
                 f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             )
-            
+
             # Replay buttons
             kb = [[
                 InlineKeyboardButton("🔄 Play Again", callback_data=f"setup_mode_predict_{wager:.2f}_{game_mode}"),
                 InlineKeyboardButton("🔄 Double", callback_data=f"setup_mode_predict_{wager*2:.2f}_{game_mode}")
             ]]
-            
+
             sent_msg = await context.bot.send_message(
                 chat_id=chat_id,
                 text=loss_text,
@@ -274,7 +286,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 reply_to_message_id=sent_dice.message_id
             )
             bot_instance.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-        
+
         # Clear selections for next game - DISABLED to persist selections for replay
         # bot_instance._predict_selections[user_id] = set()
         return
