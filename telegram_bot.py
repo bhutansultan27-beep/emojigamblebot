@@ -1140,12 +1140,15 @@ Unclaimed: ${user_data.get('unclaimed_referral_earnings', 0):.2f}
     
     async def housebal_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show house balance"""
+        if not self.is_admin(update.effective_user.id):
+            await update.message.reply_text("❌ This command is restricted to admins.")
+            return
+
         house_balance = self.db.get_house_balance()
-        # Using current XMR price for conversion (approx $625)
-        xmr_price = 625.0
-        xmr_balance = house_balance / xmr_price
+        ltc_price = await self.get_live_rate("litecoin")
+        ltc_balance = house_balance / ltc_price if ltc_price > 0 else 0
         
-        housebal_text = f"💰 Available house balance <b>${house_balance:,.2f}</b> ({xmr_balance:,.2f} XMR)"
+        housebal_text = f"💰 Available house balance <b>${house_balance:,.2f}</b> ({ltc_balance:,.4f} LTC)"
         
         await update.message.reply_text(
             housebal_text, 
