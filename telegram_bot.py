@@ -1021,7 +1021,17 @@ class AntariaCasinoBot:
         keyboard = [
             [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")]
         ]
-        await update.message.reply_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        
+        # Check if we should show the Back button (only if not coming from matches/stats button)
+        # Added check for 'menu_stats' callback data
+        if not (update.callback_query and update.callback_query.data in ["menu_stats", "matches_page_0"]):
+             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.message.reply_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
 
     def _build_stats_text(self, user_id, username, user_data):
         """Build stats text used by both /stats command and menu"""
@@ -6484,7 +6494,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         if data == "menu_stats":
-            from sqlalchemy import or_, cast, String
             user_data = self.db.get_user(user_id)
             username = query.from_user.username or query.from_user.first_name
             if username.startswith('@'): username = username[1:]
@@ -6492,9 +6501,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             stats_text = self._build_stats_text(user_id, username, user_data)
 
             keyboard = [
-                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]
+                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")]
             ]
+            # Removed back button as requested
             await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
 
