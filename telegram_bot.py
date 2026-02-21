@@ -185,37 +185,30 @@ class DatabaseManager:
     def get_user_matches(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
         """Get game history for a user"""
         with self.app.app_context():
-            from sqlalchemy import select, or_
+            from sqlalchemy import select, or_, cast, String
             # Use JSON extraction to filter by user_id or player_id in the 'data' column
-            # In PostgreSQL, this is: data->>'user_id' = :user_id OR data->>'player_id' = :user_id
-            # However, for broader compatibility and since we are already loading all games in the previous implementation,
-            # let's optimize to filter correctly.
-            games = Game.query.order_by(Game.timestamp.desc()).all()
+            games = Game.query.filter(or_(
+                cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['user_id'], String) == str(user_id),
+                cast(Game.data['challenger'], String) == str(user_id),
+                cast(Game.data['player'], String) == str(user_id)
+            )).order_by(Game.timestamp.desc()).limit(limit).all()
+            
             user_games = []
             for g in games:
                 if not g.data:
                     continue
 
-                # Check all possible player ID fields in game data
-                g_player_id = g.data.get('player_id') or g.data.get('user_id') or g.data.get('player')
+                game_display_data = dict(g.data)
+                # Replace specific bot username with "Bot" in the display data
+                for key in ['bot', 'challenger', 'opponent', 'winner']:
+                    val = game_display_data.get(key)
+                    if isinstance(val, str):
+                        lower_val = val.lower()
+                        if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"]:
+                            game_display_data[key] = 'Bot'
 
-                # Ensure we are comparing as strings or ints consistently
-                if str(g_player_id) == str(user_id):
-                    # Local copy to avoid mutating the database object directly if it's reused
-                    game_display_data = dict(g.data)
-
-                    # Replace specific bot username with "Bot" in the display data
-                    # Also handle case-insensitive check just in case
-                    for key in ['bot', 'challenger', 'opponent', 'winner']:
-                        val = game_display_data.get(key)
-                        if isinstance(val, str):
-                            lower_val = val.lower()
-                            if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"]:
-                                game_display_data[key] = 'Bot'
-
-                    user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
-                if len(user_games) >= limit:
-                    break
+                user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
             return user_games
 
     def record_game(self, game_data: Dict[str, Any]):
@@ -1029,23 +1022,25 @@ class AntariaCasinoBot:
 
     def _build_stats_text(self, user_id, username, user_data):
         """Build stats text used by both /stats command and menu"""
-        games_played = user_data.get('games_played', 0)
-        games_won = user_data.get('games_won', 0)
-        total_wagered = user_data.get('total_wagered', 0)
-        total_won = user_data.get('total_won', 0)
-        total_pnl = user_data.get('total_pnl', 0)
-        best_streak = user_data.get('best_win_streak', 0)
+        games_played = (user_data.get('games_played', 0) or 0)
+        games_won = (user_data.get('games_won', 0) or 0)
+        total_wagered = (user_data.get('total_wagered', 0) or 0)
+        total_won = (user_data.get('total_won', 0) or 0)
+        total_pnl = (user_data.get('total_pnl', 0) or 0)
+        best_streak = (user_data.get('best_win_streak', 0) or 0)
 
         win_rate = (games_won / games_played * 100) if games_played > 0 else 0
         games_lost = games_played - games_won
 
         # Rank tiers
-        if total_wagered >= 100000: rank = "💎 Platinum II"
-        elif total_wagered >= 50000: rank = "💎 Platinum I"
-        elif total_wagered >= 25000: rank = "🥇 Gold II"
-        elif total_wagered >= 15000: rank = "🥇 Gold I"
-        elif total_wagered >= 10000: rank = "🥈 Silver II"
-        elif total_wagered >= 5000: rank = "🥈 Silver I"
+        if total_wagered >= 100000: rank = "🥇 Gold I"
+        elif total_wagered >= 75000: rank = "🥈 Silver V"
+        elif total_wagered >= 50000: rank = "🥈 Silver IV"
+        elif total_wagered >= 25000: rank = "🥈 Silver III"
+        elif total_wagered >= 15000: rank = "🥈 Silver II"
+        elif total_wagered >= 10000: rank = "🥈 Silver I"
+        elif total_wagered >= 7500: rank = "🥉 Bronze V"
+        elif total_wagered >= 5000: rank = "🥉 Bronze IV"
         elif total_wagered >= 2500: rank = "🥉 Bronze III"
         elif total_wagered >= 1000: rank = "🥉 Bronze II"
         else: rank = "🥉 Bronze I"
@@ -1056,18 +1051,20 @@ class AntariaCasinoBot:
             from sqlalchemy import or_, cast, String
             first_game = Game.query.filter(or_(
                 cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['user_id'], String) == str(user_id),
                 cast(Game.data['challenger'], String) == str(user_id)
             )).order_by(Game.timestamp.asc()).first()
 
             last_game = Game.query.filter(or_(
                 cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['user_id'], String) == str(user_id),
                 cast(Game.data['challenger'], String) == str(user_id)
             )).order_by(Game.timestamp.desc()).first()
 
-        first_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "—"
-        last_str = last_game.timestamp.strftime("%b %d, %Y %I:%M %p") if last_game else "—"
+        first_str = first_game.timestamp.strftime("%m/%d/%Y") if first_game else "—"
+        last_str = last_game.timestamp.strftime("%m/%d/%Y") if last_game else "—"
 
-        pnl_sign = "+" if total_pnl >= 0 else ""
+        pnl_sign = "+" if total_pnl >= 0 else "-"
         pnl_color = "🟢" if total_pnl >= 0 else "🔴"
 
         return (
@@ -1104,11 +1101,11 @@ class AntariaCasinoBot:
         matches = self.db.get_user_matches(user_id, limit=100)
 
         if not matches:
-            text = "📋 No match history found."
+            text = "📋 <b>No match history found.</b>"
             if edit and update.callback_query:
-                await update.callback_query.edit_message_text(text)
+                await update.callback_query.edit_message_text(text, parse_mode="HTML")
             else:
-                await update.effective_message.reply_text(text)
+                await update.effective_message.reply_text(text, parse_mode="HTML")
             return
 
         total_pages = max(1, (len(matches) + per_page - 1) // per_page)
@@ -1116,29 +1113,31 @@ class AntariaCasinoBot:
         start = page * per_page
         page_matches = matches[start:start + per_page]
 
-        username = update.effective_user.username or update.effective_user.first_name
+        u_data = self.db.get_user(user_id)
+        username = u_data.get('username') or update.effective_user.username or update.effective_user.first_name
+        if username.startswith('@'): username = username[1:]
 
         # Get emoji map for game types
         game_emojis = {
             'dice': '🎲', 'darts': '🎯', 'bowling': '🎳',
             'basketball': '🏀', 'soccer': '⚽', 'coinflip': '🪙',
             'blackjack': '🃏', 'predict': '🎱', 'slots': '🎰',
+            'mines': '💣', 'plinko': '⚽', 'limbo': '🚀', 'crash': '📈', 'keno': '🔢'
         }
 
         text = f"📜 <b>Your Matches (Page {page + 1}/{total_pages})</b>\n\n"
 
         for m in page_matches:
-            game_type = m.get('type', 'unknown')
+            game_type = m.get('type', 'unknown').lower()
             wager = m.get('wager', 0)
-            payout = m.get('payout', 0)
             result = m.get('result', 'unknown')
-            winner = m.get('winner')
+            winner_id = m.get('winner')
             timestamp = m.get('timestamp', '')
 
             # Get emoji for game type
             emoji = '🎮'
             for key, em in game_emojis.items():
-                if key in game_type.lower():
+                if key in game_type:
                     emoji = em
                     break
 
@@ -1147,24 +1146,27 @@ class AntariaCasinoBot:
             if timestamp:
                 try:
                     from datetime import datetime as dt
-                    ts = dt.fromisoformat(timestamp)
+                    if isinstance(timestamp, str):
+                        ts = dt.fromisoformat(timestamp)
+                    else:
+                        ts = timestamp
                     date_str = ts.strftime("%m/%d %I:%M %p")
                 except Exception:
                     pass
 
             # Determine result
-            if result == 'win' or winner == user_id:
-                winner_text = f"{username} ✅"
-            elif result == 'loss' or (winner is not None and winner != user_id):
-                winner_text = f"Bot ❌"
+            if result == 'win' or str(winner_id) == str(user_id):
+                winner_name = f"<b>{username}</b> ✅"
+            elif result == 'loss' or (winner_id is not None and str(winner_id) != str(user_id)):
+                winner_name = f"<b>Bot</b> ❌"
             elif result == 'draw':
-                winner_text = "Draw ➖"
+                winner_name = "Draw ➖"
             else:
-                winner_text = "N/A"
+                winner_name = "N/A"
 
             text += f"<i>{date_str or 'N/A'}</i> | {emoji} | Bet: <b>${wager:,.2f}</b>\n"
-            text += f"{username} vs Bot\n"
-            text += f"Winner: {winner_text}\n\n"
+            text += f"<b>{username}</b> vs <b>Bot</b>\n"
+            text += f"Winner: {winner_name}\n\n"
 
         # Pagination buttons
         keyboard = []
@@ -3927,6 +3929,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         else:
             update_fields['win_streak'] = 0
 
+        # Update bot names in database record if needed (logic handled in record_game)
         self.db.update_user(user_id, update_fields)
 
 

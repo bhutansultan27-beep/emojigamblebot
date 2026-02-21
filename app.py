@@ -144,6 +144,14 @@ def play_game():
         r = random.random()
         crash_point = 1.00 if r < 0.03 else max(1.01, round(0.99 / (1 - random.random()), 2))
         session['crash_point'] = crash_point
+        
+        # We'll need a way to record crash games when the user cashes out.
+        # For now, let's at least ensure we track the bet.
+        telegram_user_id = session.get('telegram_user_id')
+        user = User.query.filter_by(user_id=telegram_user_id).first()
+        user.total_wagered = (user.total_wagered or 0) + bet
+        db.session.commit()
+
         return jsonify({'crash_point': crash_point})
     
     if game == 'plinko':
@@ -154,11 +162,11 @@ def play_game():
 
         # Update stats
         user.total_wagered = (user.total_wagered or 0) + bet
+        user.total_won = (user.total_won or 0) + payout
         user.total_pnl = (user.total_pnl or 0) + profit
         user.games_played = (user.games_played or 0) + 1
         if profit > 0:
             user.games_won = (user.games_won or 0) + 1
-            user.total_won = (user.total_won or 0) + payout
             user.win_streak = (user.win_streak or 0) + 1
             if user.win_streak > (user.best_win_streak or 0):
                 user.best_win_streak = user.win_streak
@@ -178,7 +186,9 @@ def play_game():
         game_record = Game(data={
             'game': 'plinko',
             'user_id': user.user_id,
+            'player_id': user.user_id,
             'bet': bet,
+            'wager': bet,
             'multiplier': mult,
             'payout': payout,
             'profit': profit,
@@ -192,7 +202,44 @@ def play_game():
     if game == 'limbo':
         r = max(1.00, round(0.99 / (1 - random.random()), 2))
         session['limbo_result'] = r
-        return jsonify({'result': r})
+        
+        # Record game and update stats for Limbo
+        target = float(data.get('target', 2.0))
+        payout = bet * target if r >= target else 0
+        profit = payout - bet
+        
+        telegram_user_id = session.get('telegram_user_id')
+        user = User.query.filter_by(user_id=telegram_user_id).first()
+        user.balance += payout
+        user.total_wagered = (user.total_wagered or 0) + bet
+        user.total_won = (user.total_won or 0) + payout
+        user.total_pnl = (user.total_pnl or 0) + profit
+        user.games_played = (user.games_played or 0) + 1
+        if profit > 0:
+            user.games_won = (user.games_won or 0) + 1
+            user.win_streak = (user.win_streak or 0) + 1
+            if user.win_streak > (user.best_win_streak or 0):
+                user.best_win_streak = user.win_streak
+        else:
+            user.win_streak = 0
+
+        # Record game
+        game_record = Game(data={
+            'game': 'limbo',
+            'user_id': user.user_id,
+            'player_id': user.user_id,
+            'bet': bet,
+            'wager': bet,
+            'result': r,
+            'target': target,
+            'payout': payout,
+            'profit': profit,
+            'result_type': 'win' if profit > 0 else 'loss'
+        })
+        db.session.add(game_record)
+        db.session.commit()
+        
+        return jsonify({'result': r, 'payout': payout, 'balance': user.balance})
 
     if game == 'mines':
         mines_count = int(data.get('mines', 3))
