@@ -1084,7 +1084,7 @@ class AntariaCasinoBot:
         
         if not matches:
             text = "📋 <b>No match history found.</b>"
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_stats")]]
+            keyboard = [[InlineKeyboardButton("📊 Stats", callback_data="menu_stats")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             if edit and update.callback_query:
                 await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
@@ -1160,7 +1160,7 @@ class AntariaCasinoBot:
         if nav_row:
             keyboard.append(nav_row)
         
-        keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_stats")])
+        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
