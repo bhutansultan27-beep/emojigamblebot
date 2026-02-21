@@ -272,6 +272,7 @@ class AntariaCasinoBot:
 
         # Initialize the internal database manager
         self.db = DatabaseManager()
+        self.db.db = db # Fix for 'DatabaseManager' object has no attribute 'db'
         
         self.emoji_map = {
             "dice": "🎲",
@@ -772,31 +773,39 @@ class AntariaCasinoBot:
                 return None
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show main menu with buttons only"""
+        """Send the start message with keyboard"""
         user_id = update.effective_user.id
         self.db.get_user(user_id) # Ensure registered
         
-        keyboard = [
-            [InlineKeyboardButton("💰 Balance", callback_data="balance_menu"),
-             InlineKeyboardButton("🎁 Bonus", callback_data="claim_bonus")],
-            [InlineKeyboardButton("🎲 Dice", callback_data="setup_mode_dice_10.00"),
-             InlineKeyboardButton("🃏 Blackjack", callback_data="bj_bot_10.00")],
-            [InlineKeyboardButton("🎰 Roulette", callback_data="roulette_menu"),
-             InlineKeyboardButton("🪙 Coinflip", callback_data="flip_bot_10.00")],
-            [InlineKeyboardButton("🏆 Leaderboard", callback_data="lb_page_0"),
-             InlineKeyboardButton("📊 Stats", callback_data="user_stats")],
-            [InlineKeyboardButton("👥 Referral", callback_data="referral_menu")],
-            [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
-             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
-        ]
+        welcome_text = (
+            "🎰 <b>Welcome to Antaria Casino!</b>\n\n"
+            "The most advanced gambling bot on Telegram. Use the buttons below to navigate or type /help for more info."
+        )
         
+        keyboard = [
+            [
+                InlineKeyboardButton("🎮 Games", callback_data="start_games"),
+                InlineKeyboardButton("💰 Balance", callback_data="balance_menu")
+            ],
+            [
+                InlineKeyboardButton("📊 Stats", callback_data="start_stats"),
+                InlineKeyboardButton("📜 Matches", callback_data="start_matches")
+            ],
+            [
+                InlineKeyboardButton("🎁 Bonus", callback_data="bonus_menu"),
+                InlineKeyboardButton("🏆 Leaderboard", callback_data="lb_page_0")
+            ],
+            [
+                InlineKeyboardButton("👥 Referral", callback_data="referral_menu"),
+                InlineKeyboardButton("ℹ️ Help", callback_data="start_help")
+            ]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        text = "🎮 **Welcome to Antaria Casino**"
         
         if update.callback_query:
-            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+            await update.callback_query.edit_message_text(welcome_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
-            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+            await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self.game_launcher(update, "Crash", "crash", "📈")
@@ -3629,22 +3638,78 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
     # --- GAME LOGIC ---
 
     async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show last matches"""
+        """Show previous 10 matches with pagination"""
+        self.ensure_user_registered(update)
         user_id = update.effective_user.id
-        # Use records from DB
-        matches = self.db.get_user_matches(user_id, limit=5)
+        await self.show_matches_page(update, context, 0, user_id)
+
+    async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show previous 10 matches with pagination"""
+        self.ensure_user_registered(update)
+        user_id = update.effective_user.id
+        await self.show_matches_page(update, context, 0, user_id)
+
+    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show player statistics"""
+        user_data = self.ensure_user_registered(update)
+        user_id = update.effective_user.id
+        username = update.effective_user.username or update.effective_user.first_name
+        if username.startswith('@'): username = username[1:]
         
-        if not matches:
-            await update.message.reply_text("No matches found yet. Go play!")
-            return
+        games_played = user_data.get('games_played', 0)
+        games_won = user_data.get('games_won', 0)
+        total_wagered = user_data.get('total_wagered', 0)
+        total_won = user_data.get('total_won', 0)
+        
+        # Calculate win rate
+        win_rate = (games_won / games_played * 100) if games_played > 0 else 0
+        
+        # Determine rank based on wagered amount
+        if total_wagered >= 50000: rank_emoji = "💎 Platinum I"
+        elif total_wagered >= 25000: rank_emoji = "🥇 Gold I"
+        elif total_wagered >= 10000: rank_emoji = "🥈 Silver I"
+        else: rank_emoji = "🥉 Bronze I"
+
+        # Get real dates from games
+        with self.db.app.app_context():
+            from models import Game
+            from sqlalchemy import or_, cast, String
+            first_game = db.session.query(Game).filter(or_(
+                cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['challenger'], String) == str(user_id),
+                cast(Game.data['user_id'], String) == str(user_id)
+            )).order_by(Game.timestamp.asc()).first()
             
-        text = "🏆 <b>Last Matches</b>\n\n"
-        for match in matches:
-            date_str = match.get('timestamp', datetime.now()).strftime("%H:%M:%S")
-            res_emoji = "✅" if match.get('result') == "win" else "❌" if match.get('result') == "loss" else "🤝"
-            text += f"{res_emoji} {match.get('type').upper()} | ${match.get('wager'):.2f} | {date_str}\n"
-            
-        await update.message.reply_text(text, parse_mode="HTML")
+            last_game = db.session.query(Game).filter(or_(
+                cast(Game.data['player_id'], String) == str(user_id),
+                cast(Game.data['challenger'], String) == str(user_id),
+                cast(Game.data['user_id'], String) == str(user_id)
+            )).order_by(Game.timestamp.desc()).first()
+
+        first_game_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "Never played"
+        last_game_str = last_game.timestamp.strftime("%b %d, %Y") if last_game else "Never played"
+        join_date = user_data.get('created_at', datetime.now()).strftime("%b %d, %Y") if 'created_at' in user_data else "Recently"
+        
+        stats_text = f"""
+ℹ️ Stats of <b>{username}</b>
+
+<b>{rank_emoji}</b>
+Games Played: <b>{games_played}</b>
+Wins: <b>{games_won} ({win_rate:.2f}%)</b>
+Total Wagered: <b>${total_wagered:,.2f}</b>
+Total Won: <b>${total_won:,.2f}</b>
+
+Join date: <b>{join_date}</b>
+First game: <b>{first_game_str}</b>
+Last game: <b>{last_game_str}</b>
+"""
+        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if update.callback_query:
+            await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.message.reply_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
 
     def _update_user_stats(self, user_id: int, wager: float, profit: float, result: str):
         """Update user statistics after a game."""
@@ -5688,7 +5753,45 @@ Referral Earnings: ${target_user.get('referral_earnings', 0):.2f}
                 return
 
         # Weekly Bonus Menu
-        if data == "bonus_weekly":
+        elif data == "bonus_menu":
+            await self.bonus_command(update, context)
+            return
+        elif data == "balance_menu":
+            await self.balance_command(update, context)
+            return
+        elif data == "referral_menu":
+            await self.referral_command(update, context)
+            return
+        elif data == "start_help":
+            await self.start_command(update, context)
+            return
+        elif data == "start_back":
+            await self.start_command(update, context)
+            return
+        elif data == "start_games":
+            # Show games menu (similar to /bet but without amount)
+            keyboard = [
+                [InlineKeyboardButton("🎲 Dice", callback_data="dice_menu"),
+                 InlineKeyboardButton("🎱 Predict", callback_data="predict_menu")],
+                [InlineKeyboardButton("🃏 Blackjack", callback_data="bj_menu"),
+                 InlineKeyboardButton("🎰 Roulette", callback_data="roulette_menu")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
+            await query.edit_message_text("🎮 **Select a game to play:**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            return
+        elif data == "dice_menu":
+            await self.dice_command(update, context)
+            return
+        elif data == "predict_menu":
+            await self.dr_command(update, context)
+            return
+        elif data == "bj_menu":
+            await self.blackjack_command(update, context)
+            return
+        elif data == "roulette_menu":
+            await self.roulette_command(update, context)
+            return
+        elif data == "bonus_weekly":
             user_data = self.db.get_user(user_id)
             total_wagered = user_data.get('total_wagered', 0)
             
@@ -6232,6 +6335,14 @@ To deposit, send LTC to the address below:
             if data.startswith("emoji_setup_") or data.startswith("v2_send_emoji_"):
                 from roll_handler import handle_roll
                 await handle_roll(self, update, context)
+                return
+
+            if data == "start_stats":
+                await self.stats_command(update, context)
+                return
+            
+            if data == "start_matches":
+                await self.matches_command(update, context)
                 return
 
             if data.startswith("match_page_"):
