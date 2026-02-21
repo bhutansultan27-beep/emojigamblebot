@@ -233,7 +233,24 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_user(user_id, {'balance': u['balance']})
                 bot_instance.db.update_house_balance(-(payout - w))
                 
+                # Update stats and record game
+                bot_instance._update_user_stats(user_id, w, payout - w, "win")
+                bot_instance.db.record_game({
+                    'type': f"{challenge['game']}_bot",
+                    'player_id': user_id,
+                    'wager': w,
+                    'payout': payout,
+                    'result': 'win',
+                    'timestamp': datetime.now().isoformat()
+                })
+                
                 p1_name = u.get('username', f'User{user_id}')
+                win_text = (
+                    f"🏆 <b>Game over!</b>\n\n"
+                    f"<b>{p1_name}</b> • {challenge['p_pts']}\n"
+                    f"<b>Bot</b> • {challenge['b_pts']}\n\n"
+                    f"✅ <b>{p1_name}</b> won <b>${payout:,.2f}</b>!"
+                )
                 # Use "inverted" if game_mode_type is "crazy" for callback data consistency
                 mode_for_cb = "inverted" if game_mode_type == "crazy" else "normal"
                 kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{challenge['game']}_{w:.2f}_{challenge['rolls']}_{mode_for_cb}_{target_pts}"),
@@ -243,6 +260,18 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             else:
                 bot_instance.db.update_house_balance(w)
                 u = bot_instance.db.get_user(user_id)
+                
+                # Update stats and record game
+                bot_instance._update_user_stats(user_id, w, -w, "loss")
+                bot_instance.db.record_game({
+                    'type': f"{challenge['game']}_bot",
+                    'player_id': user_id,
+                    'wager': w,
+                    'payout': 0,
+                    'result': 'loss',
+                    'timestamp': datetime.now().isoformat()
+                })
+                
                 p1_name = u.get('username', f'User{user_id}')
                 
                 loss_text = (

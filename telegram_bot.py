@@ -4179,9 +4179,14 @@ Last game: <b>{last_game_str}</b>
         elif needed_p == 3 and needed_b == 2: prob = 0.3125
         elif needed_p == 3 and needed_b == 3: prob = 0.5
 
-        # Cashout = (Probability * Total Payout) * (1 - House Edge)
-        # Total Payout is wager * 1.95 (standard for bot games). House edge is ~5%.
-        cashout_val = (prob * (wager * 1.95)) * 0.95
+        # Cashout = (Probability * Total Payout)
+        # Total Payout is wager * 1.95 (standard for bot games).
+        # We use a flat 0.95 multiplier if it's the start of the game or handle edge.
+        cashout_val = (prob * (wager * 1.95))
+        
+        # If it's the start of the game (0-0), ensure it's exactly 0.95x wager as requested
+        if p_pts == 0 and b_pts == 0:
+            cashout_val = wager * 0.95
         
         if not math.isfinite(cashout_val) or cashout_val < 0:
             return 0.0
