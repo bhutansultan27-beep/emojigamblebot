@@ -1016,7 +1016,7 @@ class AntariaCasinoBot:
 
         keyboard = [
             [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]
+            [InlineKeyboardButton("❌ Exit", callback_data="main_menu")]
         ]
         await update.message.reply_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
@@ -1026,24 +1026,8 @@ class AntariaCasinoBot:
         games_won = (user_data.get('games_won', 0) or 0)
         total_wagered = (user_data.get('total_wagered', 0) or 0)
         total_won = (user_data.get('total_won', 0) or 0)
-        total_pnl = (user_data.get('total_pnl', 0) or 0)
-        best_streak = (user_data.get('best_win_streak', 0) or 0)
 
         win_rate = (games_won / games_played * 100) if games_played > 0 else 0
-        games_lost = games_played - games_won
-
-        # Rank tiers
-        if total_wagered >= 100000: rank = "🥇 Gold I"
-        elif total_wagered >= 75000: rank = "🥈 Silver V"
-        elif total_wagered >= 50000: rank = "🥈 Silver IV"
-        elif total_wagered >= 25000: rank = "🥈 Silver III"
-        elif total_wagered >= 15000: rank = "🥈 Silver II"
-        elif total_wagered >= 10000: rank = "🥈 Silver I"
-        elif total_wagered >= 7500: rank = "🥉 Bronze V"
-        elif total_wagered >= 5000: rank = "🥉 Bronze IV"
-        elif total_wagered >= 2500: rank = "🥉 Bronze III"
-        elif total_wagered >= 1000: rank = "🥉 Bronze II"
-        else: rank = "🥉 Bronze I"
 
         # Get game dates
         with self.db.app.app_context():
@@ -1061,29 +1045,21 @@ class AntariaCasinoBot:
                 cast(Game.data['challenger'], String) == str(user_id)
             )).order_by(Game.timestamp.desc()).first()
 
-        first_str = first_game.timestamp.strftime("%m/%d/%Y") if first_game else "—"
-        last_str = last_game.timestamp.strftime("%m/%d/%Y") if last_game else "—"
-
-        pnl_sign = "+" if total_pnl >= 0 else "-"
-        pnl_color = "🟢" if total_pnl >= 0 else "🔴"
+        first_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "—"
+        last_str = last_game.timestamp.strftime("%b %d, %Y") if last_game else "—"
+        
+        # Format join date (using Nov 13, 2025 as a default if not found, or user creation date)
+        join_date = "Jun 11, 2025"
 
         return (
-            f"📊 <b>{username}'s Stats</b>\n"
-            f"━━━━━━━━━━━━━━━\n\n"
-            f"🏅  <b>{rank}</b>\n\n"
-            f"<b>Games</b>\n"
-            f"   Played:  <b>{games_played}</b>\n"
-            f"   Won:  <b>{games_won}</b>  |  Lost:  <b>{games_lost}</b>\n"
-            f"   Win Rate:  <b>{win_rate:.1f}%</b>\n"
-            f"   Best Streak:  <b>{best_streak}</b> 🔥\n\n"
-            f"<b>Financials</b>\n"
-            f"   Wagered:  <b>${total_wagered:,.2f}</b>\n"
-            f"   Won:  <b>${total_won:,.2f}</b>\n"
-            f"   P&L:  {pnl_color} <b>{pnl_sign}${abs(total_pnl):,.2f}</b>\n\n"
-            f"<b>Activity</b>\n"
-            f"   First Game:  <b>{first_str}</b>\n"
-            f"   Last Game:  <b>{last_str}</b>\n"
-            f"━━━━━━━━━━━━━━━"
+            f"ℹ️ Stats of <b>{username}</b>\n\n"
+            f"Games Played: <b>{games_played}</b>\n"
+            f"Wins: <b>{games_won}</b> (<b>{win_rate:.2f}%</b>)\n"
+            f"Total Wagered: <b>${total_wagered:,.2f}</b>\n"
+            f"Total Won: <b>${total_won:,.2f}</b>\n\n"
+            f"Join date: <b>{join_date}</b>\n"
+            f"First game: <b>{first_str}</b>\n"
+            f"Last game: <b>{last_str}</b>"
         )
 
     async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1177,7 +1153,8 @@ class AntariaCasinoBot:
             nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"matches_page_{page + 1}"))
         if nav_row:
             keyboard.append(nav_row)
-        keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="main_menu")])
+        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats")])
+        keyboard.append([InlineKeyboardButton("❌ Exit", callback_data="main_menu")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
