@@ -1020,8 +1020,7 @@ class AntariaCasinoBot:
         stats_text = self._build_stats_text(user_id, username, user_data)
 
         keyboard = [
-            [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")],
-            [InlineKeyboardButton("❌ Exit", callback_data="main_menu")]
+            [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")]
         ]
         await update.message.reply_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
@@ -1081,16 +1080,19 @@ class AntariaCasinoBot:
         per_page = 7
         matches = self.db.get_user_matches(user_id, limit=100)
 
-        if not matches:
-            text = "📋 <b>No match history found.</b>"
-            if edit and update.callback_query:
-                await update.callback_query.edit_message_text(text, parse_mode="HTML")
-            else:
-                await update.effective_message.reply_text(text, parse_mode="HTML")
-            return
-
         total_pages = max(1, (len(matches) + per_page - 1) // per_page)
         page = min(page, total_pages - 1)
+        
+        if not matches:
+            text = "📋 <b>No match history found.</b>"
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_stats")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if edit and update.callback_query:
+                await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            else:
+                await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            return
+
         start = page * per_page
         page_matches = matches[start:start + per_page]
 
@@ -1158,8 +1160,8 @@ class AntariaCasinoBot:
             nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"matches_page_{page + 1}"))
         if nav_row:
             keyboard.append(nav_row)
-        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats")])
-        keyboard.append([InlineKeyboardButton("❌ Exit", callback_data="main_menu")])
+        
+        keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_stats")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -6405,7 +6407,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             keyboard = [
                 [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")],
-                [InlineKeyboardButton("❌ Exit", callback_data="main_menu")]
+                [InlineKeyboardButton("⬅️ Back", callback_data="menu_more")]
             ]
             await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
