@@ -833,7 +833,7 @@ class AntariaCasinoBot:
             ],
             [
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
-                InlineKeyboardButton("📁 More Content", callback_data="menu_more")
+                InlineKeyboardButton("📊 Stats", callback_data="menu_stats")
             ],
             [InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")]
         ]
@@ -1022,11 +1022,6 @@ class AntariaCasinoBot:
             [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")]
         ]
         
-        # Check if we should show the Back button (only if not coming from matches/stats button)
-        # Added check for 'menu_stats' callback data
-        if not (update.callback_query and update.callback_query.data in ["menu_stats", "matches_page_0"]):
-             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
             await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
