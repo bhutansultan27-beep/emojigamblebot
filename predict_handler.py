@@ -199,7 +199,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             payout = wager * multiplier
             user_data = bot_instance.db.get_user(user_id)
             user_data['balance'] += payout
-            bot_instance.db.update_user(user_id, user_data)
+            bot_instance.db.update_user(user_id, {'balance': user_data['balance']})
             bot_instance.db.add_transaction(user_id, "predict_win", payout, f"Prediction win on {game_mode}")
             bot_instance.db.update_house_balance(-(payout - wager))
             
@@ -210,8 +210,12 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 "user_id": user_id,
                 "wager": wager,
                 "payout": payout,
-                "result": "win"
+                "result": "win",
+                "timestamp": datetime.now().isoformat()
             })
+            
+            # Update user stats
+            bot_instance._update_user_stats(user_id, wager, payout - wager, "win")
             
             user_username = user_data.get('username', f'User{user_id}')
             win_text = (
@@ -243,10 +247,15 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
                 "user_id": user_id,
                 "wager": wager,
                 "payout": 0,
-                "result": "loss"
+                "result": "loss",
+                "timestamp": datetime.now().isoformat()
             })
             
-            loss_text = (
+            # Update user stats
+            bot_instance._update_user_stats(user_id, wager, -wager, "loss")
+            
+            user_data = bot_instance.db.get_user(user_id)
+            user_username = user_data.get('username', f'User{user_id}')
                 f"🏆 <b>Game over!</b>\n\n"
                 f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
             )
