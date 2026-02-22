@@ -5313,15 +5313,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     "payout": w + profit if outcome == "win" else 0
                 })
 
-                    # Referral Rakeback (10%)
-                    u_data = self.db.get_user(user_id)
-                    referrer_id = u_data.get('referred_by')
-                    if referrer_id:
-                        referrer_data = self.db.get_user(referrer_id)
-                        bonus_percent = 0.001
-                        bonus_amount = w * bonus_percent 
-                        referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-                        self.db.update_user(referrer_id, referrer_data)
+                # Referral Rakeback (10%)
+                u_data = self.db.get_user(user_id)
+                referrer_id = u_data.get('referred_by')
+                if referrer_id:
+                    referrer_data = self.db.get_user(referrer_id)
+                    bonus_percent = 0.001
+                    bonus_amount = w * bonus_percent 
+                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                    self.db.update_user(referrer_id, referrer_data)
                 
                 # Series End logic
                 if challenge['p_pts'] >= challenge['pts']:
