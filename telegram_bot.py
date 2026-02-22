@@ -209,7 +209,7 @@ class DatabaseManager:
                     val = game_display_data.get(key)
                     if isinstance(val, str):
                         lower_val = val.lower()
-                        if lower_val in ["@dices", "dices", "emoji gamble bot", "emojigamblebot"]:
+                        if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"]:
                             game_display_data[key] = 'Bot'
 
                 user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
@@ -809,7 +809,7 @@ class AntariaCasinoBot:
 
         # 1. First Message: Welcome
         help_text = (
-            "Established. 2025\n\n"
+            "Welcome to **Davaulte**\n\n"
             "Visit @gambledirectory for all additional information about our services\n\n"
             " <b>What games do we offer?</b>\n"
             "• 🎲 Dice - /dice\n"
@@ -1076,7 +1076,7 @@ class AntariaCasinoBot:
         # Simple weekly bonus logic based on wagered amount (e.g., 0.1% of weekly wager)
         weekly_bonus = user_data.get('achievements', {}).get('weekly_bonus_pool', 0)
         
-        boost_active = user_data.get('username') and '@dices' in user_data.get('username')
+        boost_active = user_data.get('username') and '@davaulte' in user_data.get('username')
         boost_status = "✅ Active" if boost_active else "❌ Inactive"
         
         # Check if already claimed this week
@@ -1094,7 +1094,7 @@ class AntariaCasinoBot:
             f"Next claim in: <b>{time_str}</b>\n"
             "(Every Friday at 9PM EST)\n\n"
             "Your weekly reward based on your activity!\n\n"
-            "Add @dices to your name to boost the rakeback by 20%!\n"
+            "Add @davaulte to your name to boost the rakeback by 20%!\n"
             f"Boost: {boost_status}\n\n"
             "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
             "<b>Dice Multipliers:</b>\n"
@@ -1102,7 +1102,7 @@ class AntariaCasinoBot:
             "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
         )
 
-        if is_claimed:
+        if is_weekly and is_claimed:
             text += "\n\n✅ <b>You have already claimed your bonus for this week!</b>"
             keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
         else:
@@ -4064,12 +4064,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             'total_won': (user_data.get('total_won', 0) or 0) + (profit + wager if profit > 0 else 0)
         }
 
-        # Add to weekly bonus pool (base 0.1% + 20% if @dices in name)
+        # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
-        if user_data.get('username') and '@dices' in user_data.get('username'):
-            weekly_percent = 0.201
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            weekly_percent = 0.0012  # 0.1% + 20% boost of that 0.1%
             
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         update_fields['achievements'] = achievements
@@ -4565,10 +4565,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         rakeback = user_data.get('rakeback_balance', 0.0) or 0.0
         since_withdrawal = user_data.get('wagered_since_last_withdrawal', 0.0) or 0.0
 
-        # Rakeback (base 0.1% + 20% if @dices in name)
+        # Rakeback (base 0.1% + 20% if @davaulte in name)
         rakeback_percent = 0.001
-        if user_data.get('username') and '@dices' in user_data.get('username'):
-            rakeback_percent = 0.201
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            rakeback_percent = 0.0012 # 0.1% + 20% boost
             
         updates = {
             'total_wagered': current_wagered + wager,
@@ -4578,12 +4578,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             'rakeback_balance': rakeback + (wager * rakeback_percent)
         }
 
-        # Add to weekly bonus pool (base 0.1% + 20% if @dices in name)
+        # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
-        if user_data.get('username') and '@dices' in user_data.get('username'):
-            weekly_percent = 0.201
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            weekly_percent = 0.0012  # 0.1% + 20% boost of that 0.1%
             
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         updates['achievements'] = achievements
@@ -4618,8 +4618,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
         
-        # Check if @dices in username for 20% boost (on the earned rakeback)
-        if user_data.get('username') and '@dices' in user_data.get('username'):
+        # Check if @davaulte in username for 20% boost (on the earned rakeback)
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
              rakeback_earned *= 1.20
 
         # Check if referred for extra 10%
@@ -4641,7 +4641,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
-        if user_data.get('username') and '@dices' in user_data.get('username'):
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
             weekly_percent = 0.201
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         user_data['achievements'] = achievements
@@ -4667,8 +4667,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
         
-        # Check if @dices in username for 20% boost (on the earned rakeback)
-        if user_data.get('username') and '@dices' in user_data.get('username'):
+        # Check if @davaulte in username for 20% boost (on the earned rakeback)
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
              rakeback_earned *= 1.20
 
         # Check if referred for extra 10%
@@ -4690,7 +4690,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
-        if user_data.get('username') and '@dices' in user_data.get('username'):
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
             weekly_percent = 0.201
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         user_data['achievements'] = achievements
@@ -6165,9 +6165,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         tx_type = "weekly_double" if is_weekly else "rakeback_double"
 
         if final_bonus > 0:
-            updates = {'balance': user_data['balance'] + final_bonus}
+            updates = {
+                'balance': user_data['balance'] + final_bonus,
+                'achievements': achievements
+            }
             if not is_weekly:
                 updates['rakeback_balance'] = 0
+            else:
+                # Mark as claimed
+                achievements['last_weekly_claim_date'] = datetime.now().isoformat()
+                achievements['weekly_bonus_pool'] = 0
             
             self.db.update_user(user_id, updates)
             self.db.add_transaction(user_id, tx_type, final_bonus, f"{bonus_type} Double: {dice_val} ({mult}x)")
@@ -6700,8 +6707,33 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             try:
                 amount = float(data.split("_")[-1])
                 user_data = self.db.get_user(user_id)
+                
+                # Check if already claimed
+                achievements = user_data.get('achievements', {}) or {}
+                last_claim = achievements.get('last_weekly_claim_date')
+                is_claimed = False
+                if last_claim:
+                    import pytz
+                    est = pytz.timezone('US/Eastern')
+                    now_est = datetime.now(est)
+                    days_until_friday = (4 - now_est.weekday()) % 7
+                    target_date = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday)
+                    if now_est >= target_date:
+                        target_date += timedelta(days=7)
+                    last_friday = target_date - timedelta(days=7)
+                    if datetime.fromisoformat(last_claim) > last_friday:
+                        is_claimed = True
+                
+                if is_claimed:
+                    await query.answer("❌ You already claimed this week's bonus!", show_alert=True)
+                    await self.weekly_bonus_submenu(update, context)
+                    return
+
                 if amount > 0:
+                    achievements['last_weekly_claim_date'] = datetime.now().isoformat()
+                    achievements['weekly_bonus_pool'] = 0
                     user_data['balance'] += amount
+                    user_data['achievements'] = achievements
                     self.db.update_user(user_id, user_data)
                     self.db.add_transaction(user_id, "weekly_bonus_claim", amount, f"Weekly Bonus Claim: ${amount:.2f}")
                     await query.answer(f"🎉 Claimed ${amount:.2f} weekly bonus!", show_alert=True)
@@ -6722,6 +6754,27 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await query.answer("❌ No weekly bonus to roll!", show_alert=True)
                     return
                 
+                user_data = self.db.get_user(user_id)
+                achievements = user_data.get('achievements', {}) or {}
+                last_claim = achievements.get('last_weekly_claim_date')
+                is_claimed = False
+                if last_claim:
+                    import pytz
+                    est = pytz.timezone('US/Eastern')
+                    now_est = datetime.now(est)
+                    days_until_friday = (4 - now_est.weekday()) % 7
+                    target_date = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday)
+                    if now_est >= target_date:
+                        target_date += timedelta(days=7)
+                    last_friday = target_date - timedelta(days=7)
+                    if datetime.fromisoformat(last_claim) > last_friday:
+                        is_claimed = True
+                
+                if is_claimed:
+                    await query.answer("❌ You already claimed this week's bonus!", show_alert=True)
+                    await self.weekly_bonus_submenu(update, context)
+                    return
+
                 # Update: Directly implement the roll logic for weekly
                 await self.rakeback_double_roll(update, context, amount, is_weekly=True)
             except Exception as e:
