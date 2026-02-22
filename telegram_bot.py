@@ -842,14 +842,12 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
-                InlineKeyboardButton("🎁 Bonus", callback_data="menu_bonus")
+                InlineKeyboardButton("🎁 Bonus", callback_data="menu_bonus"),
+                InlineKeyboardButton("🏎️ Races", callback_data="menu_races")
             ],
             [
                 InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start"),
                 InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals")
-            ],
-            [
-                InlineKeyboardButton("🏎️ Races", callback_data="menu_races")
             ],
             [
                 InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")
@@ -1015,9 +1013,8 @@ class AntariaCasinoBot:
         keyboard = [
             [
                 InlineKeyboardButton("🎁 Rakeback", callback_data="bonus_rakeback_menu"),
-                InlineKeyboardButton("📅 Weekly Bonus", callback_data="bonus_weekly_menu")
+                InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly_menu")
             ],
-            [InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
             [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1058,12 +1055,31 @@ class AntariaCasinoBot:
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
         
+        # Calculate time until Friday 9PM EST
+        import pytz
+        from datetime import datetime
+        est = pytz.timezone('US/Eastern')
+        now_est = datetime.now(est)
+        
+        # Target: Friday (4) at 21:00
+        days_until_friday = (4 - now_est.weekday()) % 7
+        target_date = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday)
+        
+        if now_est >= target_date:
+            target_date += timedelta(days=7)
+            
+        diff = target_date - now_est
+        hours, remainder = divmod(diff.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        time_str = f"{diff.days}d {hours}h {minutes}m"
+
         # Simple weekly bonus logic based on wagered amount (e.g., 0.1% of weekly wager)
-        # For now, let's use a placeholder or calculate based on total_wagered as a simple simulation
         weekly_bonus = (user_data.get('total_wagered', 0) * 0.001) 
         
         text = (
-            f"📅 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
+            f"🎁 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
+            f"Next claim in: <b>{time_str}</b>\n"
+            "(Every Friday at 9PM EST)\n\n"
             "Your weekly reward based on your activity!\n\n"
             "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
             "<b>Dice Multipliers:</b>\n"
@@ -3388,9 +3404,6 @@ class AntariaCasinoBot:
                 is_valid = True
         elif coin_type == "SOL":
             if re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
-                is_valid = True
-        elif coin_type == "XMR":
-            if re.match(r"^[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}$", address):
                 is_valid = True
         elif coin_type == "TON":
             if re.match(r"^[a-zA-Z0-9_-]{48}$", address):
@@ -6218,6 +6231,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 [InlineKeyboardButton("Litecoin (LTC)", callback_data=f"deposit_coin_ltc_{back_data}")],
                 [InlineKeyboardButton("Bitcoin (BTC)", callback_data=f"deposit_coin_btc_{back_data}")],
                 [InlineKeyboardButton("Ethereum (ETH)", callback_data=f"deposit_coin_eth_{back_data}")],
+                [InlineKeyboardButton("Solana (SOL)", callback_data=f"deposit_coin_sol_{back_data}")],
+                [InlineKeyboardButton("TON (TON)", callback_data=f"deposit_coin_ton_{back_data}")],
                 [InlineKeyboardButton("⬅️ Back", callback_data=back_data)]
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -6233,7 +6248,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             addresses = {
                 "LTC": "LTC_ADDRESS_HERE",
                 "BTC": "BTC_ADDRESS_HERE",
-                "ETH": "ETH_ADDRESS_HERE"
+                "ETH": "ETH_ADDRESS_HERE",
+                "SOL": "SOL_ADDRESS_HERE",
+                "TON": "TON_ADDRESS_HERE"
             }
             addr = addresses.get(coin, "ADDRESS_HERE")
             
@@ -6262,6 +6279,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 [InlineKeyboardButton("Litecoin (LTC)", callback_data=f"withdraw_coin_ltc_{back_data}")],
                 [InlineKeyboardButton("Bitcoin (BTC)", callback_data=f"withdraw_coin_btc_{back_data}")],
                 [InlineKeyboardButton("Ethereum (ETH)", callback_data=f"withdraw_coin_eth_{back_data}")],
+                [InlineKeyboardButton("Solana (SOL)", callback_data=f"withdraw_coin_sol_{back_data}")],
+                [InlineKeyboardButton("TON (TON)", callback_data=f"withdraw_coin_ton_{back_data}")],
                 [InlineKeyboardButton("⬅️ Back", callback_data=back_data)]
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
