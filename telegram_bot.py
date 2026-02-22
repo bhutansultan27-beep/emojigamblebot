@@ -339,6 +339,7 @@ class AntariaCasinoBot:
     def setup_handlers(self):
         """Setup all command and callback handlers"""
         from telegram.ext import TypeHandler
+        self.app.add_handler(CommandHandler("reset", self.reset_bot_command))
         self.app.add_handler(TypeHandler(Update, self.log_update), group=-1)
 
         self.app.add_handler(CommandHandler("start", self.start_command))
@@ -833,8 +834,8 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
-                InlineKeyboardButton("💰 Balance", callback_data="balance_back_from_start"),
-                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus")
+                InlineKeyboardButton("🎁 Balance", callback_data="balance_back_from_start"),
+                InlineKeyboardButton("🎁 Rakeback", callback_data="menu_bonus")
             ],
             [
                 InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start"),
@@ -998,18 +999,22 @@ class AntariaCasinoBot:
         rakeback = user_data.get('rakeback_balance', 0)
 
         bonus_text = (
-            "🎁 <b>Bonus & Rakeback</b>\n\n"
+            "🎁 <b>Rakeback & Bonuses</b>\n\n"
             "In this section you can find bonuses that you can get by playing games!\n\n"
-            f"💰 <b>Rakeback: ${rakeback:,.2f}</b>\n"
+            f"🎁 <b>Rakeback: ${rakeback:,.2f}</b>\n"
             "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
-            "🎁 <b>Weekly Bonus</b>\n"
-            "Play different games during the week and claim your bonus every Saturday."
+            "You can claim your rakeback directly or try to double it with a dice roll!\n\n"
+            "<b>Dice Multipliers:</b>\n"
+            "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
+            "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
         )
 
         keyboard = [
-            [InlineKeyboardButton(f"💰 Collect Rakeback (${rakeback:,.2f})", callback_data="collect_rakeback")],
-            [InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
-             InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
+            [
+                InlineKeyboardButton(f"🎁 Claim ${rakeback:,.2f}", callback_data=f"rakeback_claim_direct_{rakeback:.2f}"),
+                InlineKeyboardButton("🎲 Try To Double", callback_data=f"rakeback_double_{rakeback:.2f}")
+            ],
+            [InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
             [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -6357,364 +6362,86 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await self.blackjack_command(update, context)
                 return
 
-        # Weekly Bonus Menu
-        if data == "bonus_weekly":
-            user_data = self.db.get_user(user_id)
-            achievements = user_data.get('achievements', {}) or {}
-
-            # Weekly bonus pool = rakeback accumulated this period
-            bonus_pool = achievements.get('weekly_bonus_pool', 0)
-
-            # Check if claim window is open: Saturday 9PM EST to Sunday 9PM EST
-            import pytz
-            est = pytz.timezone('US/Eastern')
-            now_est = datetime.now(est)
-
-            # Find last Saturday 9PM EST
-            days_since_saturday = (now_est.weekday() - 5) % 7
-            last_saturday = now_est - timedelta(days=days_since_saturday)
-            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
-            if claim_open > now_est:
-                claim_open -= timedelta(weeks=1)
-            claim_close = claim_open + timedelta(hours=24)
-
-            # Check admin bypass
-            is_claim_window = claim_open <= now_est <= claim_close
-            admin_bypass = getattr(self, '_bonus_bypass', False) and self.is_admin(user_id)
-            can_claim = (is_claim_window or admin_bypass) and bonus_pool > 0
-
-            bonus_amount = round(bonus_pool, 2)
-
-            # Time info
-            if is_claim_window:
-                time_left = claim_close - now_est
-                hours_left = int(time_left.total_seconds() // 3600)
-                mins_left = int((time_left.total_seconds() % 3600) // 60)
-                time_text = f"⏰ Claim window open! <b>{hours_left}h {mins_left}m</b> remaining"
-            else:
-                next_open = claim_open + timedelta(weeks=1)
-                time_left = next_open - now_est
-                days_left = time_left.days
-                hours_left = int((time_left.total_seconds() % 86400) // 3600)
-                time_text = f"🔒 Next claim: <b>Saturday 9:00 PM EST</b> (in {days_left}d {hours_left}h)"
-
-            weekly_text = (
-                "🎁 <b>Weekly Bonus</b>\n\n"
-                "Get a percentage of fees from your games as a bonus!\n"
-                "You can claim it or try to double it with a dice roll.\n\n"
-                "<b>Dice Multipliers:</b>\n"
-                "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
-                "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x\n\n"
-                f"{time_text}\n\n"
-                f"🎁 Bonus: <b>${bonus_amount:,.2f}</b>"
-            )
-
-            if can_claim:
-                keyboard = [
-                    [
-                        InlineKeyboardButton(f"🎁 Claim ${bonus_amount:.2f}", callback_data=f"bonus_weekly_claim_{bonus_amount:.2f}"),
-                        InlineKeyboardButton("🎲 Try To Double", callback_data=f"bonus_weekly_double_{bonus_amount:.2f}")
-                    ],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")]
-                ]
-            else:
-                keyboard = [
-                    [
-                        InlineKeyboardButton("🔒 Claim Bonus 🔒", callback_data="bonus_weekly_locked"),
-                        InlineKeyboardButton("🔒 Try To Double 🔒", callback_data="bonus_weekly_locked")
-                    ],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")]
-                ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await query.edit_message_text(weekly_text, reply_markup=reply_markup, parse_mode="HTML")
-            return
-
-        if data == "bonus_weekly_locked":
-            await query.answer("🔒 Bonus can only be claimed on Saturday 9PM - Sunday 9PM EST!", show_alert=True)
-            return
-
-        if data == "bonus_weekly_none":
-            await query.answer("Play some games first to earn a bonus!", show_alert=True)
-            return
-
-        if data.startswith("bonus_weekly_claim_"):
-            bonus = float(data.split("_")[-1])
-            if bonus <= 0:
-                await query.answer("❌ No bonus to claim!", show_alert=True)
+        # Rakeback Claim Direct
+        if data.startswith("rakeback_claim_direct_"):
+            amount = float(data.split("_")[-1])
+            if amount < 0.01:
+                await query.answer("❌ Rakeback balance too low!", show_alert=True)
                 return
+            
             user_data = self.db.get_user(user_id)
-            achievements = user_data.get('achievements', {}) or {}
-
-            # Verify claim window or admin bypass
-            import pytz
-            est = pytz.timezone('US/Eastern')
-            now_est = datetime.now(est)
-            days_since_saturday = (now_est.weekday() - 5) % 7
-            last_saturday = now_est - timedelta(days=days_since_saturday)
-            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
-            if claim_open > now_est:
-                claim_open -= timedelta(weeks=1)
-            claim_close = claim_open + timedelta(hours=24)
-
-            admin_bypass = getattr(self, '_bonus_bypass', False) and self.is_admin(user_id)
-            if not (claim_open <= now_est <= claim_close) and not admin_bypass:
-                await query.answer("🔒 Claim window has closed!", show_alert=True)
+            current_rakeback = user_data.get('rakeback_balance', 0)
+            
+            if current_rakeback < amount:
+                await query.answer("❌ Error: Balance mismatch!", show_alert=True)
                 return
 
-            # Clear the pool and pay out
-            achievements['weekly_bonus_pool'] = 0
             self.db.update_user(user_id, {
-                'balance': user_data['balance'] + bonus,
-                'achievements': achievements
+                'balance': user_data['balance'] + amount,
+                'rakeback_balance': 0
             })
-            self.db.add_transaction(user_id, "weekly_bonus", bonus, f"Weekly Bonus Claim: ${bonus:.2f}")
-            await query.answer(f"🎉 Claimed ${bonus:.2f}!", show_alert=True)
-            # Refresh
-            query.data = "bonus_weekly"
+            self.db.add_transaction(user_id, "rakeback_claim", amount, "Claimed Rakeback")
+            await query.answer(f"🎉 Claimed ${amount:,.2f} rakeback!", show_alert=True)
+            
+            # Refresh menu
+            query.data = "menu_bonus"
             await self.button_callback(update, context)
             return
 
-        if data.startswith("bonus_weekly_double_"):
-            bonus = float(data.split("_")[-1])
-            if bonus <= 0:
-                await query.answer("❌ No bonus to double!", show_alert=True)
+        # Rakeback Double
+        if data.startswith("rakeback_double_"):
+            amount = float(data.split("_")[-1])
+            if amount < 0.01:
+                await query.answer("❌ Rakeback balance too low!", show_alert=True)
                 return
 
             user_data = self.db.get_user(user_id)
-            achievements = user_data.get('achievements', {}) or {}
-
-            # Verify claim window or admin bypass
-            import pytz
-            est = pytz.timezone('US/Eastern')
-            now_est = datetime.now(est)
-            days_since_saturday = (now_est.weekday() - 5) % 7
-            last_saturday = now_est - timedelta(days=days_since_saturday)
-            claim_open = last_saturday.replace(hour=21, minute=0, second=0, microsecond=0)
-            if claim_open > now_est:
-                claim_open -= timedelta(weeks=1)
-            claim_close = claim_open + timedelta(hours=24)
-
-            admin_bypass = getattr(self, '_bonus_bypass', False) and self.is_admin(user_id)
-            if not (claim_open <= now_est <= claim_close) and not admin_bypass:
-                await query.answer("🔒 Claim window has closed!", show_alert=True)
+            current_rakeback = user_data.get('rakeback_balance', 0)
+            
+            if current_rakeback < amount:
+                await query.answer("❌ Error: Balance mismatch!", show_alert=True)
                 return
 
-            # Remove both buttons
+            # Remove buttons
             try:
                 await query.edit_message_reply_markup(reply_markup=None)
             except Exception:
                 pass
 
-            # Send dice
             chat_id = query.message.chat_id
             sent_dice = await context.bot.send_dice(chat_id=chat_id, emoji="🎲")
             dice_val = sent_dice.dice.value
 
             multipliers = {1: 0, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 2}
             mult = multipliers.get(dice_val, 1)
-            final_bonus = round(bonus * mult, 2)
+            final_bonus = round(amount * mult, 2)
 
-            await asyncio.sleep(4)  # Wait for animation
-
-            # Clear pool regardless of outcome
-            achievements['weekly_bonus_pool'] = 0
+            await asyncio.sleep(4)
 
             if final_bonus > 0:
                 self.db.update_user(user_id, {
                     'balance': user_data['balance'] + final_bonus,
-                    'achievements': achievements
+                    'rakeback_balance': 0
                 })
-                self.db.add_transaction(user_id, "weekly_bonus_double", final_bonus, f"Weekly Bonus Double: {dice_val} ({mult}x)")
-                result_text = f"🎲 Rolled <b>{dice_val}</b> ({mult}x)\n\n🎉 You won <b>${final_bonus:.2f}</b>!"
+                self.db.add_transaction(user_id, "rakeback_double", final_bonus, f"Rakeback Double: {dice_val} ({mult}x)")
+                result_text = f"🎲 Rolled <b>{dice_val}</b> ({mult}x)\n\n🎉 You won <b>${final_bonus:.2f}</b> rakeback!"
             else:
-                self.db.update_user(user_id, {'achievements': achievements})
-                result_text = f"🎲 Rolled <b>{dice_val}</b> (0x)\n\n😔 Better luck next time!"
+                self.db.update_user(user_id, {'rakeback_balance': 0})
+                result_text = f"🎲 Rolled <b>{dice_val}</b> (0x)\n\n😔 Better luck next time! Rakeback lost."
 
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")]]
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
             await context.bot.send_message(chat_id=chat_id, text=result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
 
-        # Level Up Bonus Menu
-        if data == "bonus_levelup":
-            user_data = self.db.get_user(user_id)
-            total_wagered = user_data.get('total_wagered', 0)
-            achievements = user_data.get('achievements', {}) or {}
-            claimed_levels = achievements.get('claimed_levels', [])
-
-            # Level tiers: (name, wager_threshold, bonus_amount)
-            LEVELS = [
-                ("🥉 Bronze I", 0, 0),
-                ("🥉 Bronze II", 1000, 5),
-                ("🥉 Bronze III", 2500, 10),
-                ("🥉 Bronze IV", 5000, 15),
-                ("🥉 Bronze V", 7500, 20),
-                ("🥈 Silver I", 10000, 25),
-                ("🥈 Silver II", 15000, 35),
-                ("🥈 Silver III", 25000, 50),
-                ("🥈 Silver IV", 50000, 75),
-                ("🥈 Silver V", 75000, 100),
-                ("🥇 Gold I", 100000, 150),
-            ]
-
-            # Find current level
-            current_idx = 0
-            for i, (name, threshold, bonus) in enumerate(LEVELS):
-                if total_wagered >= threshold:
-                    current_idx = i
-
-            current_name, current_threshold, _ = LEVELS[current_idx]
-
-            # Find next level
-            next_idx = min(current_idx + 1, len(LEVELS) - 1)
-            next_name, next_threshold, next_bonus = LEVELS[next_idx]
-
-            # Find next unclaimed level bonus
-            claimable_level = None
-            claimable_bonus = 0
-            for i, (name, threshold, bonus) in enumerate(LEVELS):
-                if i == 0:
-                    continue  # Bronze I has no bonus
-                if total_wagered >= threshold and str(i) not in claimed_levels:
-                    claimable_level = i
-                    claimable_bonus = bonus
-                    break
-
-            wager_to_upgrade = max(0, next_threshold - total_wagered)
-
-            levelup_text = (
-                "🌲 <b>Level Up Bonus</b>\n\n"
-                "Play games, level up and get even more bonuses!\n\n"
-                "Your current level:\n"
-                f"<b>{current_name} - ${total_wagered:,.0f} wagered</b>\n\n"
-            )
-
-            if current_idx < len(LEVELS) - 1:
-                levelup_text += (
-                    "Next Level:\n"
-                    f"<b>{next_name} - ${next_threshold:,.0f} wagered</b>\n\n"
-                    f"Wager <b>${wager_to_upgrade:,.0f}</b> more to upgrade your level!"
-                )
-            else:
-                levelup_text += "🏆 You've reached the highest level!"
-
-            keyboard = []
-            if claimable_level is not None:
-                keyboard.append([InlineKeyboardButton(f"🎁 Claim ${claimable_bonus:,.0f} Bonus 🎁", callback_data=f"bonus_levelup_claim_{claimable_level}")])
-            else:
-                keyboard.append([InlineKeyboardButton(f"🔒 Claim ${next_bonus:,.0f} Bonus 🔒", callback_data="bonus_levelup_claim_locked")])
-            keyboard.append([InlineKeyboardButton("Levels List", callback_data="bonus_levels_list")])
-            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="bonus_main")])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await query.edit_message_text(levelup_text, reply_markup=reply_markup, parse_mode="HTML")
-            return
-
-        # Handle level up bonus claim
-        if data.startswith("bonus_levelup_claim_") and data != "bonus_levelup_claim_locked":
-            level_idx = int(data.split("_")[-1])
-            user_data = self.db.get_user(user_id)
-            total_wagered = user_data.get('total_wagered', 0)
-            achievements = user_data.get('achievements', {}) or {}
-            claimed_levels = achievements.get('claimed_levels', [])
-
-            LEVELS = [
-                ("🥉 Bronze I", 0, 0),
-                ("🥉 Bronze II", 1000, 5),
-                ("🥉 Bronze III", 2500, 10),
-                ("🥉 Bronze IV", 5000, 15),
-                ("🥉 Bronze V", 7500, 20),
-                ("🥈 Silver I", 10000, 25),
-                ("🥈 Silver II", 15000, 35),
-                ("🥈 Silver III", 25000, 50),
-                ("🥈 Silver IV", 50000, 75),
-                ("🥈 Silver V", 75000, 100),
-                ("🥇 Gold I", 100000, 150),
-            ]
-
-            if level_idx >= len(LEVELS):
-                await query.answer("❌ Invalid level!", show_alert=True)
-                return
-
-            level_name, threshold, bonus = LEVELS[level_idx]
-
-            if total_wagered < threshold:
-                await query.answer(f"❌ You need ${threshold:,.0f} wagered to claim this!", show_alert=True)
-                return
-
-            if str(level_idx) in claimed_levels:
-                await query.answer("❌ Already claimed!", show_alert=True)
-                return
-
-            # Claim the bonus
-            claimed_levels.append(str(level_idx))
-            achievements['claimed_levels'] = claimed_levels
-            self.db.update_user(user_id, {
-                'balance': user_data['balance'] + bonus,
-                'achievements': achievements
-            })
-            self.db.add_transaction(user_id, "level_bonus", bonus, f"Level Up Bonus: {level_name}")
-
-            await query.answer(f"🎉 Claimed ${bonus:,.0f} for reaching {level_name}!", show_alert=True)
-
-            # Refresh the levelup page
-            # Re-trigger the bonus_levelup display
-            query.data = "bonus_levelup"
+        # Weekly Bonus Menu (Deprecated, redirected to Rakeback/Bonus menu)
+        if data == "bonus_weekly":
+            query.data = "menu_bonus"
             await self.button_callback(update, context)
             return
 
-        if data == "bonus_levelup_claim_locked":
-            await query.answer("🔒 Keep wagering to unlock this bonus!", show_alert=True)
-            return
-
-        # Levels List Menu
-        if data == "bonus_levels_list":
-            levels_text = (
-                "📊 <b>Levels List</b>\n\n"
-                "🥉 <b>Bronze I</b>: $0 wagered\n"
-                "🥉 <b>Bronze II</b>: $1,000 wagered\n"
-                "🥉 <b>Bronze III</b>: $2,500 wagered\n"
-                "🥉 <b>Bronze IV</b>: $5,000 wagered\n"
-                "🥉 <b>Bronze V</b>: $7,500 wagered\n"
-                "🥈 <b>Silver I</b>: $10,000 wagered\n"
-                "🥈 <b>Silver II</b>: $15,000 wagered\n"
-                "🥈 <b>Silver III</b>: $25,000 wagered\n"
-                "🥈 <b>Silver IV</b>: $50,000 wagered\n"
-                "🥈 <b>Silver V</b>: $75,000 wagered\n"
-                "🥇 <b>Gold I</b>: $100,000 wagered\n\n"
-                "Keep playing to climb the ranks and unlock bigger rewards!"
-            )
-
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="bonus_levelup")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await query.edit_message_text(levels_text, reply_markup=reply_markup, parse_mode="HTML")
-            return
-
-        # Bonus main menu (back button from weekly/levelup)
         if data == "bonus_main":
-            bonus_text = (
-                "🎁 <b>Bonus & Rakeback</b>\n\n"
-                "In this section you can find bonuses that you can get by playing games!\n\n"
-                "💰 <b>Rakeback</b>\n"
-                "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
-                "🎁 <b>Weekly Bonus</b>\n"
-                "Play different games during the week and claim your bonus every Saturday.\n\n"
-                "🎁 <b>Level Up Bonus</b>\n"
-                "Play games, level up and earn money!"
-            )
-
-            keyboard = [
-                [InlineKeyboardButton("💰 Collect Rakeback", callback_data="collect_rakeback")],
-                [
-                    InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
-                    InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
-                ],
-                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            query.data = "menu_bonus"
+            await self.button_callback(update, context)
             return
 
         # Start menu back button
@@ -8652,23 +8379,17 @@ To withdraw, use:
     # --- RAKEBACK ---
 
     async def rakeback_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Claim rakeback balance"""
-        user_id = update.effective_user.id
-        user_data = self.db.get_user(user_id)
-        rakeback = user_data.get('rakeback_balance', 0) or 0
-        
-        if rakeback < 0.01:
-            await update.message.reply_text(f"Your rakeback balance is too low to claim: **${rakeback:,.2f}**", parse_mode="Markdown")
-            return
-            
-        # Add to balance and reset rakeback
-        self.db.update_user(user_id, {
-            'balance': user_data['balance'] + rakeback,
-            'rakeback_balance': 0
-        })
-        self.db.add_transaction(user_id, "rakeback_claim", rakeback, "Claimed 2% Rakeback")
-        
-        await update.message.reply_text(f"✅ Successfully claimed **${rakeback:,.2f}** rakeback!", parse_mode="Markdown")
+        """Show rakeback menu"""
+        await self.bonus_command(update, context)
+
+    # --- RESET ---
+    async def reset_bot_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Reset command for users or admins (implementing reset requirement)"""
+        # If user is admin, they might want a full wipe, otherwise just reset their session
+        if self.is_admin(update.effective_user.id):
+             await self.ks_command(update, context)
+        else:
+             await update.message.reply_text("Bot reset. Please use /start to begin.")
 
 async def main():
     BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_TOKEN", "")).strip()
