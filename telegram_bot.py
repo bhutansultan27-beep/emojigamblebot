@@ -1049,39 +1049,45 @@ class AntariaCasinoBot:
             sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
-    async def rakeback_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def rakeback_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, text_override: str = None):
         """Show rakeback specific submenu"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
         rakeback = user_data.get('rakeback_balance', 0)
 
-        text = (
-            f"🎁 <b>Rakeback: ${rakeback:,.2f}</b>\n\n"
-            "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
-            "You can claim your rakeback directly or try to double it with a dice roll!\n\n"
-            "<b>Dice Multipliers:</b>\n"
-            "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
-            "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
-        )
+        if text_override:
+            text = text_override
+        else:
+            text = (
+                f"🎁 <b>Rakeback: ${rakeback:,.2f}</b>\n\n"
+                "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
+                "You can claim your rakeback directly or try to double it with a dice roll!\n\n"
+                "<b>Dice Multipliers:</b>\n"
+                "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
+                "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
+            )
 
         keyboard = [
             [
-                InlineKeyboardButton(f"🎁 Claim ${weekly_bonus:,.2f}", callback_data=f"weekly_claim_direct_{weekly_bonus:.2f}"),
-                InlineKeyboardButton("🎲 Try To Double", callback_data=f"weekly_double_{weekly_bonus:.2f}")
+                InlineKeyboardButton(f"🎁 Claim ${rakeback:,.2f}", callback_data=f"rakeback_claim_direct_{rakeback:.2f}"),
+                InlineKeyboardButton("🎲 Try To Double", callback_data=f"rakeback_double_{rakeback:.2f}")
             ],
             [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        if update.callback_query:
+            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
-    async def weekly_bonus_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def weekly_bonus_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, text_override: str = None):
         """Show weekly bonus specific submenu"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
 
         # Calculate time until Friday 9PM EST
         import pytz
-        from datetime import datetime
+        from datetime import datetime, timedelta
         est = pytz.timezone('US/Eastern')
         now_est = datetime.now(est)
 
@@ -1113,20 +1119,23 @@ class AntariaCasinoBot:
             if last_claim_dt > last_friday:
                 is_claimed = True
 
-        text = (
-            f"🎁 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
-            f"Next claim in: <b>{time_str}</b>\n"
-            "(Every Friday at 9PM EST)\n\n"
-            "Your weekly reward based on your activity!\n\n"
-            "Add @davaulte to your name to boost the rakeback by 20%!\n"
-            f"Boost: {boost_status}\n\n"
-            "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
-            "<b>Dice Multipliers:</b>\n"
-            "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
-            "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
-        )
+        if text_override:
+            text = text_override
+        else:
+            text = (
+                f"🎁 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
+                f"Next claim in: <b>{time_str}</b>\n"
+                "(Every Friday at 9PM EST)\n\n"
+                "Your weekly reward based on your activity!\n\n"
+                "Add @davaulte to your name to boost the rakeback by 20%!\n"
+                f"Boost: {boost_status}\n\n"
+                "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
+                "<b>Dice Multipliers:</b>\n"
+                "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
+                "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
+            )
 
-        if is_weekly and is_claimed:
+        if is_claimed:
             text += "\n\n✅ <b>You have already claimed your bonus for this week!</b>"
             keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
         else:
@@ -1138,7 +1147,10 @@ class AntariaCasinoBot:
                 [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
             ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        if update.callback_query:
+            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, show_back=False):
         """Show player statistics"""
