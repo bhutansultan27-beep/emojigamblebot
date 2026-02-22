@@ -4474,6 +4474,50 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         self.db.update_user(user_id, updates)
 
+    def _update_user_stats(self, user_id, wager, profit, outcome):
+        """Helper to update user stats in database"""
+        user_data = self.db.get_user(user_id)
+        user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
+        user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
+        user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
+        
+        if outcome == "win":
+            user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
+            user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
+            user_data['win_streak'] = (user_data.get('win_streak', 0) or 0) + 1
+            if user_data['win_streak'] > (user_data.get('best_win_streak', 0) or 0):
+                user_data['best_win_streak'] = user_data['win_streak']
+        else:
+            user_data['win_streak'] = 0
+            
+        # Rakeback (2%)
+        rakeback_earned = wager * 0.02
+        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        
+        self.db.update_user(user_id, user_data)
+
+    def _update_user_stats(self, user_id, wager, profit, outcome):
+        """Helper to update user stats in database"""
+        user_data = self.db.get_user(user_id)
+        user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
+        user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
+        user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
+        
+        if outcome == "win":
+            user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
+            user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
+            user_data['win_streak'] = (user_data.get('win_streak', 0) or 0) + 1
+            if user_data['win_streak'] > (user_data.get('best_win_streak', 0) or 0):
+                user_data['best_win_streak'] = user_data['win_streak']
+        else:
+            user_data['win_streak'] = 0
+            
+        # Rakeback (2%)
+        rakeback_earned = wager * 0.02
+        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        
+        self.db.update_user(user_id, user_data)
+
     async def handle_emoji_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handles dice/emoji responses from users (for game rolls)"""
         if not update.message or not update.message.dice:
@@ -5097,14 +5141,21 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
                 profit = (w * 0.95) if outcome == "win" else -w
                 
+                # Update user stats and balance
                 self._update_user_stats(user_id, w, profit, outcome)
+                
                 self.db.record_game({
                     "type": f"{challenge['game']}_bot",
                     "player_id": user_id,
+                    "user_id": user_id,
                     "wager": w,
+                    "bet": w,
                     "result": outcome,
                     "p_score": challenge['p_pts'],
-                    "b_score": challenge['b_pts']
+                    "b_score": challenge['b_pts'],
+                    "game": challenge['game'],
+                    "profit": profit,
+                    "payout": w + profit if outcome == "win" else 0
                 })
                 
                 # Series End logic
