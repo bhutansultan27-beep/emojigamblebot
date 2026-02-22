@@ -3,7 +3,7 @@ import logging
 import random
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
-from models import db, User, GlobalState
+from models import db, User, GlobalState, Game
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
