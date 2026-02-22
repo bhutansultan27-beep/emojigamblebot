@@ -1008,10 +1008,8 @@ class AntariaCasinoBot:
         stats_text = self._build_stats_text(user_id, username, user_data)
 
         keyboard = [
-            [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'back' if show_back else 'noback'}")]
+            [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_noback")]
         ]
-        if show_back:
-            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
@@ -5798,7 +5796,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     f"Total Won: <b>${total_won:,.2f}</b>"
                 )
 
-                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                keyboard = [
+                    [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_back")],
+                    [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+                ]
                 await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
                 return
 
