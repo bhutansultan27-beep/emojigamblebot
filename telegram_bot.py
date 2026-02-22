@@ -2943,67 +2943,9 @@ class AntariaCasinoBot:
 
     async def blackjack_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start a new blackjack game"""
-        user_id = update.effective_user.id
-        if user_id in self.blackjack_sessions:
-            await update.message.reply_text("❌ You already have an active game! Use buttons to play.")
-            return
-
-        if not context.args:
-            await update.message.reply_text("Usage: /blackjack [amount]")
-            return
-
-        try:
-            bet = float(context.args[0])
-            if bet <= 0: raise ValueError
-        except ValueError:
-            await update.message.reply_text("❌ Invalid bet amount.")
-            return
-
-        user_data = self.db.get_user(user_id)
-        if bet > user_data['balance']:
-            await update.message.reply_text(f"❌ Insufficient balance! (${user_data['balance']:.2f})")
-            return
-
-        # Deduct bet
-        self.db.update_user(user_id, {'balance': user_data['balance'] - bet})
-        self.db.add_transaction(user_id, "blackjack_bet", -bet, f"Blackjack bet: ${bet:.2f}")
-
-        game = BlackjackGame(bet)
-        game.start_game()
-        self.blackjack_sessions[user_id] = game
-        
-        # Check if game ended immediately (BJ)
-        state = game.get_game_state()
-        if state['game_over']:
-            payout = state['total_payout']
-            outcome = "win" if payout > 0 else "draw" if payout == 0 else "loss"
-            # initial bet was deducted, so profit is payout
-            self._update_user_stats(user_id, bet, payout, outcome)
-            if payout > 0:
-                user_data = self.db.get_user(user_id)
-                user_data['balance'] += (bet + payout)
-                self.db.update_user(user_id, user_data)
-                self.db.update_house_balance(-payout)
-            elif payout == 0:
-                user_data = self.db.get_user(user_id)
-                user_data['balance'] += bet
-                self.db.update_user(user_id, user_data)
-            else:
-                self.db.update_house_balance(bet)
-            
-            del self.blackjack_sessions[user_id]
-
-        await self._send_blackjack_msg(update, context, user_id)
-
-    async def _send_blackjack_msg(self, update, context, user_id):
-        """Start a Blackjack game"""
         if not update.effective_message:
             return
 
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Ensure user is registered
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
 
@@ -3071,7 +3013,7 @@ class AntariaCasinoBot:
         try:
             from blackjack import BlackjackGame
             game = BlackjackGame(bet_amount=wager)
-            start_msg = game.start_game()
+            game.start_game()
             self.blackjack_sessions[user_id] = game
 
             # Show game state
@@ -3083,8 +3025,7 @@ class AntariaCasinoBot:
             if u_data:
                 u_data['balance'] += wager
                 self.db.update_user(user_id, u_data)
-            # Silent fallback or minimal notification instead of error message
-            pass
+            await update.effective_message.reply_text("❌ An error occurred while starting the game. Your bet has been refunded.")
 
     async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
         """Display the current Blackjack game state with action buttons"""
