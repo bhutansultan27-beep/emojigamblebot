@@ -3027,7 +3027,7 @@ class AntariaCasinoBot:
                 "• Stand: Keep current hand\n"
                 "• Double: Double bet, get 1 card\n"
                 "• Split: Split pairs into 2 hands\n"
-                "• Insurance: Insurance and lose half bet\n\n"
+                "• Surrender: Forfeit and lose half bet\n\n"
                 "**Usage:** `/blackjack <amount|all>`",
                 parse_mode="Markdown"
             )
@@ -3240,13 +3240,10 @@ class AntariaCasinoBot:
                 for btn in row2:
                     keyboard.append([btn])
 
-            row3 = []
             if actions.get('can_surrender'):
-                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_surrender_{user_id}"))
+                keyboard.append([InlineKeyboardButton("Surrender", callback_data=f"bj_surrender_{user_id}")])
             if state['is_insurance_available']:
-                row3.append(InlineKeyboardButton("Dealer Insurance", callback_data=f"bj_insurance_{user_id}"))
-            if row3:
-                keyboard.append(row3)
+                keyboard.append([InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}")])
         else:
             # Play Again buttons
             total_bet = sum(h['bet'] for h in state['player_hands'])
