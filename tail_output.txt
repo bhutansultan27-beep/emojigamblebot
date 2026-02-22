@@ -1,0 +1,10 @@
+
+            if data.startswith("emoji_setup_") or data.startswith("v2_send_emoji_"):
+                from roll_handler import handle_roll
+                await handle_roll(self, update, context)
+                return
+        except Exception as e:
+if __name__ == "__main__":
+    bot = AntariaCasinoBot()
+    logger.info("Starting bot...")
+    bot.app.run_polling()

@@ -190,7 +190,7 @@ class DatabaseManager:
                 cast(Game.data['challenger'], String) == str(user_id),
                 cast(Game.data['player'], String) == str(user_id)
             )).order_by(Game.timestamp.desc()).limit(limit).all()
-            
+
             user_games = []
             for g in games:
                 if not g.data:
@@ -270,7 +270,7 @@ class AntariaCasinoBot:
         secondary_token = os.environ.get("SECONDARY_BOT_TOKEN")
         self.secondary_bot = None
         if secondary_token:
-            from telegram import Bot
+            from telegram.ext import Bot
             self.secondary_bot = Bot(token=secondary_token)
             logger.info("Secondary bot initialized for emoji rolls")
 
@@ -332,7 +332,7 @@ class AntariaCasinoBot:
     def setup_handlers(self):
         """Setup all command and callback handlers"""
         from telegram.ext import TypeHandler
-        self.app.add_handler(CommandHandler("reset", self.reset_bot_command))
+        # self.app.add_handler(CommandHandler("reset", self.reset_bot_command))
         self.app.add_handler(TypeHandler(Update, self.log_update), group=-1)
 
         self.app.add_handler(CommandHandler("start", self.start_command))
@@ -342,8 +342,8 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("balance", self.balance_command))
         self.app.add_handler(CommandHandler("bal", self.balance_command))
         self.app.add_handler(CommandHandler("bonus", self.bonus_command))
-        self.app.add_handler(CommandHandler("stats", self.stats_command))
-        self.app.add_handler(CommandHandler("rakeback", self.rakeback_command))
+        # self.app.add_handler(CommandHandler("stats", self.stats_command))
+        # self.app.add_handler(CommandHandler("rakeback", self.rakeback_command))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("history", self.matches_command))
         self.app.add_handler(CommandHandler("leaderboard", self.leaderboard_command))
@@ -372,9 +372,9 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("deposit", self.deposit_command))
         self.app.add_handler(CommandHandler("withdraw", self.withdraw_command))
         self.app.add_handler(CommandHandler("endgames", self.endgames_command))
-        self.app.add_handler(CommandHandler("ss", self.ss_command))
-        self.app.add_handler(CommandHandler("ks", self.ks_command))
-        self.app.add_handler(CommandHandler("sk", self.sk))
+        # self.app.add_handler(CommandHandler("ss", self.ss_command))
+        # self.app.add_handler(CommandHandler("ks", self.ks_command))
+        # self.app.add_handler(CommandHandler("sk", self.sk))
 
         self.app.add_handler(CommandHandler("bet", self.bet_details_command))
         self.app.add_handler(CommandHandler("refcode", self.refcode_command))
@@ -390,6 +390,37 @@ class AntariaCasinoBot:
         self.app.add_handler(MessageHandler(filters.Sticker.ALL, self.sticker_handler))
         self.app.add_handler(MessageHandler(filters.Dice.ALL, self.handle_emoji_response))
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
+
+    async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle incoming text messages for betting and registration"""
+        user_id = update.effective_user.id
+        text = update.effective_message.text.strip().lower()
+
+        # Ensure user is registered
+        user_data = self.ensure_user_registered(update)
+
+        # Check for /bet pattern without slash (common for some users)
+        if text.startswith("bet "):
+            try:
+                amount_str = text.split(" ")[1]
+                if amount_str == "all":
+                    amount = user_data['balance']
+                else:
+                    amount = float(amount_str.replace("$", "").replace(",", ""))
+                await self.bet_command(update, context, amount=amount)
+                return
+            except (ValueError, IndexError):
+                pass
+
+        # Check if it's just a number (interpreted as a bet)
+        try:
+            clean_text = text.replace("$", "").replace(",", "")
+            amount = float(clean_text)
+            if amount >= 1.0:
+                await self.bet_command(update, context, amount=amount)
+                return
+        except ValueError:
+            pass
 
     def get_mention(self, user_id, name=None):
         """Returns a clickable HTML mention for a user."""
@@ -891,7 +922,7 @@ class AntariaCasinoBot:
 
             logger.info(f"Launching {game_name} at: {game_url}")
 
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+            from telegram.ext import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
             # Simplest possible button construction to avoid API rejection
             button = InlineKeyboardButton(text=f"{emoji} Open {game_name}", web_app=WebAppInfo(url=game_url))
@@ -962,7 +993,7 @@ class AntariaCasinoBot:
         # and NOT when returning from submenus (which call this method)
         if update.callback_query and update.callback_query.data == "balance_back_from_start":
              keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-        
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
@@ -995,7 +1026,7 @@ class AntariaCasinoBot:
         """Show bonus status"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
-        
+
         rakeback = user_data.get('rakeback_balance', 0)
 
         bonus_text = (
@@ -1047,20 +1078,20 @@ class AntariaCasinoBot:
         """Show weekly bonus specific submenu"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
-        
+
         # Calculate time until Friday 9PM EST
         import pytz
         from datetime import datetime
         est = pytz.timezone('US/Eastern')
         now_est = datetime.now(est)
-        
+
         # Target: Friday (4) at 21:00
         days_until_friday = (4 - now_est.weekday()) % 7
         target_date = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday)
-        
+
         if now_est >= target_date:
             target_date += timedelta(days=7)
-            
+
         diff = target_date - now_est
         hours, remainder = divmod(diff.seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -1068,10 +1099,10 @@ class AntariaCasinoBot:
 
         # Simple weekly bonus logic based on wagered amount (e.g., 0.1% of weekly wager)
         weekly_bonus = user_data.get('achievements', {}).get('weekly_bonus_pool', 0)
-        
+
         boost_active = user_data.get('username') and '@davaulte' in user_data.get('username')
         boost_status = "✅ Active" if boost_active else "❌ Inactive"
-        
+
         # Check if already claimed this week
         last_claim = user_data.get('achievements', {}).get('last_weekly_claim_date')
         is_claimed = False
@@ -1123,7 +1154,7 @@ class AntariaCasinoBot:
         ]
         if show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-        
+
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
             await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -1157,7 +1188,7 @@ class AntariaCasinoBot:
 
         first_str = first_game.timestamp.strftime("%b %d, %Y") if first_game else "—"
         last_str = last_game.timestamp.strftime("%b %d, %Y") if last_game else "—"
-        
+
         # Format join date (using Nov 13, 2025 as a default if not found, or user creation date)
         join_date = "Jun 11, 2025"
 
@@ -1188,7 +1219,7 @@ class AntariaCasinoBot:
 
         total_pages = max(1, (len(matches) + per_page - 1) // per_page)
         page = min(page, total_pages - 1)
-        
+
         if not matches:
             text = "📋 <b>No match history found.</b>"
             keyboard = [[InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")]]
@@ -1269,7 +1300,7 @@ class AntariaCasinoBot:
             nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"matches_page_{page + 1}_{back_tag}"))
         if nav_row:
             keyboard.append(nav_row)
-        
+
         keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{back_tag}")])
         if show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
@@ -3150,14 +3181,14 @@ class AntariaCasinoBot:
                 # Add to rakeback (2%)
                 rakeback_percent = 0.02
                 user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
-                
+
                 # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
                 achievements = user_data.get('achievements', {}) or {}
                 pool = achievements.get('weekly_bonus_pool', 0)
                 weekly_percent = 0.001
                 if user_data.get('username') and '@davaulte' in user_data.get('username'):
                     weekly_percent = 0.0012
-                
+
                 achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
                 user_data['achievements'] = achievements
                 self.db.update_user(user_id, user_data)
@@ -3362,7 +3393,7 @@ class AntariaCasinoBot:
         # Basic crypto address validation
         is_valid = False
         coin_type = "Unknown"
-        
+
         # Simple regex-based check
         import re
         if coin_type == "LTC":
@@ -3391,7 +3422,7 @@ class AntariaCasinoBot:
         self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal of ${amount:.2f} ({coin_type}) to {address}")
 
         await update.message.reply_text(f"✅ Withdrawal request of <b>${amount:.2f}</b> ({coin_type}) to <code>{address}</code> received and is being processed!", parse_mode="HTML")
-        
+
         # Notify admin
         admin_ids = os.environ.get("ADMIN_IDS", "").split(",")
         for admin_id in admin_ids:
@@ -4055,50 +4086,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
     # --- GAME LOGIC ---
 
-    def _update_user_stats(self, user_id: int, wager: float, profit: float, result: str):
-        """Update user statistics after a game."""
-        user_data = self.db.get_user(user_id)
-        if not user_data:
-            return
-
-        # Rakeback (base 2%)
-        rakeback_percent = 0.02
-        
-        # Blackjack-specific wager handling (since it's a separate module)
-        # We ensure we're adding rakeback for all wagered amounts
-            
-        update_fields = {
-            'total_wagered': (user_data.get('total_wagered', 0) or 0) + wager,
-            'total_pnl': (user_data.get('total_pnl', 0) or 0) + profit,
-            'rakeback_balance': (user_data.get('rakeback_balance', 0) or 0) + (wager * rakeback_percent),
-            'games_played': (user_data.get('games_played', 0) or 0) + 1,
-            'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,
-            'total_won': (user_data.get('total_won', 0) or 0) + (profit + wager if profit > 0 else 0)
-        }
-
-        # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
-        achievements = user_data.get('achievements', {}) or {}
-        pool = achievements.get('weekly_bonus_pool', 0)
-        weekly_percent = 0.001
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.0012  # 0.1% + 20% boost of that 0.1%
-            
-        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
-        update_fields['achievements'] = achievements
-
-        if result == "win":
-            update_fields['games_won'] = (user_data.get('games_won', 0) or 0) + 1
-            new_streak = (user_data.get('win_streak', 0) or 0) + 1
-            update_fields['win_streak'] = new_streak
-            if new_streak > (user_data.get('best_win_streak', 0) or 0):
-                update_fields['best_win_streak'] = new_streak
-        else:
-            update_fields['win_streak'] = 0
-
-        # Update bot names in database record if needed (logic handled in record_game)
-        self.db.update_user(user_id, update_fields)
-
-
     async def dice_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
         """Play dice against the bot (called from button)"""
         query = update.callback_query
@@ -4562,62 +4549,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         return max(0.0, round(float(cashout_val), 2))
 
-    def _update_user_stats(self, user_id: int, wager: float, profit: float, outcome: str):
-        """Update user statistics after a game."""
-        user_data = self.db.get_user(user_id)
-        
-        # Ensure values are not None
-        current_wagered = user_data.get('total_wagered', 0.0) or 0.0
-        current_won = user_data.get('total_won', 0.0) or 0.0
-        current_pnl = user_data.get('total_pnl', 0.0) or 0.0
-        current_played = user_data.get('games_played', 0) or 0
-        current_wins = user_data.get('games_won', 0) or 0
-        current_streak = user_data.get('win_streak', 0) or 0
-        best_streak = user_data.get('best_win_streak', 0) or 0
-        rakeback = user_data.get('rakeback_balance', 0.0) or 0.0
-        since_withdrawal = user_data.get('wagered_since_last_withdrawal', 0.0) or 0.0
-
-        # Rakeback (base 0.1% + 20% if @davaulte in name)
-        rakeback_percent = 0.001
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            rakeback_percent = 0.0012 # 0.1% + 20% boost
-            
-        updates = {
-            'total_wagered': current_wagered + wager,
-            'total_pnl': current_pnl + profit,
-            'games_played': current_played + 1,
-            'wagered_since_last_withdrawal': since_withdrawal + wager,
-            'rakeback_balance': rakeback + (wager * rakeback_percent)
-        }
-
-        # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
-        achievements = user_data.get('achievements', {}) or {}
-        pool = achievements.get('weekly_bonus_pool', 0)
-        weekly_percent = 0.001
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.0012  # 0.1% + 20% boost of that 0.1%
-            
-        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
-        updates['achievements'] = achievements
-
-        if outcome == "win":
-            updates['games_won'] = current_wins + 1
-            updates['total_won'] = current_won + (wager + profit)
-            updates['win_streak'] = current_streak + 1
-            if updates['win_streak'] > best_streak:
-                updates['best_win_streak'] = updates['win_streak']
-        elif outcome == "loss":
-            updates['win_streak'] = 0
-
-        self.db.update_user(user_id, updates)
-
     def _update_user_stats(self, user_id, wager, profit, outcome):
         """Helper to update user stats in database"""
         user_data = self.db.get_user(user_id)
         user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
         user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
         user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
-        
+
         if outcome == "win":
             user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
             user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
@@ -4626,10 +4564,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 user_data['best_win_streak'] = user_data['win_streak']
         else:
             user_data['win_streak'] = 0
-            
+
         # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
-        
+
         # Check if @davaulte in username for 20% boost (on the earned rakeback)
         if user_data.get('username') and '@davaulte' in user_data.get('username'):
              rakeback_earned *= 1.20
@@ -4637,9 +4575,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Check if referred for extra 10%
         if user_data.get('referred_by'):
              rakeback_earned += wager * 0.10
-             
+
         user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
-        
+
         # Referral earnings (10% of wager for the referrer)
         referrer_id = user_data.get('referred_by')
         if referrer_id:
@@ -4648,7 +4586,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
             referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
             self.db.update_user(referrer_id, referrer_data)
-        
+
         # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
@@ -4657,56 +4595,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             weekly_percent = 0.0012  # 0.1% + 20% boost
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         user_data['achievements'] = achievements
-        
-        self.db.update_user(user_id, user_data)
 
-    def _update_user_stats(self, user_id, wager, profit, outcome):
-        """Helper to update user stats in database"""
-        user_data = self.db.get_user(user_id)
-        user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
-        user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
-        user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
-        
-        if outcome == "win":
-            user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
-            user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
-            user_data['win_streak'] = (user_data.get('win_streak', 0) or 0) + 1
-            if user_data['win_streak'] > (user_data.get('best_win_streak', 0) or 0):
-                user_data['best_win_streak'] = user_data['win_streak']
-        else:
-            user_data['win_streak'] = 0
-            
-        # Rakeback (2% standard + 10% of bet if referred)
-        rakeback_earned = wager * 0.02
-        
-        # Check if @davaulte in username for 20% boost (on the earned rakeback)
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-             rakeback_earned *= 1.20
-
-        # Check if referred for extra 10%
-        if user_data.get('referred_by'):
-             rakeback_earned += wager * 0.10
-             
-        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
-        
-        # Referral earnings (10% of wager for the referrer)
-        referrer_id = user_data.get('referred_by')
-        if referrer_id:
-            referrer_data = self.db.get_user(referrer_id)
-            ref_earning = wager * 0.10
-            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
-            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
-            self.db.update_user(referrer_id, referrer_data)
-        
-        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
-        achievements = user_data.get('achievements', {}) or {}
-        pool = achievements.get('weekly_bonus_pool', 0)
-        weekly_percent = 0.001
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.0012  # 0.1% + 20% boost
-        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
-        user_data['achievements'] = achievements
-        
         self.db.update_user(user_id, user_data)
 
     async def handle_emoji_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4897,11 +4786,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if challenge['p_pts'] >= challenge['pts']:
                 # ... (existing win logic)
                 pass
-            
+
             # Record the game for stats/matches
             outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
             profit = w * 0.95 if outcome == "win" else -w
-            
+
             self._update_user_stats(user_id, w, profit, outcome)
             self.db.record_game({
                 "type": f"{challenge['game']}_bot",
@@ -5140,7 +5029,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         self.db.add_transaction(winner_id, f"{game_type}_pvp_win", winner_profit, f"{game_type.upper()} PvP Win vs {self.db.get_user(loser_id)['username']}")
         self.db.add_transaction(loser_id, f"{game_type}_pvp_loss", -wager, f"{game_type.upper()} PvP Loss vs {self.db.get_user(winner_id)['username']}")
-        
+
         self.db.record_game({
             "type": f"{game_type}_pvp", 
             "player_id": winner_id,
@@ -5344,78 +5233,66 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 except Exception as e:
                     logger.warning(f"Failed to remove button from final cashout message: {e}")
 
-                # Record the game for stats/matches
-                outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
-                profit = (w * 0.95) if outcome == "win" else -w
-                
-                # Update user stats and balance
-                self._update_user_stats(user_id, w, profit, outcome)
-                
-                self.db.record_game({
-                    "type": f"{challenge['game']}_bot",
-                    "player_id": user_id,
-                    "user_id": user_id,
-                    "wager": w,
-                    "bet": w,
-                    "result": outcome,
-                    "p_score": challenge['p_pts'],
-                    "b_score": challenge['b_pts'],
-                    "game": challenge['game'],
-                    "profit": profit,
-                    "payout": w + profit if outcome == "win" else 0
-                })
+            # Record the game for stats/matches (always runs, not gated on old_msg_id)
+            outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
+            profit = (w * 0.95) if outcome == "win" else -w
 
-                # Referral Rakeback (10%)
-                u_data = self.db.get_user(user_id)
-                referrer_id = u_data.get('referred_by')
-                if referrer_id:
-                    referrer_data = self.db.get_user(referrer_id)
-                    bonus_percent = 0.001
-                    bonus_amount = w * bonus_percent 
-                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-                    self.db.update_user(referrer_id, referrer_data)
-                
-                # Series End logic
-                if challenge['p_pts'] >= challenge['pts']:
-                    payout = w * 1.95
-                    u = self.db.get_user(user_id)
-                    # Balance already updated in _update_user_stats if we use profit relative to wager
-                    # However, current logic in _update_user_stats might need adjustment or 
-                    # we handle balance here for clarity
-                    u['balance'] += payout
-                    self.db.update_user(user_id, {'balance': u['balance']})
-                    self.db.update_house_balance(-(payout - w))
+            # Update user stats, total_wagered, rakeback, and weekly bonus
+            self._update_user_stats(user_id, w, profit, outcome)
 
-                p1_name = u.get('username', f'User{user_id}')
+            self.db.record_game({
+                "type": f"{challenge['game']}_bot",
+                "player_id": user_id,
+                "user_id": user_id,
+                "wager": w,
+                "bet": w,
+                "result": outcome,
+                "p_score": challenge['p_pts'],
+                "b_score": challenge['b_pts'],
+                "game": challenge['game'],
+                "profit": profit,
+                "payout": w + profit if outcome == "win" else 0
+            })
+
+            # Referral Rakeback (10%)
+            u_data = self.db.get_user(user_id)
+            referrer_id = u_data.get('referred_by')
+            if referrer_id:
+                referrer_data = self.db.get_user(referrer_id)
+                bonus_percent = 0.001
+                bonus_amount = w * bonus_percent 
+                referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                self.db.update_user(referrer_id, referrer_data)
+
+            # Series End logic
+            u = self.db.get_user(user_id)
+            p1_name = u.get('username', f'User{user_id}')
+            reply_to_id = challenge.get('message_id')
+            kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                   InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+
+            if challenge['p_pts'] >= challenge['pts']:
+                payout = w * 1.95
+                u['balance'] += payout
+                self.db.update_user(user_id, {'balance': u['balance']})
+                self.db.update_house_balance(-(payout - w))
                 bold_name = f"<b>{p1_name}</b>"
                 win_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
-                    f"<b>{bold_name}</b> won <b>${payout:,.2f}</b>!"
+                    f"{bold_name} won <b>${payout:,.2f}</b>!"
                 )
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
-
-                reply_to_id = challenge.get('message_id')
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=win_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
             else:
                 self.db.update_house_balance(w)
-                u = self.db.get_user(user_id)
-                p1_name = u.get('username', f'User{user_id}')
                 loss_text = (
                     f"🏆 <b>Game over!</b>\n\n"
                     f"{p1_name} • {challenge['p_pts']}\n"
                     f"Bot • {challenge['b_pts']}\n\n"
                     f"<b>Bot</b> won <b>${w * 1.95:,.2f}</b>!"
                 )
-                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
-                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
-                
-                # Stats already updated at start of _finalize_v2_round
-                
-                reply_to_id = challenge.get('message_id')
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=loss_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML", reply_to_message_id=reply_to_id)
                 self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
@@ -6123,10 +6000,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         if not context.args:
             await update.message.reply_text("Usage: /refcode <code>")
             return
-        
+
         code = context.args[0].strip()
         user_id = update.effective_user.id
-        
+
         # Logic to set referral code
         # We search for a user with this referral_code
         with self.db.app.app_context():
@@ -6134,12 +6011,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if not referrer:
                 await update.message.reply_text("❌ Invalid referral code.")
                 return
-            
+
             user = User.query.filter_by(user_id=user_id).first()
             if user.referred_by:
                 await update.message.reply_text("❌ You have already set a referral code.")
                 return
-            
+
             if referrer.user_id == user_id:
                 await update.message.reply_text("❌ You cannot refer yourself.")
                 return
@@ -6147,7 +6024,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             user.referred_by = referrer.user_id
             referrer.referral_count += 1
             db.session.commit()
-            
+
         await update.message.reply_text(f"✅ Referral code '{code}' set! You now get 10% bonus rakeback.")
 
     async def rakeback_double_roll(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: float, is_weekly: bool = False):
@@ -6155,10 +6032,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         query = update.callback_query
         user_id = query.from_user.id
         chat_id = query.message.chat_id
-        
+
         user_data = self.db.get_user(user_id)
         achievements = user_data.get('achievements', {}) or {}
-        
+
         # Remove buttons
         try:
             await query.edit_message_reply_markup(reply_markup=None)
@@ -6188,10 +6065,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 # Mark as claimed
                 achievements['last_weekly_claim_date'] = datetime.now().isoformat()
                 achievements['weekly_bonus_pool'] = 0
-            
+
             self.db.update_user(user_id, updates)
             self.db.add_transaction(user_id, tx_type, final_bonus, f"{bonus_type} Double: {dice_val} ({mult}x)")
-            
+
             msg = f"🎲 Roll: {dice_val} ({mult}x)\n\n🔥 **BOOM!** You got **${final_bonus:.2f}**!"
         else:
             updates = {'achievements': achievements}
@@ -6199,10 +6076,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 updates['rakeback_balance'] = 0
             else:
                 achievements['weekly_bonus_pool'] = 0
-                
+
             self.db.update_user(user_id, updates)
             msg = f"🎲 Roll: {dice_val} (0x)\n\n💀 **RIP!** You lost your bonus."
-            
+
         if is_weekly:
             await self.weekly_bonus_submenu(update, context, text_override=msg)
         else:
@@ -6303,11 +6180,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             try:
                 await query.answer("❌ An error occurred processing your request.", show_alert=True)
             finally: pass
-                await query.answer()
-                text = "🏎️ <b>Races</b>\n\nComing soon!"
-                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
-                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-                return
 
             if data == "menu_referrals":
                 await query.answer()
@@ -6343,7 +6215,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 return
         except Exception as e:
             logger.error(f"Error in button_callback: {e}")
-            try: await query.answer("❌ Error processing request.", show_alert=True)
-            except: pass
+            try:
+                await query.answer("❌ Error processing request.", show_alert=True)
+            except:
+                pass
         return
-            if data == "menu_races":
+
+if __name__ == "__main__":
+    bot = AntariaCasinoBot()
+    logger.info("Starting bot...")
+    bot.app.run_polling()
