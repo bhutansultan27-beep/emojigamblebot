@@ -199,7 +199,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             payout = wager * multiplier
             user_data = bot_instance.db.get_user(user_id)
             achievements = user_data.get('achievements', {}) or {}
-            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * 0.001, 2)
+            
+            # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+            bonus_percent = 0.001
+            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                bonus_percent = 0.201  # 0.1% + 20%
+                
+            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * bonus_percent, 2)
             bot_instance.db.update_user(user_id, {
                 'balance': user_data['balance'] + payout,
                 'total_wagered': user_data.get('total_wagered', 0) + wager,
@@ -247,7 +253,13 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             bot_instance.db.update_house_balance(wager)
             user_data = bot_instance.db.get_user(user_id)
             achievements = user_data.get('achievements', {}) or {}
-            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * 0.001, 2)
+            
+            # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+            bonus_percent = 0.001
+            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                bonus_percent = 0.201  # 0.1% + 20%
+                
+            achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * bonus_percent, 2)
             bot_instance.db.update_user(user_id, {
                 'total_wagered': user_data.get('total_wagered', 0) + wager,
                 'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,

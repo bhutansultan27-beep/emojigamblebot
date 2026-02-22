@@ -2839,12 +2839,15 @@ class AntariaCasinoBot:
             'payout': (wager * multiplier) if actual_roll in predictions else 0
         })
 
-        # Referral Rakeback (10%)
+        # Referral Rakeback (10% + 20% if @davaulte in name)
         u_data = self.db.get_user(user_id)
         referrer_id = u_data.get('referred_by')
         if referrer_id:
             referrer_data = self.db.get_user(referrer_id)
-            bonus_amount = wager * 0.001 
+            bonus_percent = 0.001
+            if u_data.get('username') and '@davaulte' in u_data.get('username'):
+                bonus_percent = 0.201
+            bonus_amount = wager * bonus_percent 
             referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
             self.db.update_user(referrer_id, referrer_data)
 
@@ -4032,19 +4035,28 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         if not user_data:
             return
 
+        # Rakeback (base 2% + 20% if @davaulte in name)
+        rakeback_percent = 0.02
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            rakeback_percent = 0.22
+            
         update_fields = {
             'total_wagered': (user_data.get('total_wagered', 0) or 0) + wager,
             'total_pnl': (user_data.get('total_pnl', 0) or 0) + profit,
-            'rakeback_balance': (user_data.get('rakeback_balance', 0) or 0) + (wager * 0.02),
+            'rakeback_balance': (user_data.get('rakeback_balance', 0) or 0) + (wager * rakeback_percent),
             'games_played': (user_data.get('games_played', 0) or 0) + 1,
             'wagered_since_last_withdrawal': (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager,
             'total_won': (user_data.get('total_won', 0) or 0) + (profit + wager if profit > 0 else 0)
         }
 
-        # Add to weekly bonus pool (0.1% rakeback)
+        # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        achievements['weekly_bonus_pool'] = round(pool + wager * 0.001, 2)
+        weekly_percent = 0.001
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            weekly_percent = 0.201
+            
+        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         update_fields['achievements'] = achievements
 
         if result == "win":
@@ -4538,12 +4550,17 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         rakeback = user_data.get('rakeback_balance', 0.0) or 0.0
         since_withdrawal = user_data.get('wagered_since_last_withdrawal', 0.0) or 0.0
 
+        # Rakeback (base 0.1% + 20% if @davaulte in name)
+        rakeback_percent = 0.001
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            rakeback_percent = 0.201
+            
         updates = {
             'total_wagered': current_wagered + wager,
             'total_pnl': current_pnl + profit,
             'games_played': current_played + 1,
             'wagered_since_last_withdrawal': since_withdrawal + wager,
-            'rakeback_balance': rakeback + (wager * 0.001) # 0.1% rakeback
+            'rakeback_balance': rakeback + (wager * rakeback_percent)
         }
 
         if outcome == "win":
@@ -4573,14 +4590,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         else:
             user_data['win_streak'] = 0
             
-        # Rakeback (2% standard + 10% of bet if referred)
+        # Rakeback (2% standard + 10% of bet if referred + 20% if @davaulte in name)
         rakeback_earned = wager * 0.02
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            rakeback_earned += wager * 0.20
         
         # Check if referred for extra 10%
         if user_data.get('referred_by'):
              rakeback_earned += wager * 0.10
              
         user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        
+        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+        achievements = user_data.get('achievements', {}) or {}
+        pool = achievements.get('weekly_bonus_pool', 0)
+        weekly_percent = 0.001
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            weekly_percent = 0.201
+        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
+        user_data['achievements'] = achievements
         
         self.db.update_user(user_id, user_data)
 
@@ -4600,14 +4628,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         else:
             user_data['win_streak'] = 0
             
-        # Rakeback (2% standard + 10% of bet if referred)
+        # Rakeback (2% standard + 10% of bet if referred + 20% if @davaulte in name)
         rakeback_earned = wager * 0.02
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            rakeback_earned += wager * 0.20
         
         # Check if referred for extra 10%
         if user_data.get('referred_by'):
              rakeback_earned += wager * 0.10
              
         user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        
+        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+        achievements = user_data.get('achievements', {}) or {}
+        pool = achievements.get('weekly_bonus_pool', 0)
+        weekly_percent = 0.001
+        if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            weekly_percent = 0.201
+        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
+        user_data['achievements'] = achievements
         
         self.db.update_user(user_id, user_data)
 
@@ -5267,14 +5306,17 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     "payout": w + profit if outcome == "win" else 0
                 })
 
-                # Referral Rakeback (10%)
-                u_data = self.db.get_user(user_id)
-                referrer_id = u_data.get('referred_by')
-                if referrer_id:
-                    referrer_data = self.db.get_user(referrer_id)
-                    bonus_amount = w * 0.001 
-                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-                    self.db.update_user(referrer_id, referrer_data)
+                    # Referral Rakeback (10% + 20% if @davaulte in name)
+                    u_data = self.db.get_user(user_id)
+                    referrer_id = u_data.get('referred_by')
+                    if referrer_id:
+                        referrer_data = self.db.get_user(referrer_id)
+                        bonus_percent = 0.001
+                        if u_data.get('username') and '@davaulte' in u_data.get('username'):
+                            bonus_percent = 0.201
+                        bonus_amount = w * bonus_percent 
+                        referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                        self.db.update_user(referrer_id, referrer_data)
                 
                 # Series End logic
                 if challenge['p_pts'] >= challenge['pts']:
@@ -5411,12 +5453,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             "outcome": outcome # win or loss
         })
 
-        # Referral Rakeback (10%)
+        # Referral Rakeback (10% + 20% if @davaulte in name)
         u_data = self.db.get_user(user_id)
         referrer_id = u_data.get('referred_by')
         if referrer_id:
             referrer_data = self.db.get_user(referrer_id)
-            bonus_amount = wager * 0.001 
+            bonus_percent = 0.001
+            if u_data.get('username') and '@davaulte' in u_data.get('username'):
+                bonus_percent = 0.201
+            bonus_amount = wager * bonus_percent 
             referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
             self.db.update_user(referrer_id, referrer_data)
         self.db.add_transaction(user_id, "coinflip_bot", profit, f"CoinFlip vs Bot - Wager: ${wager:.2f}")

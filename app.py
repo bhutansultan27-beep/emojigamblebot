@@ -176,7 +176,12 @@ def play_game():
         # Add to weekly bonus pool (0.1% rakeback)
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        bonus_percent = 0.001
+        if user.username and '@davaulte' in user.username:
+            bonus_percent = 0.201  # 0.1% + 20%
+
+        achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
 
         update_house_balance(-profit)
@@ -286,7 +291,13 @@ def mines_reveal():
         # Weekly bonus pool
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+        
+        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        bonus_percent = 0.001
+        if user.username and '@davaulte' in user.username:
+            bonus_percent = 0.201  # 0.1% + 20%
+            
+        achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
         
         # Record game
@@ -358,7 +369,13 @@ def mines_cashout():
     # Weekly bonus pool
     achievements = user.achievements or {}
     pool = achievements.get('weekly_bonus_pool', 0)
-    achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+    
+    # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+    bonus_percent = 0.001
+    if user.username and '@davaulte' in user.username:
+        bonus_percent = 0.201  # 0.1% + 20%
+        
+    achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
     user.achievements = achievements
 
     update_house_balance(-profit)
@@ -425,7 +442,13 @@ def game_result():
     # Add to weekly bonus pool (0.1% rakeback)
     achievements = user.achievements or {}
     pool = achievements.get('weekly_bonus_pool', 0)
-    achievements['weekly_bonus_pool'] = round(pool + bet * 0.001, 2)
+    
+    # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+    bonus_percent = 0.001
+    if user.username and '@davaulte' in user.username:
+        bonus_percent = 0.201  # 0.1% + 20%
+        
+    achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
     user.achievements = achievements
 
     update_house_balance(-profit)
