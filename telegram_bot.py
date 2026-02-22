@@ -6183,6 +6183,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         tx_type = "weekly_double" if is_weekly else "rakeback_double"
 
         if final_bonus > 0:
+            achievements = user_data.get('achievements', {}) or {}
             updates = {
                 'balance': user_data['balance'] + final_bonus,
                 'achievements': achievements
