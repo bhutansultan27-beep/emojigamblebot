@@ -4637,12 +4637,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
             self.db.update_user(referrer_id, referrer_data)
         
-        # Weekly bonus pool (base 0.1% + 20% if @dices in name)
+        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
         if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.201
+            weekly_percent = 0.0012  # 0.1% + 20% boost
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         user_data['achievements'] = achievements
         
@@ -4686,12 +4686,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
             self.db.update_user(referrer_id, referrer_data)
         
-        # Weekly bonus pool (base 0.1% + 20% if @dices in name)
+        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
         achievements = user_data.get('achievements', {}) or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         weekly_percent = 0.001
         if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.201
+            weekly_percent = 0.0012  # 0.1% + 20% boost
         achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
         user_data['achievements'] = achievements
         
