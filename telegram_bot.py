@@ -744,9 +744,17 @@ class AntariaCasinoBot:
     # --- COMMAND HANDLERS ---
 
     def ensure_user_registered(self, update: Update) -> Dict[str, Any]:
-        """Ensure user exists and has username set to their chat name"""
+        """Ensure user exists and has a unique referral code."""
         user = update.effective_user
         user_data = self.db.get_user(user.id)
+
+        # Generate unique referral code if missing
+        if not user_data.get('referral_code'):
+            import random
+            import string
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            self.db.update_user(user.id, {'referral_code': code})
+            user_data['referral_code'] = code
 
         # Get the users chat name (First Name + Last Name if available)
         chat_name = user.first_name
@@ -834,7 +842,6 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
-                InlineKeyboardButton("🎁 Balance", callback_data="balance_back_from_start"),
                 InlineKeyboardButton("🎁 Rakeback", callback_data="menu_bonus")
             ],
             [
@@ -6068,8 +6075,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 f"Claimable bonus: <b>${unclaimed:,.2f}</b>\n\n"
                 "Earn 10% rakeback on all bets your referrals place!\n\n"
                 "To set a referral code type this command:\n"
-                "<code>/refcode <code></code>\n\n"
-                "If you want your own code contact a support member in chat or send a support ticket to @gamblesupport"
+                "<code>/refcode <code></code>"
             )
             keyboard = [
                 [InlineKeyboardButton(f"🎁 Claim Bonus (${unclaimed:,.2f})", callback_data="claim_referral_bonus")],
