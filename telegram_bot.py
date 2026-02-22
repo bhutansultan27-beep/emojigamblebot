@@ -6094,6 +6094,48 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             
         await update.message.reply_text(f"✅ Referral code '{code}' set! You now get 10% bonus rakeback.")
 
+    async def rakeback_double_roll(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: float, is_weekly: bool = False):
+        """Handle the doubling roll for rakeback or weekly bonus"""
+        query = update.callback_query
+        user_id = query.from_user.id
+        chat_id = query.message.chat_id
+        
+        user_data = self.db.get_user(user_id)
+        
+        # Remove buttons
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+
+        sent_dice = await context.bot.send_dice(chat_id=chat_id, emoji="🎲")
+        dice_val = sent_dice.dice.value
+
+        multipliers = {1: 0, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 2}
+        mult = multipliers.get(dice_val, 1)
+        final_bonus = round(amount * mult, 2)
+
+        await asyncio.sleep(4)
+
+        bonus_type = "Weekly Bonus" if is_weekly else "Rakeback"
+        tx_type = "weekly_double" if is_weekly else "rakeback_double"
+
+        if final_bonus > 0:
+            updates = {'balance': user_data['balance'] + final_bonus}
+            if not is_weekly:
+                updates['rakeback_balance'] = 0
+            
+            self.db.update_user(user_id, updates)
+            self.db.add_transaction(user_id, tx_type, final_bonus, f"{bonus_type} Double: {dice_val} ({mult}x)")
+            result_text = f"🎲 Rolled <b>{dice_val}</b> ({mult}x)\n\n🎉 You won <b>${final_bonus:.2f}</b> {bonus_type.lower()}!"
+        else:
+            if not is_weekly:
+                self.db.update_user(user_id, {'rakeback_balance': 0})
+            result_text = f"🎲 Rolled <b>{dice_val}</b> (0x)\n\n😔 Better luck next time! {bonus_type} lost."
+
+        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
+        await context.bot.send_message(chat_id=chat_id, text=result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle all button interactions"""
         query = update.callback_query
@@ -6457,35 +6499,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await query.answer("❌ Error: Balance mismatch!", show_alert=True)
                 return
 
-            # Remove buttons
-            try:
-                await query.edit_message_reply_markup(reply_markup=None)
-            except Exception:
-                pass
-
-            chat_id = query.message.chat_id
-            sent_dice = await context.bot.send_dice(chat_id=chat_id, emoji="🎲")
-            dice_val = sent_dice.dice.value
-
-            multipliers = {1: 0, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 2}
-            mult = multipliers.get(dice_val, 1)
-            final_bonus = round(amount * mult, 2)
-
-            await asyncio.sleep(4)
-
-            if final_bonus > 0:
-                self.db.update_user(user_id, {
-                    'balance': user_data['balance'] + final_bonus,
-                    'rakeback_balance': 0
-                })
-                self.db.add_transaction(user_id, "rakeback_double", final_bonus, f"Rakeback Double: {dice_val} ({mult}x)")
-                result_text = f"🎲 Rolled <b>{dice_val}</b> ({mult}x)\n\n🎉 You won <b>${final_bonus:.2f}</b> rakeback!"
-            else:
-                self.db.update_user(user_id, {'rakeback_balance': 0})
-                result_text = f"🎲 Rolled <b>{dice_val}</b> (0x)\n\n😔 Better luck next time! Rakeback lost."
-
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
-            await context.bot.send_message(chat_id=chat_id, text=result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await self.rakeback_double_roll(update, context, amount, is_weekly=False)
             return
 
         # Weekly Bonus Menu (Deprecated, redirected to Rakeback/Bonus menu)
@@ -6605,7 +6619,59 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         if data == "menu_bonus":
+            await query.answer()
             await self.bonus_command(update, context)
+            return
+
+        if data == "bonus_rakeback_menu":
+            await query.answer()
+            await self.rakeback_submenu(update, context)
+            return
+
+        if data == "bonus_weekly_menu":
+            await query.answer()
+            await self.weekly_bonus_submenu(update, context)
+            return
+
+        if data == "bonus_levelup":
+            await query.answer()
+            await query.edit_message_text("⬆️ <b>Level Up Bonus</b>\n\nReach higher ranks to unlock exclusive rewards! Coming soon.", 
+                                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]), 
+                                         parse_mode="HTML")
+            return
+
+        if data.startswith("weekly_claim_direct_"):
+            await query.answer()
+            try:
+                amount = float(data.split("_")[-1])
+                user_data = self.db.get_user(user_id)
+                if amount > 0:
+                    user_data['balance'] += amount
+                    self.db.update_user(user_id, user_data)
+                    self.db.add_transaction(user_id, "weekly_bonus_claim", amount, f"Weekly Bonus Claim: ${amount:.2f}")
+                    await query.answer(f"🎉 Claimed ${amount:.2f} weekly bonus!", show_alert=True)
+                else:
+                    await query.answer("❌ No weekly bonus to claim!", show_alert=True)
+            except Exception as e:
+                logger.error(f"Error claiming weekly bonus: {e}")
+                await query.answer("❌ Error claiming bonus.", show_alert=True)
+            
+            await self.weekly_bonus_submenu(update, context)
+            return
+
+        if data.startswith("weekly_double_"):
+            await query.answer()
+            try:
+                amount = float(data.split("_")[-1])
+                if amount <= 0:
+                    await query.answer("❌ No weekly bonus to roll!", show_alert=True)
+                    return
+                
+                # Update: Directly implement the roll logic for weekly
+                await self.rakeback_double_roll(update, context, amount, is_weekly=True)
+            except Exception as e:
+                logger.error(f"Error doubling weekly bonus: {e}")
+                await query.answer("❌ Error starting roll.", show_alert=True)
             return
 
         if data == "menu_more":
