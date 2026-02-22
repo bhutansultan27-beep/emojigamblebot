@@ -833,14 +833,17 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
-                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
-                InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start")
+                InlineKeyboardButton("💰 Balance", callback_data="balance_back_from_start"),
+                InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus")
             ],
             [
-                InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals"),
-                InlineKeyboardButton("🏎️ Races", callback_data="menu_races")
+                InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start"),
+                InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals")
             ],
-            [InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")]
+            [
+                InlineKeyboardButton("🏎️ Races", callback_data="menu_races"),
+                InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")
+            ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -954,9 +957,11 @@ class AntariaCasinoBot:
             [InlineKeyboardButton("💳 Deposit", callback_data="deposit_from_bal"),
              InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_from_bal")]
         ]
-        if update.callback_query:
-            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-
+        # Only show back button if explicitly called from /start menu (callback)
+        # and NOT when returning from submenus (which call this method)
+        if update.callback_query and update.callback_query.data == "balance_back_from_start":
+             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
@@ -3280,47 +3285,71 @@ class AntariaCasinoBot:
         await self.balance_command(update, context)
 
     async def withdraw_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle withdraw command. In groups, redirect to PM. In PM, show withdraw instructions."""
-        user = update.effective_user
-        chat = update.effective_chat
-        user_data = self.db.get_user(user.id)
+        """Process withdrawal request"""
+        user_data = self.ensure_user_registered(update)
+        user_id = update.effective_user.id
 
-        # Check for arguments: /withdraw <amount> <address>
-        if context.args:
-            try:
-                amount = float(context.args[0])
-                if amount > user_data['balance']:
-                    if update.message:
-                        await update.message.reply_text(
-                            f"Insufficient balance\n Current balance: ${user_data['balance']:,.2f}",
-                            parse_mode="HTML"
-                        )
-                    return
-            except ValueError:
-                pass
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text("Usage: `/withdraw <amount> <ltc/btc/eth_address>`", parse_mode="Markdown")
+            return
 
-        if chat.type in ["group", "supergroup"]:
-            # Same behavior as deposit: notify in group and send PM
-            try:
-                if update.message:
-                    await update.message.reply_text(
-                        f"Hey {self.get_mention(user.id, user.first_name)}, I've sent you a private message with instructions on how to withdraw!",
+        try:
+            amount = float(context.args[0])
+            address = context.args[1]
+        except ValueError:
+            await update.message.reply_text("❌ Invalid amount.")
+            return
+
+        if amount < 5.00:
+            await update.message.reply_text("❌ Minimum withdrawal is $5.00")
+            return
+
+        if amount > user_data['balance']:
+            await update.message.reply_text(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}")
+            return
+
+        # Basic crypto address validation
+        is_valid = False
+        coin_type = "Unknown"
+        
+        # Simple regex-based check (very basic)
+        import re
+        # LTC: starts with L, M, or ltc1
+        if re.match(r"^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$", address) or re.match(r"^ltc1[a-z0-9]{39,59}$", address):
+            is_valid = True
+            coin_type = "LTC"
+        # BTC: starts with 1, 3, or bc1
+        elif re.match(r"^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address) or re.match(r"^bc1[a-z0-9]{39,59}$", address):
+            is_valid = True
+            coin_type = "BTC"
+        # ETH: starts with 0x
+        elif re.match(r"^0x[a-fA-F0-9]{40}$", address):
+            is_valid = True
+            coin_type = "ETH"
+
+        if not is_valid:
+            await update.message.reply_text("❌ Invalid crypto address format. Please check your address and try again.")
+            return
+
+        # Deduct balance and record transaction
+        user_data['balance'] -= amount
+        self.db.update_user(user_id, {'balance': user_data['balance']})
+        self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal of ${amount:.2f} ({coin_type}) to {address}")
+
+        await update.message.reply_text(f"✅ Withdrawal request of <b>${amount:.2f}</b> ({coin_type}) to <code>{address}</code> received and is being processed!", parse_mode="HTML")
+        
+        # Notify admin
+        admin_ids = os.environ.get("ADMIN_IDS", "").split(",")
+        for admin_id in admin_ids:
+            if admin_id.strip():
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(admin_id),
+                        text=f"🚨 <b>New Withdrawal Request</b>\n\nUser: {update.effective_user.username} ({user_id})\nAmount: ${amount:.2f}\nCoin: {coin_type}\nAddress: <code>{address}</code>",
                         parse_mode="HTML"
                     )
-
-                # Send private message
-                await self.app.bot.send_message(
-                    chat_id=user.id,
-                    text="To withdraw, please use the /withdraw command here in our private chat.",
-                    parse_mode="Markdown"
-                )
-            except Exception as e:
-                logger.error(f"Error in group withdraw command: {e}")
-                if update.message:
-                    await update.message.reply_text("❌ Please start a private chat with me first so I can send you withdrawal instructions.")
-        else:
-            # In private chat, redirect to balance menu or show withdraw instructions
-            await self.balance_command(update, context)
+                except Exception:
+                    pass
 
     async def pending_deposits_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all pending deposits (Admin only)."""
@@ -6014,6 +6043,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         if data == "menu_referrals":
             await query.answer()
             user_data = self.db.get_user(user_id)
+            if not user_data:
+                # Fallback registration check
+                user_data = self.ensure_user_registered(update)
+                
             ref_code = user_data.get('referral_code', 'N/A')
             unclaimed = user_data.get('unclaimed_referral_earnings', 0)
             text = (
@@ -6065,17 +6098,43 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         if data == "menu_deposit" or data == "deposit_from_bal":
             await query.answer()
-            user_data = self.db.get_user(user_id)
             back_data = "start_back" if data == "menu_deposit" else "balance_back"
             
             text = (
                 "💳 <b>Deposit</b>\n\n"
-                "To deposit funds, please send LTC to the following address:\n"
-                "<code>LTC_ADDRESS_HERE</code>\n\n"
+                "Please select the currency you want to deposit:"
+            )
+            keyboard = [
+                [InlineKeyboardButton("Litecoin (LTC)", callback_data=f"deposit_coin_ltc_{back_data}")],
+                [InlineKeyboardButton("Bitcoin (BTC)", callback_data=f"deposit_coin_btc_{back_data}")],
+                [InlineKeyboardButton("Ethereum (ETH)", callback_data=f"deposit_coin_eth_{back_data}")],
+                [InlineKeyboardButton("⬅️ Back", callback_data=back_data)]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data.startswith("deposit_coin_"):
+            parts = data.split("_")
+            coin = parts[2].upper()
+            back_data = parts[3]
+            await query.answer()
+            
+            # Mock addresses for different coins
+            addresses = {
+                "LTC": "LTC_ADDRESS_HERE",
+                "BTC": "BTC_ADDRESS_HERE",
+                "ETH": "ETH_ADDRESS_HERE"
+            }
+            addr = addresses.get(coin, "ADDRESS_HERE")
+            
+            text = (
+                f"💳 <b>Deposit {coin}</b>\n\n"
+                f"To deposit funds, please send {coin} to the following address:\n"
+                f"<code>{addr}</code>\n\n"
                 "Minimum deposit: $1.00\n"
                 "Your balance will be updated automatically after 1 confirmation."
             )
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data=back_data)]]
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_deposit" if back_data == "start_back" else "deposit_from_bal")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
 
@@ -6087,11 +6146,32 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             text = (
                 "💸 <b>Withdraw</b>\n\n"
                 f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                "Please select the currency you want to withdraw:"
+            )
+            keyboard = [
+                [InlineKeyboardButton("Litecoin (LTC)", callback_data=f"withdraw_coin_ltc_{back_data}")],
+                [InlineKeyboardButton("Bitcoin (BTC)", callback_data=f"withdraw_coin_btc_{back_data}")],
+                [InlineKeyboardButton("Ethereum (ETH)", callback_data=f"withdraw_coin_eth_{back_data}")],
+                [InlineKeyboardButton("⬅️ Back", callback_data=back_data)]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data.startswith("withdraw_coin_"):
+            parts = data.split("_")
+            coin = parts[2].upper()
+            back_data = parts[3]
+            await query.answer()
+            
+            user_data = self.db.get_user(user_id)
+            text = (
+                f"💸 <b>Withdraw {coin}</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
                 "To withdraw, use the following command:\n"
-                "<code>/withdraw [amount] [LTC_address]</code>\n\n"
+                f"<code>/withdraw [amount] [your_{coin.lower()}_address]</code>\n\n"
                 "Minimum withdrawal: $5.00"
             )
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data=back_data)]]
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_withdraw" if back_data == "start_back" else "withdraw_from_bal")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
 

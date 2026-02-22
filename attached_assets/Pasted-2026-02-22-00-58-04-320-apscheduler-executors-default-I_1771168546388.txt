@@ -1,0 +1,240 @@
+2026-02-22 00:58:04,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:09 UTC)" (scheduled at 2026-02-22 00:58:04.319301+00:00)
+2026-02-22 00:58:04,326 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:09 UTC)" executed successfully
+2026-02-22 00:58:05,738 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:58:09,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:14 UTC)" (scheduled at 2026-02-22 00:58:09.319301+00:00)
+2026-02-22 00:58:09,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:14 UTC)" executed successfully
+2026-02-22 00:58:14,321 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:19 UTC)" (scheduled at 2026-02-22 00:58:14.319301+00:00)
+2026-02-22 00:58:14,325 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:19 UTC)" executed successfully
+2026-02-22 00:58:16,854 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:58:19,322 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:24 UTC)" (scheduled at 2026-02-22 00:58:19.319301+00:00)
+2026-02-22 00:58:19,326 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:24 UTC)" executed successfully
+2026-02-22 00:58:24,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:29 UTC)" (scheduled at 2026-02-22 00:58:24.319301+00:00)
+2026-02-22 00:58:24,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:29 UTC)" executed successfully
+2026-02-22 00:58:27,967 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:58:29,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:34 UTC)" (scheduled at 2026-02-22 00:58:29.319301+00:00)
+2026-02-22 00:58:29,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:34 UTC)" executed successfully
+2026-02-22 00:58:34,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:39 UTC)" (scheduled at 2026-02-22 00:58:34.319301+00:00)
+2026-02-22 00:58:34,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:39 UTC)" executed successfully
+2026-02-22 00:58:39,082 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:58:39,321 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:44 UTC)" (scheduled at 2026-02-22 00:58:39.319301+00:00)
+2026-02-22 00:58:39,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:44 UTC)" executed successfully
+2026-02-22 00:58:44,340 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:49 UTC)" (scheduled at 2026-02-22 00:58:44.319301+00:00)
+2026-02-22 00:58:44,346 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:49 UTC)" executed successfully
+2026-02-22 00:58:49,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:54 UTC)" (scheduled at 2026-02-22 00:58:49.319301+00:00)
+2026-02-22 00:58:49,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:54 UTC)" executed successfully
+2026-02-22 00:58:50,196 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:58:54,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:59 UTC)" (scheduled at 2026-02-22 00:58:54.319301+00:00)
+2026-02-22 00:58:54,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:58:59 UTC)" executed successfully
+2026-02-22 00:58:59,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:04 UTC)" (scheduled at 2026-02-22 00:58:59.319301+00:00)
+2026-02-22 00:58:59,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:04 UTC)" executed successfully
+2026-02-22 00:59:01,312 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:04,319 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:09 UTC)" (scheduled at 2026-02-22 00:59:04.319301+00:00)
+2026-02-22 00:59:04,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:09 UTC)" executed successfully
+2026-02-22 00:59:09,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:14 UTC)" (scheduled at 2026-02-22 00:59:09.319301+00:00)
+2026-02-22 00:59:09,325 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:14 UTC)" executed successfully
+2026-02-22 00:59:12,426 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:14,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:19 UTC)" (scheduled at 2026-02-22 00:59:14.319301+00:00)
+2026-02-22 00:59:14,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:19 UTC)" executed successfully
+2026-02-22 00:59:19,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:24 UTC)" (scheduled at 2026-02-22 00:59:19.319301+00:00)
+2026-02-22 00:59:19,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:24 UTC)" executed successfully
+2026-02-22 00:59:23,545 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:24,319 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:29 UTC)" (scheduled at 2026-02-22 00:59:24.319301+00:00)
+2026-02-22 00:59:24,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:29 UTC)" executed successfully
+2026-02-22 00:59:29,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:34 UTC)" (scheduled at 2026-02-22 00:59:29.319301+00:00)
+2026-02-22 00:59:29,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:34 UTC)" executed successfully
+2026-02-22 00:59:32,829 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:32,830 - __main__ - INFO - Update 97190724 | User: 7748988189 (@ungirthed) | Msg: /start
+2026-02-22 00:59:33,297 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/sendMessage "HTTP/1.1 200 OK"
+2026-02-22 00:59:33,542 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/sendMessage "HTTP/1.1 200 OK"
+2026-02-22 00:59:34,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:39 UTC)" (scheduled at 2026-02-22 00:59:34.319301+00:00)
+2026-02-22 00:59:34,325 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:39 UTC)" executed successfully
+2026-02-22 00:59:34,448 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:34,449 - __main__ - INFO - Update 97190725 | User: 7748988189 (@ungirthed) | Msg: 🏠 Menu
+
+Your balance: $0.00
+
+Choose the action:
+2026-02-22 00:59:34,680 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:34,928 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:36,194 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:36,195 - __main__ - INFO - Update 97190726 | User: 7748988189 (@ungirthed) | Msg: ℹ️ Stats of ungirthed
+
+Games Played: 0
+Wins: 0 (0.00%)
+Total Wagered: $0.00
+Total Won: $0.00
+
+Join date: Jun 11, 2025
+First game: —
+Last game: —
+2026-02-22 00:59:36,424 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:36,668 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:37,564 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:37,565 - __main__ - INFO - Update 97190727 | User: 7748988189 (@ungirthed) | Msg: 📋 No match history found.
+2026-02-22 00:59:37,796 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:38,042 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:38,706 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:38,707 - __main__ - INFO - Update 97190728 | User: 7748988189 (@ungirthed) | Msg: ℹ️ Stats of ungirthed
+
+Games Played: 0
+Wins: 0 (0.00%)
+Total Wagered: $0.00
+Total Won: $0.00
+
+Join date: Jun 11, 2025
+First game: —
+Last game: —
+2026-02-22 00:59:38,955 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:39,202 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:39,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:44 UTC)" (scheduled at 2026-02-22 00:59:39.319301+00:00)
+2026-02-22 00:59:39,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:44 UTC)" executed successfully
+2026-02-22 00:59:39,957 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:39,958 - __main__ - INFO - Update 97190729 | User: 7748988189 (@ungirthed) | Msg: 🏠 Menu
+
+Your balance: $0.00
+
+Choose the action:
+2026-02-22 00:59:40,189 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:40,428 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:41,157 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:41,158 - __main__ - INFO - Update 97190730 | User: 7748988189 (@ungirthed) | Msg: 🏎️ Races
+
+Coming soon!
+2026-02-22 00:59:41,392 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:41,635 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:42,383 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:42,384 - __main__ - INFO - Update 97190731 | User: 7748988189 (@ungirthed) | Msg: 🏠 Menu
+
+Your balance: $0.00
+
+Choose the action:
+2026-02-22 00:59:42,615 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:42,861 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:43,633 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:43,634 - __main__ - INFO - Update 97190732 | User: 7748988189 (@ungirthed) | Msg: ℹ️ Stats of ungirthed
+
+Games Played: 0
+Wins: 0 (0.00%)
+Total Wagered: $0.00
+Total Won: $0.00
+
+Join date: Jun 11, 2025
+First game: —
+Last game: —
+2026-02-22 00:59:43,865 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:44,124 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:44,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:49 UTC)" (scheduled at 2026-02-22 00:59:44.319301+00:00)
+2026-02-22 00:59:44,323 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:49 UTC)" executed successfully
+2026-02-22 00:59:44,746 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:44,747 - __main__ - INFO - Update 97190733 | User: 7748988189 (@ungirthed) | Msg: 📋 No match history found.
+2026-02-22 00:59:44,979 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:45,222 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 200 OK"
+2026-02-22 00:59:46,764 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:46,765 - __main__ - INFO - Update 97190734 | User: 7748988189 (@ungirthed) | Msg: 🏠 Menu
+
+Your balance: $0.00
+
+Choose the action:
+2026-02-22 00:59:46,995 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:47,109 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 400 Bad Request"
+2026-02-22 00:59:47,110 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py", line 1264, in process_update
+    await coroutine
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_handlers/basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/telegram_bot.py", line 6032, in button_callback
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_callbackquery.py", line 264, in edit_message_text
+    return await self._get_message().edit_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_message.py", line 3436, in edit_text
+    return await self.get_bot().edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 1618, in edit_message_text
+    return await super().edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 542, in decorator
+    result = await func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 3868, in edit_message_text
+    return await self._send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 581, in _send_message
+    result = await super()._send_message(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 736, in _send_message
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 630, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 347, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 658, in _do_post
+    return await request.post(
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 200, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 379, in _request_wrapper
+    raise BadRequest(message)
+telegram.error.BadRequest: Can't parse entities: can't find end tag corresponding to start tag "code"
+2026-02-22 00:59:49,320 - apscheduler.executors.default - INFO - Running job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:54 UTC)" (scheduled at 2026-02-22 00:59:49.319301+00:00)
+2026-02-22 00:59:49,324 - apscheduler.executors.default - INFO - Job "check_expired_challenges (trigger: interval[0:00:05], next run at: 2026-02-22 00:59:54 UTC)" executed successfully
+2026-02-22 00:59:49,378 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/getUpdates "HTTP/1.1 200 OK"
+2026-02-22 00:59:49,379 - __main__ - INFO - Update 97190735 | User: 7748988189 (@ungirthed) | Msg: 🏠 Menu
+
+Your balance: $0.00
+
+Choose the action:
+2026-02-22 00:59:49,609 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-02-22 00:59:49,723 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8575155625:AAGNF8Vk-Vw_g2ARpsHBFFf6WMAo8T6OeEU/editMessageText "HTTP/1.1 400 Bad Request"
+2026-02-22 00:59:49,723 - telegram.ext.Application - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py", line 1264, in process_update
+    await coroutine
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_handlers/basehandler.py", line 157, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/telegram_bot.py", line 6032, in button_callback
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_callbackquery.py", line 264, in edit_message_text
+    return await self._get_message().edit_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_message.py", line 3436, in edit_text
+    return await self.get_bot().edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 1618, in edit_message_text
+    return await super().edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 542, in decorator
+    result = await func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 3868, in edit_message_text
+    return await self._send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 581, in _send_message
+    result = await super()._send_message(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 736, in _send_message
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 630, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 347, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/_bot.py", line 658, in _do_post
+    return await request.post(
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 200, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 379, in _request_wrapper
+    raise BadRequest(message)
+telegram.error.BadRequest: Can't parse entities: can't find end tag corresponding to start tag "code"
+2026-02
