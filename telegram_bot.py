@@ -1002,13 +1002,14 @@ class AntariaCasinoBot:
             "In this section you can find bonuses that you can get by playing games!\n\n"
             f"💰 <b>Rakeback: ${rakeback:,.2f}</b>\n"
             "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
-            "💎 <b>Weekly Bonus</b>\n"
+            "🎁 <b>Weekly Bonus</b>\n"
             "Play different games during the week and claim your bonus every Saturday."
         )
 
         keyboard = [
             [InlineKeyboardButton(f"💰 Collect Rakeback (${rakeback:,.2f})", callback_data="collect_rakeback")],
-            [InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly")],
+            [InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
+             InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
             [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -3289,13 +3290,14 @@ class AntariaCasinoBot:
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
 
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text("Usage: `/withdraw <amount> <ltc/btc/eth_address>`", parse_mode="Markdown")
+        if not context.args or len(context.args) < 3:
+            await update.message.reply_text("Usage: `/withdraw <amount> <currency> <address>`\nExample: `/withdraw 10 LTC L...`", parse_mode="Markdown")
             return
 
         try:
             amount = float(context.args[0])
-            address = context.args[1]
+            coin_type = context.args[1].upper()
+            address = context.args[2]
         except ValueError:
             await update.message.reply_text("❌ Invalid amount.")
             return
@@ -3312,23 +3314,29 @@ class AntariaCasinoBot:
         is_valid = False
         coin_type = "Unknown"
         
-        # Simple regex-based check (very basic)
+        # Simple regex-based check
         import re
-        # LTC: starts with L, M, or ltc1
-        if re.match(r"^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$", address) or re.match(r"^ltc1[a-z0-9]{39,59}$", address):
-            is_valid = True
-            coin_type = "LTC"
-        # BTC: starts with 1, 3, or bc1
-        elif re.match(r"^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address) or re.match(r"^bc1[a-z0-9]{39,59}$", address):
-            is_valid = True
-            coin_type = "BTC"
-        # ETH: starts with 0x
-        elif re.match(r"^0x[a-fA-F0-9]{40}$", address):
-            is_valid = True
-            coin_type = "ETH"
+        if coin_type == "LTC":
+            if re.match(r"^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$", address) or re.match(r"^ltc1[a-z0-9]{39,59}$", address):
+                is_valid = True
+        elif coin_type == "BTC":
+            if re.match(r"^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address) or re.match(r"^bc1[a-z0-9]{39,59}$", address):
+                is_valid = True
+        elif coin_type == "ETH" or coin_type == "USDT" or coin_type == "USDC":
+            if re.match(r"^0x[a-fA-F0-9]{40}$", address):
+                is_valid = True
+        elif coin_type == "SOL":
+            if re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
+                is_valid = True
+        elif coin_type == "XMR":
+            if re.match(r"^[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}$", address):
+                is_valid = True
+        elif coin_type == "TON":
+            if re.match(r"^[a-zA-Z0-9_-]{48}$", address):
+                is_valid = True
 
         if not is_valid:
-            await update.message.reply_text("❌ Invalid crypto address format. Please check your address and try again.")
+            await update.message.reply_text(f"❌ Invalid {coin_type} address format. Please check your address and try again.")
             return
 
         # Deduct balance and record transaction
@@ -6686,15 +6694,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Bonus main menu (back button from weekly/levelup)
         if data == "bonus_main":
             bonus_text = (
-                "🎁 <b>Bonus</b>\n\n"
+                "🎁 <b>Bonus & Rakeback</b>\n\n"
                 "In this section you can find bonuses that you can get by playing games!\n\n"
-                "💎 <b>Weekly Bonus</b>\n"
-                "Play different games during the week and claim your bonus every Saturday. Just don't slip up or the bonus will burn out!\n\n"
-                "💎 <b>Level Up Bonus</b>\n"
+                "💰 <b>Rakeback</b>\n"
+                "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
+                "🎁 <b>Weekly Bonus</b>\n"
+                "Play different games during the week and claim your bonus every Saturday.\n\n"
+                "🎁 <b>Level Up Bonus</b>\n"
                 "Play games, level up and earn money!"
             )
 
             keyboard = [
+                [InlineKeyboardButton("💰 Collect Rakeback", callback_data="collect_rakeback")],
                 [
                     InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly"),
                     InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")
@@ -7001,9 +7012,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             context.user_data['wit_currency'] = currency
             user_data = self.db.get_user(user_id)
 
-            # Message as requested from screenshot (without emojis except back)
             withdraw_info_text = (
-                f"Enter withdrawal amount\n"
+                f"Enter withdrawal amount for <b>{currency}</b>\n"
                 f"Withdrawal fee: $0.01 + 2.00%\n\n"
                 f"Current balance: ${user_data['balance']:,.2f}"
             )
@@ -7014,7 +7024,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await query.answer()
-            await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup)
+            await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup, parse_mode="HTML")
             return
 
         # Handle Back to balance menu
