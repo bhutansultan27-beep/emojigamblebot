@@ -307,20 +307,20 @@ class BlackjackGame:
         return message
 
     def surrender(self) -> str:
-        """Player forfeits the hand and loses half the bet."""
+        """Player insurance the hand and loses half the bet."""
         current_hand_state = self.player_hands[self.current_hand_index]
         if not current_hand_state['actions'].get('can_surrender'):
-            return "Error: Cannot Surrender. Only allowed on the initial hand as the first action."
+            return "Error: Cannot Insurance. Only allowed on the initial hand as the first action."
 
         # Player gets half the bet back (payout is -0.5 * bet)
         current_hand_state['payout'] = -current_hand_state['bet'] / 2
         current_hand_state['status'] = 'Surrendered'
         current_hand_state['actions'] = {} # Clear actions
         
-        # All hands must resolve after a surrender, so we advance to dealer turn
+        # All hands must resolve after a insurance, so we advance to dealer turn
         self.current_hand_index = len(self.player_hands) - 1 
         self._advance_hand()
-        return f"Surrendered. You lose half your bet: {current_hand_state['bet'] / 2}"
+        return f"Insurance. You lose half your bet: {current_hand_state['bet'] / 2}"
 
     def take_insurance(self) -> str:
         """Player places a side bet that the dealer has Blackjack."""

@@ -1038,8 +1038,7 @@ class AntariaCasinoBot:
             [
                 InlineKeyboardButton("🎁 Rakeback", callback_data="bonus_rakeback_menu"),
                 InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly_menu")
-            ],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -3028,7 +3027,7 @@ class AntariaCasinoBot:
                 "• Stand: Keep current hand\n"
                 "• Double: Double bet, get 1 card\n"
                 "• Split: Split pairs into 2 hands\n"
-                "• Surrender: Forfeit and lose half bet\n\n"
+                "• Insurance: Insurance and lose half bet\n\n"
                 "**Usage:** `/blackjack <amount|all>`",
                 parse_mode="Markdown"
             )
@@ -3242,8 +3241,10 @@ class AntariaCasinoBot:
                     keyboard.append([btn])
 
             row3 = []
+            if actions.get('can_surrender'):
+                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_surrender_{user_id}"))
             if state['is_insurance_available']:
-                row3.append(InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}"))
+                row3.append(InlineKeyboardButton("Dealer Insurance", callback_data=f"bj_insurance_{user_id}"))
             if row3:
                 keyboard.append(row3)
         else:
