@@ -109,7 +109,7 @@ class BlackjackGame:
         self.deck = deck if deck else Deck()
         # Player Hands: List of dictionaries to support splitting
         self.player_hands: List[Dict[str, Any]] = [
-            {'hand': Hand(), 'bet': bet_amount, 'status': 'Playing', 'actions': {'can_split': False, 'can_double': False, 'can_surrender': False}}
+            {'hand': Hand(), 'bet': bet_amount, 'status': 'Playing', 'actions': {'can_split': False, 'can_double': False}}
         ]
         self.dealer_hand = Hand()
         self.current_hand_index = 0
@@ -164,7 +164,7 @@ class BlackjackGame:
         hand = current_state['hand']
         
         # Reset actions
-        current_state['actions'] = {'can_split': False, 'can_double': False, 'can_surrender': False}
+        current_state['actions'] = {'can_split': False, 'can_double': False}
 
         # Actions are only available if the hand is 'Playing' and not busted
         if current_state['status'] != 'Playing':
@@ -176,10 +176,6 @@ class BlackjackGame:
             # Hard 9, 10, 11 means no Ace being used as 11 to reach that value
             if not hand.soft and hand.value in [9, 10, 11]:
                 current_state['actions']['can_double'] = True
-            
-            # Surrender only allowed on the *very first* hand
-            if self.current_hand_index == 0:
-                current_state['actions']['can_surrender'] = True
             
             # Split only allowed if ranks are equal OR both are 10-value cards
             # and only if this hand hasn't already been split
@@ -281,7 +277,7 @@ class BlackjackGame:
             'hand': Hand(cards=[card2], is_split=True), 
             'bet': bet, 
             'status': 'Playing',
-            'actions': {'can_split': False, 'can_double': True, 'can_surrender': False} 
+            'actions': {'can_split': False, 'can_double': True} 
         }
         new_hand_state['hand'].add_card(self.deck.deal_card())
         
