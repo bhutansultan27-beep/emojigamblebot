@@ -18,7 +18,6 @@ import sys
 import os
 import logging
 
-# Import from telegram.ext specifically if needed, but python-telegram-bot 20+ uses telegram
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
 from telegram.ext import (
@@ -1042,8 +1041,8 @@ class AntariaCasinoBot:
 
         keyboard = [
             [
-                InlineKeyboardButton(f"🎁 Claim ${rakeback:,.2f}", callback_data=f"rakeback_claim_direct_{rakeback:.2f}"),
-                InlineKeyboardButton("🎲 Try To Double", callback_data=f"rakeback_double_{rakeback:.2f}")
+                InlineKeyboardButton(f"🎁 Claim ${weekly_bonus:,.2f}", callback_data=f"weekly_claim_direct_{weekly_bonus:.2f}"),
+                InlineKeyboardButton("🎲 Try To Double", callback_data=f"weekly_double_{weekly_bonus:.2f}")
             ],
             [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
         ]
@@ -3149,9 +3148,25 @@ class AntariaCasinoBot:
                 referrer_id = user_data.get('referred_by')
                 if referrer_id:
                     referrer_data = self.db.get_user(referrer_id)
-                    bonus_amount = total_bet * 0.001 
+                    bonus_percent = 0.001
+                    bonus_amount = total_bet * bonus_percent 
                     referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
                     self.db.update_user(referrer_id, referrer_data)
+
+                # Add to rakeback (2%)
+                rakeback_percent = 0.02
+                user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
+                
+                # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+                achievements = user_data.get('achievements', {}) or {}
+                pool = achievements.get('weekly_bonus_pool', 0)
+                weekly_percent = 0.001
+                if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                    weekly_percent = 0.0012
+                
+                achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
+                user_data['achievements'] = achievements
+                self.db.update_user(user_id, user_data)
 
                 # Re-read for accurate balance display
                 user_data = self.db.get_user(user_id)
@@ -4054,6 +4069,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         # Rakeback (base 2%)
         rakeback_percent = 0.02
+        
+        # Blackjack-specific wager handling (since it's a separate module)
+        # We ensure we're adding rakeback for all wagered amounts
             
         update_fields = {
             'total_wagered': (user_data.get('total_wagered', 0) or 0) + wager,
@@ -7160,6 +7178,84 @@ To deposit, send LTC to the address below:
                 self.clicked_buttons.add((chat_id, message_id, data))
 
         try:
+            if data == "bonus_weekly_menu":
+                await self.weekly_bonus_submenu(update, context)
+                return
+
+            if data == "bonus_rakeback_menu":
+                await self.rakeback_submenu(update, context)
+                return
+
+            if data.startswith("rakeback_claim_direct_"):
+                parts = data.split("_")
+                amount = float(parts[3])
+                user_data = self.db.get_user(user_id)
+                if amount <= 0:
+                    await query.answer("❌ No rakeback to claim!", show_alert=True)
+                    return
+                
+                user_data['balance'] += amount
+                user_data['rakeback_balance'] = 0
+                self.db.update_user(user_id, user_data)
+                self.db.add_transaction(user_id, "rakeback_claim", amount, f"Rakeback Claim: ${amount:.2f}")
+                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await self.rakeback_submenu(update, context)
+                return
+
+            if data.startswith("rakeback_double_"):
+                parts = data.split("_")
+                amount = float(parts[2])
+                if amount <= 0:
+                    await query.answer("❌ No rakeback to double!", show_alert=True)
+                    return
+                await self.rakeback_double_roll(update, context, amount, is_weekly=False)
+                return
+
+            if data == "menu_bonus":
+                await self.bonus_command(update, context)
+                return
+
+            if data.startswith("weekly_claim_direct_"):
+                parts = data.split("_")
+                amount = float(parts[3])
+                user_data = self.db.get_user(user_id)
+                if amount <= 0:
+                    await query.answer("❌ No weekly bonus to claim!", show_alert=True)
+                    return
+                
+                import pytz
+                from datetime import datetime, timedelta
+                est = pytz.timezone('US/Eastern')
+                now_est = datetime.now(est)
+                
+                days_until_friday = (4 - now_est.weekday()) % 7
+                last_friday = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday - 7)
+                
+                achievements = user_data.get('achievements', {}) or {}
+                last_claim = achievements.get('last_weekly_claim_date')
+                if last_claim and datetime.fromisoformat(last_claim) > last_friday:
+                    await query.answer("❌ Already claimed this week!", show_alert=True)
+                    return
+
+                user_data['balance'] += amount
+                achievements['weekly_bonus_pool'] = 0
+                achievements['last_weekly_claim_date'] = datetime.now().isoformat()
+                user_data['achievements'] = achievements
+                self.db.update_user(user_id, user_data)
+                self.db.add_transaction(user_id, "weekly_claim", amount, f"Weekly Bonus Claim: ${amount:.2f}")
+                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await self.weekly_bonus_submenu(update, context)
+                return
+
+            if data.startswith("weekly_double_"):
+                parts = data.split("_")
+                amount = float(parts[2])
+                if amount <= 0:
+                    await query.answer("❌ No weekly bonus to double!", show_alert=True)
+                    return
+                await self.rakeback_double_roll(update, context, amount, is_weekly=True)
+                return
+
             if data == "none":
                 try:
                     await query.answer()
@@ -7171,7 +7267,6 @@ To deposit, send LTC to the address below:
                 cid = data.replace("v2_cancel_", "")
                 challenge = self.pending_pvp.get(cid)
                 if challenge:
-                    # Refund players
                     wager = challenge.get('wager', 0)
                     if cid.startswith("v2_bot_"):
                         pid = challenge.get('player')
@@ -7193,9 +7288,8 @@ To deposit, send LTC to the address below:
                     del self.pending_pvp[cid]
                     self.db.update_pending_pvp(self.pending_pvp)
 
-                    # Try to delete the original command message if it exists
                     try:
-                        cmd_msg_id = challenge.get('message_id') # Original command message id is stored here
+                        cmd_msg_id = challenge.get('message_id')
                         if cmd_msg_id:
                             await context.bot.delete_message(chat_id=chat_id, message_id=cmd_msg_id)
                     except Exception as e:
@@ -7211,279 +7305,10 @@ To deposit, send LTC to the address below:
                 await handle_roll(self, update, context)
                 return
 
-            # Emoji game setup callbacks
-            if data.startswith("v2_send_emoji_"):
-                # Mark it here too to be absolutely sure
-                self.clicked_buttons.add(button_key)
-                parts = data.split("_")
-
-                # Format: v2_bot_{game}_{wager}_{rolls}_{mode}_{pts}
-                if len(parts) >= 7 and parts[1] == "bot":
-                    # Remove the button immediately when user clicks "Send emoji"
-                    try:
-                        await query.edit_message_reply_markup(reply_markup=None)
-                    except Exception as e:
-                        logger.debug(f"Error removing reply markup: {e}")
-
-                    g_mode = parts[2]
-                    wager = float(parts[3])
-                    rolls = int(parts[4])
-                    mode = parts[5]
-                    pts = int(parts[6])
-
-                    # Call the bot start function which handles the actual game logic
-                    # IMPORTANT: start_generic_v2_bot now uses send_message instead of edit_message
-                    await self.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
-                    return
-
-                # Format: v2_send_emoji_bot_{g_mode}_{wager}_{rolls}_{mode}_{pts}
-                # OR v2_send_emoji_{cid}
-                if len(parts) > 3 and parts[2] == "bot":
-                    # Remove the button immediately
-                    try:
-                        await query.edit_message_reply_markup(reply_markup=None)
-                    except Exception as e:
-                        logger.debug(f"Error removing reply markup: {e}")
-
-                    g_mode = parts[3]
-                    wager = float(parts[4])
-                    rolls = int(parts[5])
-                    mode = parts[6]
-                    pts = int(parts[7])
-
-                    # Call the bot start function which handles the actual game logic
-                    await self.start_generic_v2_bot(update, context, g_mode, wager, rolls, mode, pts)
-                    return
-
-                cid = data.replace("v2_send_emoji_", "")
-                challenge = self.pending_pvp.get(cid)
-                if not challenge or challenge.get('player') != user_id:
-                    await query.answer("❌ Game no longer valid.", show_alert=True)
-                    return
-
-                await query.answer()
-                # Remove the button
-                try:
-                    await query.edit_message_reply_markup(reply_markup=None)
-                except Exception as e:
-                    logger.error(f"Error removing reply markup: {e}")
-
-                # Mark that bot is rolling to ignore manual rolls
-                challenge['bot_is_rolling'] = True
-                self.db.update_pending_pvp(self.pending_pvp)
-
-                emoji = challenge['emoji']
-                # Send emojis for user based on number of rolls
-                num_rolls = challenge.get('rolls', 1)
-                pts = challenge.get('pts', 1)
-
-                for i in range(num_rolls):
-                    try:
-                        msg = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                        val = msg.dice.value
-                        score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
-                        challenge['p_rolls'].append(score)
-                        challenge['cur_rolls'] += 1
-                        self.db.update_pending_pvp(self.pending_pvp)
-                    except Exception as e:
-                        logger.error(f"Error sending dice: {e}")
-
-                # After rolls are complete, trigger resolution
-                # For single-point games after a draw, num_rolls=1
-                # This ensures resolve_bot_game is called to calculate the new round result
-                await self.resolve_bot_game(update, context, cid)
-                return
-
-                await asyncio.sleep(4)
-
-                # Re-load challenge for safety
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge: 
-                    logger.error(f"Challenge {cid} not found after player rolls")
-                    return
-
-                p_tot = sum(challenge['p_rolls'])
-                # Remove button from old cashout message before bot speaks
-                old_msg_id = challenge.get('cashout_msg_id')
-                if old_msg_id:
-                    try:
-                        await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
-                        challenge['cashout_msg_id'] = None
-                        self.db.update_pending_pvp(self.pending_pvp)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove button from old cashout message: {e}")
-
-                # await context.bot.send_message(chat_id=chat_id, text=f"<b>Rukia</b>, your turn!", parse_mode="HTML")
-
-                # Bot rolls
-                challenge['b_rolls'] = [] # Clear bot rolls for the round
-                for _ in range(challenge['rolls']):
-                    try:
-                        d = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                        val = d.dice.value
-                        score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val
-                        challenge['b_rolls'].append(score)
-                    except Exception as e:
-                        logger.error(f"Error sending bot dice: {e}")
-
-                # Re-calculate b_tot from the rolls we just made
-                b_tot = sum(challenge['b_rolls'])
-
-                # Save bot progress
-                self.db.update_pending_pvp(self.pending_pvp)
-
-                # Wait for bot dice animation to finish
-                await asyncio.sleep(4)
-
-                # Re-load challenge for safety to get the absolute latest state
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge:
-                    logger.error(f"Challenge {cid} not found after rolls")
-                    return
-
-                # RE-CALCULATE totals from the persistent rolls right before comparison
-                # This is critical because challenge['p_rolls'] and challenge['b_rolls'] 
-                # are the source of truth
-                current_p_rolls = challenge.get('p_rolls', [])
-                current_b_rolls = challenge.get('b_rolls', [])
-                p_tot = sum(current_p_rolls)
-                b_tot = sum(current_b_rolls)
-
-                # Resolve Round/Series
-                round_win = None
-                if challenge.get('mode', 'normal') == "normal":
-                    if p_tot > b_tot: round_win = "p"
-                    elif b_tot > p_tot: round_win = "b"
-                    else: round_win = "draw"
-                else:
-                    if p_tot < b_tot: round_win = "p"
-                    elif b_tot < p_tot: round_win = "b"
-                    else: round_win = "draw"
-
-                # RE-LOAD BEFORE INCREMENTING to ensure we have the most accurate pts
-                self.pending_pvp = self.db.data.get('pending_pvp', {})
-                challenge = self.pending_pvp.get(cid)
-                if not challenge: return
-
-                if round_win == "p":
-                    challenge['p_pts'] += 1
-                elif round_win == "b":
-                    challenge['b_pts'] += 1
-
-                # Update database IMMEDIATELY after incrementing points
-                self.db.update_pending_pvp(self.pending_pvp)
-
-                if round_win == "draw":
-                    # Tie pays 0.95x - house takes 5% edge, game ends
-                    w = challenge['wager']
-                    tie_payout = round(w * 0.95, 2)
-                    u = self.db.get_user(user_id)
-                    self.db.update_user(user_id, {'balance': u['balance'] + tie_payout})
-                    self.db.update_house_balance(-(tie_payout - w))
-                    self.db.add_transaction(user_id, "game_tie", tie_payout, f"Game tie payout (0.95x)")
-                    self._update_user_stats(user_id, w, tie_payout - w, "draw")
-
-                    user_username = u.get('username', f'User{user_id}')
-                    tie_text = f"🤝 <b>Draw!</b> {user_username} cashed out <b>${tie_payout:,.2f}</b>"
-
-                    game_name = challenge.get('game', 'dice')
-                    keyboard = [
-                        [
-                            InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game_name}_{w:.2f}_{challenge['rolls']}_{challenge['mode']}_{challenge['pts']}"),
-                            InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game_name}_{w*2:.2f}_{challenge['rolls']}_{challenge['mode']}_{challenge['pts']}")
-                        ]
-                    ]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=tie_text, reply_markup=reply_markup, parse_mode="HTML")
-                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
-
-                    del self.pending_pvp[cid]
-                    self.db.update_pending_pvp(self.pending_pvp)
-                    return
-
-                target_pts = challenge.get('pts', 1)
-                if challenge['p_pts'] >= target_pts or challenge['b_pts'] >= target_pts:
-                    # Series End - UPDATE BALANCE BUT DON'T SEND MESSAGE
-                    w = challenge['wager']
-                    if challenge['p_pts'] >= target_pts:
-                        payout = w * 1.95
-                        u = self.db.get_user(user_id)
-                        u['balance'] += payout
-                        self.db.update_user(user_id, {'balance': u['balance']})
-                        self.db.update_house_balance(-(payout - w))
-                    else:
-                        self.db.update_house_balance(w)
-
-                    del self.pending_pvp[cid]
-                    self.db.update_pending_pvp(self.pending_pvp)
-                    return
-                else:
-                    if target_pts > 1:
-                        # SILENCE: Don't send Score/Cashout message for mid-series rounds
-                        challenge['p_rolls'] = []
-                        challenge['b_rolls'] = []
-                        self.db.update_pending_pvp(self.pending_pvp)
-                        return
-                    else:
-                        # For 1-point games, we don't need a "Next Round" or Cashout message
-                        pass
-
-                self.db.update_pending_pvp(self.pending_pvp)
-                return
-
             if data == "button_unavailable":
                 await query.answer("❌ This button is no longer available as the game has started!", show_alert=True)
                 return
 
-            if data == "none":
-                try:
-                    await query.answer()
-                except:
-                    pass
-                return
-
-            if data.startswith("v2_cancel_"):
-                cid = data.replace("v2_cancel_", "")
-                challenge = self.pending_pvp.get(cid)
-                if challenge:
-                    # Refund players
-                    wager = challenge.get('wager', 0)
-                    if cid.startswith("v2_bot_"):
-                        pid = challenge.get('player')
-                        if pid and challenge.get('wager_deducted'):
-                            user_data = self.db.get_user(pid)
-                            user_data['balance'] += wager
-                            self.db.update_user(pid, user_data)
-                    elif cid.startswith("v2_pvp_"):
-                        p1, p2 = challenge.get('challenger'), challenge.get('opponent')
-                        if p1 and challenge.get('p1_deducted'):
-                            user_data = self.db.get_user(p1)
-                            user_data['balance'] += wager
-                            self.db.update_user(p1, user_data)
-                        if p2 and challenge.get('p2_deducted'):
-                            user_data = self.db.get_user(p2)
-                            user_data['balance'] += wager
-                            self.db.update_user(p2, user_data)
-
-                    del self.pending_pvp[cid]
-                    self.db.update_pending_pvp(self.pending_pvp)
-
-                    # Try to delete the original command message if it exists
-                    try:
-                        cmd_msg_id = challenge.get('message_id') # Original command message id is stored here
-                        if cmd_msg_id:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=cmd_msg_id)
-                    except Exception as e:
-                        logger.debug(f"Could not delete original command message: {e}")
-
-                    await query.edit_message_text(f"❌ Game cancelled and wager refunded.")
-                else:
-                    await query.answer("❌ Game no longer exists!", show_alert=True)
-                return
-
-            if data.startswith("emoji_setup_"):
                 parts = data.split("_")
                 # Parts: emoji_setup, game_mode, wager, step, [pts, rolls, mode, opponent]
                 if len(parts) < 5:
@@ -7607,6 +7432,77 @@ To deposit, send LTC to the address below:
                         await query.answer("⚠️ Minimum bet is $1.00. Adjusted to $1.00.", show_alert=True)
                 except (ValueError, IndexError):
                     pass
+
+            if data == "bonus_weekly_menu":
+                await self.weekly_bonus_submenu(update, context)
+                return
+
+            if data == "bonus_rakeback_menu":
+                await self.rakeback_submenu(update, context)
+                return
+
+            if data.startswith("rakeback_claim_direct_"):
+                parts = data.split("_")
+                amount = float(parts[3])
+                user_data = self.db.get_user(user_id)
+                if amount <= 0:
+                    await query.answer("❌ No rakeback to claim!", show_alert=True)
+                    return
+                
+                user_data['balance'] += amount
+                user_data['rakeback_balance'] = 0
+                self.db.update_user(user_id, user_data)
+                self.db.add_transaction(user_id, "rakeback_claim", amount, f"Rakeback Claim: ${amount:.2f}")
+                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await self.rakeback_submenu(update, context)
+                return
+
+            if data.startswith("rakeback_double_"):
+                parts = data.split("_")
+                amount = float(parts[2])
+                if amount <= 0:
+                    await query.answer("❌ No rakeback to double!", show_alert=True)
+                    return
+                await self.rakeback_double_roll(update, context, amount, is_weekly=False)
+                return
+
+            if data == "menu_bonus":
+                await self.bonus_command(update, context)
+                return
+
+            if data.startswith("weekly_claim_direct_"):
+                parts = data.split("_")
+                amount = float(parts[3])
+                user_data = self.db.get_user(user_id)
+                if amount <= 0:
+                    await query.answer("❌ No weekly bonus to claim!", show_alert=True)
+                    return
+                
+                # Check if Friday 9PM EST has passed
+                import pytz
+                from datetime import datetime
+                est = pytz.timezone('US/Eastern')
+                now_est = datetime.now(est)
+                
+                # Target: Friday (4) at 21:00
+                days_until_friday = (4 - now_est.weekday()) % 7
+                last_friday = now_est.replace(hour=21, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday - 7)
+                
+                achievements = user_data.get('achievements', {})
+                last_claim = achievements.get('last_weekly_claim_date')
+                if last_claim and datetime.fromisoformat(last_claim) > last_friday:
+                    await query.answer("❌ Already claimed this week!", show_alert=True)
+                    return
+
+                user_data['balance'] += amount
+                achievements['weekly_bonus_pool'] = 0
+                achievements['last_weekly_claim_date'] = datetime.now().isoformat()
+                user_data['achievements'] = achievements
+                self.db.update_user(user_id, user_data)
+                self.db.add_transaction(user_id, "weekly_claim", amount, f"Weekly Bonus Claim: ${amount:.2f}")
+                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await self.weekly_bonus_submenu(update, context)
+                return
 
             if data == "none":
                 try:

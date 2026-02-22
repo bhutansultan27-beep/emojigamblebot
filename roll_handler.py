@@ -148,16 +148,11 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
         b_tot = 0
         challenge['b_rolls'] = [] # Track bot rolls
         
-        # Use secondary bot (helper) ONLY if it exists, otherwise the game would break
-        if not bot_instance.secondary_bot:
-            logger.error("Secondary bot (helper) not initialized! Bot cannot roll.")
-            await context.bot.send_message(chat_id=chat_id, text="❌ Bot error: Helper bot not connected.")
-            return
-
-        bot_to_use = bot_instance.secondary_bot
+        # Use secondary bot (helper) if it exists, otherwise fallback to main bot
+        bot_to_use = bot_instance.secondary_bot or context.bot
         for _ in range(challenge['rolls']):
             try:
-                # Secondary bot (helper) sends dice
+                # Bot sends dice
                 d = await bot_to_use.send_dice(chat_id=chat_id, emoji=emoji)
                 val = d.dice.value
                 score = (1 if val >= 4 else 0) if emoji in ["⚽", "🏀"] else val

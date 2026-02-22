@@ -183,6 +183,9 @@ def play_game():
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
+        
+        # Add to rakeback (2%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
 
         update_house_balance(-profit)
         db.session.commit()
