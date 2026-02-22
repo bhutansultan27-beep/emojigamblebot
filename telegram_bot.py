@@ -3011,14 +3011,13 @@ class AntariaCasinoBot:
 
         # Start game
         try:
-            from blackjack import BlackjackGame
-            from blackjack import CARD_FACES as BJ_CARD_FACES
+            from blackjack import BlackjackGame, CARD_FACES as BJ_CARD_FACES
             game = BlackjackGame(bet_amount=wager)
             game.start_game()
             self.blackjack_sessions[user_id] = game
 
             # Show game state
-            await self._display_blackjack_state(update, context, user_id)
+            await self._display_blackjack_state(update, context, user_id, bj_card_faces=BJ_CARD_FACES)
         except Exception as e:
             logger.error(f"Error starting blackjack: {e}", exc_info=True)
             # Refund
@@ -3028,13 +3027,15 @@ class AntariaCasinoBot:
                 self.db.update_user(user_id, u_data)
             await update.effective_message.reply_text(f"❌ An error occurred: {str(e)}. Your bet has been refunded.")
 
-    async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    async def _display_blackjack_state(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, bj_card_faces=None):
         """Display the current Blackjack game state with action buttons"""
         if user_id not in self.blackjack_sessions:
             logger.warning(f"BJ display: no session for {user_id}")
             return
 
         game = self.blackjack_sessions[user_id]
+        if bj_card_faces is None:
+            from blackjack import CARD_FACES as bj_card_faces
         state = game.get_game_state()
         user_data = self.db.get_user(user_id)
 
@@ -3048,11 +3049,11 @@ class AntariaCasinoBot:
         if state['game_over']:
             dealer_cards_str = ""
             for card in game.dealer_hand.cards:
-                dealer_cards_str += f"<b>{card.rank}</b>{BJ_CARD_FACES.get(card.suit, '')} "
+                dealer_cards_str += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
             message += f"{dealer_cards_str.strip()}\n\n"
         else:
             first_card = game.dealer_hand.cards[0]
-            message += f"<b>{first_card.rank}</b>{BJ_CARD_FACES.get(first_card.suit, '')} [??]\n\n"
+            message += f"<b>{first_card.rank}</b>{bj_card_faces.get(first_card.suit, '')} [??]\n\n"
 
         # Player Hands section
         num_player_hands = len(state['player_hands'])
@@ -3063,7 +3064,7 @@ class AntariaCasinoBot:
 
             player_cards_formatted = ""
             for card in game.player_hands[i]['hand'].cards:
-                player_cards_formatted += f"<b>{card.rank}</b>{BJ_CARD_FACES.get(card.suit, '')} "
+                player_cards_formatted += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
 
             message += f"{player_cards_formatted.strip()}\n\n"
 
