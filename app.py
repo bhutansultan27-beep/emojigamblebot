@@ -176,9 +176,9 @@ def play_game():
         # Add to weekly bonus pool (0.1% rakeback)
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        # Calculate bonus percentage: base 0.1% + 20% if @dices in username
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username:
+        if user.username and '@dices' in user.username:
             bonus_percent = 0.201  # 0.1% + 20%
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -292,9 +292,9 @@ def mines_reveal():
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
         
-        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        # Calculate bonus percentage: base 0.1% + 20% if @dices in username
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username:
+        if user.username and '@dices' in user.username:
             bonus_percent = 0.201  # 0.1% + 20%
             
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -370,9 +370,9 @@ def mines_cashout():
     achievements = user.achievements or {}
     pool = achievements.get('weekly_bonus_pool', 0)
     
-    # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+    # Calculate bonus percentage: base 0.1% + 20% if @dices in username
     bonus_percent = 0.001
-    if user.username and '@davaulte' in user.username:
+    if user.username and '@dices' in user.username:
         bonus_percent = 0.201  # 0.1% + 20%
         
     achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -443,9 +443,9 @@ def game_result():
     achievements = user.achievements or {}
     pool = achievements.get('weekly_bonus_pool', 0)
     
-    # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+    # Calculate bonus percentage: base 0.1% + 20% if @dices in username
     bonus_percent = 0.001
-    if user.username and '@davaulte' in user.username:
+    if user.username and '@dices' in user.username:
         bonus_percent = 0.201  # 0.1% + 20%
         
     achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
