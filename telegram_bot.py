@@ -1079,6 +1079,16 @@ class AntariaCasinoBot:
         boost_active = user_data.get('username') and '@dices' in user_data.get('username')
         boost_status = "✅ Active" if boost_active else "❌ Inactive"
         
+        # Check if already claimed this week
+        last_claim = user_data.get('achievements', {}).get('last_weekly_claim_date')
+        is_claimed = False
+        if last_claim:
+            last_claim_dt = datetime.fromisoformat(last_claim)
+            # If last claim was after the previous Friday 9PM
+            last_friday = target_date - timedelta(days=7)
+            if last_claim_dt > last_friday:
+                is_claimed = True
+
         text = (
             f"🎁 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
             f"Next claim in: <b>{time_str}</b>\n"
@@ -1092,13 +1102,17 @@ class AntariaCasinoBot:
             "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
         )
 
-        keyboard = [
-            [
-                InlineKeyboardButton(f"🎁 Claim ${weekly_bonus:,.2f}", callback_data=f"weekly_claim_direct_{weekly_bonus:.2f}"),
-                InlineKeyboardButton("🎲 Try To Double", callback_data=f"weekly_double_{weekly_bonus:.2f}")
-            ],
-            [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
-        ]
+        if is_claimed:
+            text += "\n\n✅ <b>You have already claimed your bonus for this week!</b>"
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton(f"🎁 Claim ${weekly_bonus:,.2f}", callback_data=f"weekly_claim_direct_{weekly_bonus:.2f}"),
+                    InlineKeyboardButton("🎲 Try To Double", callback_data=f"weekly_double_{weekly_bonus:.2f}")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
+            ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
@@ -4604,11 +4618,24 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
         
+        # Check if @dices in username for 20% boost (on the earned rakeback)
+        if user_data.get('username') and '@dices' in user_data.get('username'):
+             rakeback_earned *= 1.20
+
         # Check if referred for extra 10%
         if user_data.get('referred_by'):
              rakeback_earned += wager * 0.10
              
-        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
+        
+        # Referral earnings (10% of wager for the referrer)
+        referrer_id = user_data.get('referred_by')
+        if referrer_id:
+            referrer_data = self.db.get_user(referrer_id)
+            ref_earning = wager * 0.10
+            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
+            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
+            self.db.update_user(referrer_id, referrer_data)
         
         # Weekly bonus pool (base 0.1% + 20% if @dices in name)
         achievements = user_data.get('achievements', {}) or {}
@@ -4640,11 +4667,24 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
         
+        # Check if @dices in username for 20% boost (on the earned rakeback)
+        if user_data.get('username') and '@dices' in user_data.get('username'):
+             rakeback_earned *= 1.20
+
         # Check if referred for extra 10%
         if user_data.get('referred_by'):
              rakeback_earned += wager * 0.10
              
-        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
+        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
+        
+        # Referral earnings (10% of wager for the referrer)
+        referrer_id = user_data.get('referred_by')
+        if referrer_id:
+            referrer_data = self.db.get_user(referrer_id)
+            ref_earning = wager * 0.10
+            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
+            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
+            self.db.update_user(referrer_id, referrer_data)
         
         # Weekly bonus pool (base 0.1% + 20% if @dices in name)
         achievements = user_data.get('achievements', {}) or {}
