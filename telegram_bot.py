@@ -383,6 +383,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("sk", self.sk))
 
         self.app.add_handler(CommandHandler("bet", self.bet_details_command))
+        self.app.add_handler(CommandHandler("refcode", self.refcode_command))
 
 
         # Message handlers
@@ -834,6 +835,10 @@ class AntariaCasinoBot:
             [
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
                 InlineKeyboardButton("📊 Stats", callback_data="menu_stats")
+            ],
+            [
+                InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals"),
+                InlineKeyboardButton("🏎️ Races", callback_data="menu_races")
             ],
             [InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")]
         ]
@@ -4490,8 +4495,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         else:
             user_data['win_streak'] = 0
             
-        # Rakeback (2%)
+        # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
+        
+        # Check if referred for extra 10%
+        if user_data.get('referred_by'):
+             rakeback_earned += wager * 0.10
+             
         user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
         
         self.db.update_user(user_id, user_data)
@@ -4512,8 +4522,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         else:
             user_data['win_streak'] = 0
             
-        # Rakeback (2%)
+        # Rakeback (2% standard + 10% of bet if referred)
         rakeback_earned = wager * 0.02
+        
+        # Check if referred for extra 10%
+        if user_data.get('referred_by'):
+             rakeback_earned += wager * 0.10
+             
         user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + rakeback_earned
         
         self.db.update_user(user_id, user_data)
@@ -4988,6 +5003,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         # Normalize score
         score = (1 if dice_value >= 4 else 0) if emoji in ["⚽", "🏀"] else dice_value
+
+        # ENSURE user_id/player_id is set in challenge for stats
+        if 'player' not in challenge:
+            challenge['player'] = user_id
+        if 'user_id' not in challenge:
+            challenge['user_id'] = user_id
+        if 'player_id' not in challenge:
+            challenge['player_id'] = user_id
 
         if cid.startswith("v2_bot_"):
             # IMMEDIATELY delete or clear the buttons from the previous message
@@ -5875,6 +5898,38 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         sent_msg = await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
 
+    async def refcode_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Set a referral code"""
+        if not context.args:
+            await update.message.reply_text("Usage: /refcode <code>")
+            return
+        
+        code = context.args[0].strip()
+        user_id = update.effective_user.id
+        
+        # Logic to set referral code
+        # We search for a user with this referral_code
+        with self.db.app.app_context():
+            referrer = User.query.filter_by(referral_code=code).first()
+            if not referrer:
+                await update.message.reply_text("❌ Invalid referral code.")
+                return
+            
+            user = User.query.filter_by(user_id=user_id).first()
+            if user.referred_by:
+                await update.message.reply_text("❌ You have already set a referral code.")
+                return
+            
+            if referrer.user_id == user_id:
+                await update.message.reply_text("❌ You cannot refer yourself.")
+                return
+
+            user.referred_by = referrer.user_id
+            referrer.referral_count += 1
+            db.session.commit()
+            
+        await update.message.reply_text(f"✅ Referral code '{code}' set! You now get 10% bonus rakeback.")
+
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle all button interactions"""
         query = update.callback_query
@@ -5882,6 +5937,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         chat = query.message.chat
         data = query.data
         message_id = query.message.message_id
+
+        if data == "menu_races":
+            await query.answer()
+            text = "🏎️ <b>Races</b>\n\nComing soon!"
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+            
+        if data == "menu_referrals":
+            await query.answer()
+            text = (
+                "👥 <b>Referrals</b>\n\n"
+                "To set a referral code type this command:\n\n"
+                "<code>/refcode <code></code>\n\n"
+                "If you want your own code contact a support member in chat or send a support ticket to @gamblesupport"
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
         owner_id = self.button_ownership.get((chat.id, message_id))
 
         # PvP acceptance: allow anyone but the challenger to click accept
