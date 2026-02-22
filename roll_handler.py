@@ -93,6 +93,21 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
             return
         
         await query.answer()
+        
+        # Deduct wager if not yet deducted
+        if not challenge.get('wager_deducted'):
+            wager = challenge.get('wager', 0)
+            u_data = bot_instance.db.get_user(user_id)
+            if u_data['balance'] < (wager - 0.001):
+                await context.bot.send_message(chat_id=chat_id, text=f"❌ Insufficient balance! (${u_data['balance']:.2f})")
+                del bot_instance.pending_pvp[cid]
+                bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
+                return
+            bot_instance.db.update_user(user_id, {'balance': max(0, u_data['balance'] - wager)})
+            bot_instance.db.add_transaction(user_id, "game_bet", -wager, f"Bet on {challenge.get('game', 'game')} vs Bot")
+            challenge['wager_deducted'] = True
+            bot_instance.db.update_pending_pvp(bot_instance.pending_pvp)
+        
         # Make buttons unclickable by removing their callback data
         if query.message and query.message.reply_markup:
             try:
