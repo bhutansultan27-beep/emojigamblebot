@@ -842,14 +842,16 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
-                InlineKeyboardButton("🎁 Rakeback", callback_data="menu_bonus")
+                InlineKeyboardButton("🎁 Bonus", callback_data="menu_bonus")
             ],
             [
                 InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start"),
                 InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals")
             ],
             [
-                InlineKeyboardButton("🏎️ Races", callback_data="menu_races"),
+                InlineKeyboardButton("🏎️ Races", callback_data="menu_races")
+            ],
+            [
                 InlineKeyboardButton("💬 Open Group", url="https://t.me/emojigamblegroup")
             ]
         ]
@@ -1006,9 +1008,34 @@ class AntariaCasinoBot:
         rakeback = user_data.get('rakeback_balance', 0)
 
         bonus_text = (
-            "🎁 <b>Rakeback & Bonuses</b>\n\n"
-            "In this section you can find bonuses that you can get by playing games!\n\n"
-            f"🎁 <b>Rakeback: ${rakeback:,.2f}</b>\n"
+            "💎 <b>Bonus & Rakeback</b>\n\n"
+            "Welcome to the rewards section! Here you can claim your accumulated perks or try your luck to increase them."
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton("🎁 Rakeback", callback_data="bonus_rakeback_menu"),
+                InlineKeyboardButton("📅 Weekly Bonus", callback_data="bonus_weekly_menu")
+            ],
+            [InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if update.callback_query:
+            await update.callback_query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+
+    async def rakeback_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show rakeback specific submenu"""
+        user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        rakeback = user_data.get('rakeback_balance', 0)
+
+        text = (
+            f"🎁 <b>Rakeback: ${rakeback:,.2f}</b>\n\n"
             "Earn 2% back on every wager! Collect it anytime to add it to your balance.\n\n"
             "You can claim your rakeback directly or try to double it with a dice roll!\n\n"
             "<b>Dice Multipliers:</b>\n"
@@ -1021,16 +1048,38 @@ class AntariaCasinoBot:
                 InlineKeyboardButton(f"🎁 Claim ${rakeback:,.2f}", callback_data=f"rakeback_claim_direct_{rakeback:.2f}"),
                 InlineKeyboardButton("🎲 Try To Double", callback_data=f"rakeback_double_{rakeback:.2f}")
             ],
-            [InlineKeyboardButton("🎁 Level Up Bonus", callback_data="bonus_levelup")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
-        if update.callback_query:
-            await update.callback_query.edit_message_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
-        else:
-            sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
+    async def weekly_bonus_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show weekly bonus specific submenu"""
+        user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        
+        # Simple weekly bonus logic based on wagered amount (e.g., 0.1% of weekly wager)
+        # For now, let's use a placeholder or calculate based on total_wagered as a simple simulation
+        weekly_bonus = (user_data.get('total_wagered', 0) * 0.001) 
+        
+        text = (
+            f"📅 <b>Weekly Bonus: ${weekly_bonus:,.2f}</b>\n\n"
+            "Your weekly reward based on your activity!\n\n"
+            "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
+            "<b>Dice Multipliers:</b>\n"
+            "🎲 1 = 0x  |  2 = 0.5x  |  3 = 1x\n"
+            "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
+        )
+
+        keyboard = [
+            [
+                InlineKeyboardButton(f"🎁 Claim ${weekly_bonus:,.2f}", callback_data=f"weekly_claim_direct_{weekly_bonus:.2f}"),
+                InlineKeyboardButton("🎲 Try To Double", callback_data=f"weekly_double_{weekly_bonus:.2f}")
+            ],
+            [InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, show_back=False):
         """Show player statistics"""
