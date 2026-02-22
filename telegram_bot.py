@@ -5670,6 +5670,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await self.rakeback_submenu(update, context)
                 return
 
+            if data == "menu_bonus":
+                await self.bonus_command(update, context)
+                return
+
             if data.startswith("rakeback_claim_direct_"):
                 parts = data.split("_")
                 amount = float(parts[3])
@@ -5692,10 +5696,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await query.answer("❌ No rakeback to double!", show_alert=True)
                     return
                 await self.rakeback_double_roll(update, context, amount, is_weekly=False)
-                return
-
-            if data == "menu_bonus":
-                await self.bonus_command(update, context)
                 return
 
             if data.startswith("weekly_claim_direct_"):
@@ -5774,7 +5774,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await query.answer("🏎️ Races coming soon!", show_alert=True)
                 return
 
-        if data == "menu_stats_from_start" or data == "menu_stats_back" or data == "menu_stats_noback":
+            if data == "menu_stats_from_start" or data == "menu_stats_back" or data == "menu_stats_noback":
                 from sqlalchemy import or_, cast, String
                 user_data = self.db.get_user(user_id)
                 username = query.from_user.username or query.from_user.first_name
