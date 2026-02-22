@@ -209,14 +209,15 @@ class DatabaseManager:
             return user_games
 
     def record_game(self, game_data: Dict[str, Any]):
-        with self.app.app_context():
-            # Add user_id or player_id to the game_data if it's missing but we have it in context
-            # This ensures it's always searchable in match history
-            g = Game(data=game_data)
-            db.session.add(g)
-            db.session.commit()
-            game_data['id'] = g.id
-            logger.info(f"Recorded game #{g.id} for {game_data.get('user_id') or game_data.get('player_id')}")
+        try:
+            with self.app.app_context():
+                g = Game(data=game_data)
+                db.session.add(g)
+                db.session.commit()
+                game_data['id'] = g.id
+                logger.info(f"Recorded game #{g.id}: type={game_data.get('type')}, user={game_data.get('user_id') or game_data.get('player_id')}, wager={game_data.get('wager')}, result={game_data.get('result')}")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to record game: {e}, data={game_data}", exc_info=True)
 
     def get_leaderboard(self) -> List[Dict[str, Any]]:
         with self.app.app_context():
@@ -332,18 +333,13 @@ class AntariaCasinoBot:
     def setup_handlers(self):
         """Setup all command and callback handlers"""
         from telegram.ext import TypeHandler
-        # self.app.add_handler(CommandHandler("reset", self.reset_bot_command))
         self.app.add_handler(TypeHandler(Update, self.log_update), group=-1)
 
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
-        # self.app.add_handler(CommandHandler("play", self.play_command))
-        # Removed /play command per request
         self.app.add_handler(CommandHandler("balance", self.balance_command))
         self.app.add_handler(CommandHandler("bal", self.balance_command))
         self.app.add_handler(CommandHandler("bonus", self.bonus_command))
-        # self.app.add_handler(CommandHandler("stats", self.stats_command))
-        # self.app.add_handler(CommandHandler("rakeback", self.rakeback_command))
         self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("history", self.matches_command))
         self.app.add_handler(CommandHandler("leaderboard", self.leaderboard_command))
@@ -371,23 +367,16 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("tip", self.tip_command))
         self.app.add_handler(CommandHandler("deposit", self.deposit_command))
         self.app.add_handler(CommandHandler("withdraw", self.withdraw_command))
-        self.app.add_handler(CommandHandler("endgames", self.endgames_command))
-        # self.app.add_handler(CommandHandler("ss", self.ss_command))
-        # self.app.add_handler(CommandHandler("ks", self.ks_command))
-        # self.app.add_handler(CommandHandler("sk", self.sk))
 
         self.app.add_handler(CommandHandler("bet", self.bet_details_command))
         self.app.add_handler(CommandHandler("refcode", self.refcode_command))
-
 
         # Message handlers
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
 
         # Admin commands
         self.app.add_handler(CommandHandler("p", self.p_command))
-        self.app.add_handler(CommandHandler("s", self.s_command))
 
-        self.app.add_handler(MessageHandler(filters.Sticker.ALL, self.sticker_handler))
         self.app.add_handler(MessageHandler(filters.Dice.ALL, self.handle_emoji_response))
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
 
@@ -466,98 +455,6 @@ class AntariaCasinoBot:
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
 
         await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
-
-    async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End all active games and refund players"""
-        # Removed admin restriction so anyone can end games
-
-        count = 0
-        refunded_amount = 0
-
-        # 1. Refund Blackjack sessions
-        for user_id, game in list(self.blackjack_sessions.items()):
-            try:
-                bet = getattr(game, 'initial_bet', 0)
-                if bet > 0:
-                    user_data = self.db.get_user(user_id)
-                    user_data['balance'] += bet
-                    self.db.update_user(user_id, user_data)
-                    refunded_amount += bet
-                del self.blackjack_sessions[user_id]
-                count += 1
-            except Exception as e:
-                logger.error(f"Error refunding BJ user {user_id}: {e}")
-
-        # 2. Refund PvP / Bot games in GlobalState
-        with self.db.app.app_context():
-            state = db.session.get(GlobalState, "pending_pvp")
-            if state and state.value:
-                pending_pvp = state.value
-                for cid, challenge in list(pending_pvp.items()):
-                    try:
-                        wager = challenge.get('wager', 0)
-                        if cid.startswith("v2_bot_"):
-                            pid = challenge.get('player')
-                            if pid and challenge.get('wager_deducted'):
-                                user_data = self.db.get_user(pid)
-                                user_data['balance'] += wager
-                                self.db.update_user(pid, user_data)
-                                refunded_amount += wager
-                        elif cid.startswith("v2_pvp_"):
-                            p1, p2 = challenge.get('challenger'), challenge.get('opponent')
-                            if p1 and challenge.get('p1_deducted'):
-                                user_data = self.db.get_user(p1)
-                                user_data['balance'] += wager
-                                self.db.update_user(p1, user_data)
-                                refunded_amount += wager
-                            if p2 and challenge.get('p2_deducted'):
-                                user_data = self.db.get_user(p2)
-                                user_data['balance'] += wager
-                                self.db.update_user(p2, user_data)
-                                refunded_amount += wager
-
-                        count += 1
-                    except Exception as e:
-                        logger.error(f"Error refunding challenge {cid}: {e}")
-
-                # Clear the table
-                state.value = {}
-                db.session.commit()
-                # Also clear the in-memory copy
-                self.pending_pvp = {}
-
-        await update.message.reply_text(f"✅ Ended {count} games and refunded a total of ${refunded_amount:.2f}.")
-
-
-    async def s_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Set the expiration time for bets (Admin only)"""
-        if not self.is_admin(update.effective_user.id):
-            await update.message.reply_text("❌ This command is for administrators only.")
-            return
-
-        if not context.args:
-            await update.message.reply_text("Usage: /s [seconds]\nExample: /s 60")
-            return
-
-        try:
-            seconds = int(context.args[0])
-            if seconds < 10:
-                await update.message.reply_text("❌ Minimum expiration time is 10 seconds.")
-                return
-
-            # Use current GlobalState approach
-            with self.db.app.app_context():
-                state = db.session.get(GlobalState, "expiration_seconds")
-                if not state:
-                    state = GlobalState(key="expiration_seconds", value={"seconds": seconds})
-                    db.session.add(state)
-                else:
-                    state.value = {"seconds": seconds}
-                db.session.commit()
-
-            await update.message.reply_text(f"✅ Expiration time set to {seconds} seconds.")
-        except (ValueError, IndexError):
-            await update.message.reply_text("❌ Invalid number of seconds.")
 
     async def check_expired_challenges(self, context: ContextTypes.DEFAULT_TYPE):
         """Check for challenges older than 5 minutes and handle refunds/forfeits"""
@@ -892,56 +789,6 @@ class AntariaCasinoBot:
             sent_msg = await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
-    async def crash_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Crash", "crash", "📈")
-
-    async def plinko_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Plinko", "plinko", "⚪")
-
-    async def limbo_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Limbo", "limbo", "🚀")
-
-    async def mines_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.game_launcher(update, "Mines", "mines", "💣")
-
-    async def game_launcher(self, update: Update, game_name: str, endpoint: str, emoji: str):
-        """Helper to launch web app games"""
-        try:
-            # Use a more reliable static approach for Replit environment
-            # Telegram Web Apps REQUIRE HTTPS and very specific URL formats
-            web_url = "https://antaria-casino.repl.co" # Default fallback
-
-            replit_domains = os.environ.get("REPLIT_DOMAINS")
-            if replit_domains:
-                domain = replit_domains.split(',')[0].strip()
-                web_url = f"https://{domain}"
-
-            # Ensure no trailing slash on base and no leading slash on endpoint
-            web_url = web_url.rstrip("/")
-            game_url = f"{web_url}/{endpoint.lstrip('/')}"
-
-            logger.info(f"Launching {game_name} at: {game_url}")
-
-            from telegram.ext import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-
-            # Simplest possible button construction to avoid API rejection
-            button = InlineKeyboardButton(text=f"{emoji} Open {game_name}", web_app=WebAppInfo(url=game_url))
-            keyboard = [[button]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await update.message.reply_text(
-                f"🎰 <b>{game_name}</b>\n\nClick the button below to launch the game!",
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Error in game_launcher for {game_name}: {e}", exc_info=True)
-            await update.message.reply_text("❌ Error launching game interface.")
-
-    async def play_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Deprecated /play command"""
-        await update.message.reply_text("The /play command has been removed. Please use specific game commands like /dice, /blackjack, or /coinflip directly.")
-
     async def get_live_rate(self, crypto_id: str) -> float:
         """Fetch live crypto rate from CoinGecko with caching."""
         now = datetime.now()
@@ -1254,8 +1101,7 @@ class AntariaCasinoBot:
         game_emojis = {
             'dice': '🎲', 'darts': '🎯', 'bowling': '🎳',
             'basketball': '🏀', 'soccer': '⚽', 'coinflip': '🪙',
-            'blackjack': '🃏', 'predict': '🎱', 'slots': '🎰',
-            'mines': '💣', 'plinko': '⚽', 'limbo': '🚀', 'crash': '📈', 'keno': '🔢'
+            'blackjack': '🃏', 'predict': '🎱'
         }
 
         text = f"📜 <b>Your Matches (Page {page + 1}/{total_pages})</b>\n\n"
@@ -1542,7 +1388,6 @@ class AntariaCasinoBot:
              InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
             [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
              InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
-            [InlineKeyboardButton("🔢 Keno", callback_data=f"setup_mode_keno_{amount:.2f}")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1563,7 +1408,7 @@ class AntariaCasinoBot:
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     def _get_next_game_mode(self, current: str) -> str:
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
         try:
             idx = modes.index(current)
             return modes[(idx + 1) % len(modes)]
@@ -1571,7 +1416,7 @@ class AntariaCasinoBot:
             return "dice"
 
     def _get_prev_game_mode(self, current: str) -> str:
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
         try:
             idx = modes.index(current)
             return modes[(idx - 1) % len(modes)]
@@ -1695,7 +1540,6 @@ class AntariaCasinoBot:
             "soccer": "⚽",
             "bowling": "🎳",
             "coinflip": "🪙",
-            "keno": "🔢"
         }
         current_emoji = emoji_map.get(game_mode, "🎲")
 
@@ -1744,7 +1588,7 @@ class AntariaCasinoBot:
         keyboard = []
 
         # Add mode switching buttons
-        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip", "keno"]
+        modes = ["dice", "basketball", "soccer", "darts", "bowling", "coinflip"]
         current_idx = modes.index(game_mode)
         next_mode = modes[(current_idx + 1) % len(modes)]
         prev_mode = modes[(current_idx - 1) % len(modes)]
@@ -2491,7 +2335,6 @@ class AntariaCasinoBot:
              InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
             [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
              InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
-            [InlineKeyboardButton("🔢 Keno", callback_data=f"setup_mode_keno_{amount:.2f}")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2926,76 +2769,6 @@ class AntariaCasinoBot:
                 pass
         await self._show_game_prediction_menu(update, context, amount, "coinflip")
 
-    async def roulette_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play roulette game"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-
-        if not context.args:
-            await update.message.reply_text("Usage: `/roulette <amount|all>` or `/roulette <amount> #<number>`", parse_mode="Markdown")
-            return
-
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                wager = round(float(context.args[0]), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount")
-                return
-
-        if wager <= 0.01:
-            await update.message.reply_text("❌ Min: $0.01")
-            return
-
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-
-        if len(context.args) > 1 and context.args[1].startswith('#'):
-            try:
-                number_str = context.args[1][1:]
-                if number_str == "00":
-                    specific_num = 37
-                else:
-                    specific_num = int(number_str)
-                    if specific_num < 0 or specific_num > 36:
-                        await update.message.reply_text("❌ Number must be 0-36 or 00")
-                        return
-
-                await self.roulette_play_direct(update, context, wager, f"num_{specific_num}")
-                return
-            except ValueError:
-                await update.message.reply_text("❌ Invalid number format. Use #0, #1, #2, ... #36, or #00")
-                return
-
-        keyboard = [
-            [InlineKeyboardButton("Red (2x)", callback_data=f"roulette_{wager:.2f}_red"),
-             InlineKeyboardButton("Black (2x)", callback_data=f"roulette_{wager:.2f}_black")],
-            [InlineKeyboardButton("Green (14x)", callback_data=f"roulette_{wager:.2f}_green")],
-            [InlineKeyboardButton("Odd (2x)", callback_data=f"roulette_{wager:.2f}_odd"),
-             InlineKeyboardButton("Even (2x)", callback_data=f"roulette_{wager:.2f}_even")],
-            [InlineKeyboardButton("Low (2x)", callback_data=f"roulette_{wager:.2f}_low"),
-             InlineKeyboardButton("High (2x)", callback_data=f"roulette_{wager:.2f}_high")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        sent_msg = await update.message.reply_text(
-            f"🎰 **Roulette** - Wager: ${wager:.2f}\n\n"
-            f"**Choose your bet:**\n"
-            f"• Red/Black: 2x payout\n"
-            f"• Odd/Even: 2x payout\n"
-            f"• Green (0/00): 14x payout\n"
-            f"• Low (1-18)/High (19-36): 2x payout\n\n"
-            f"*Tip: Bet on a specific number with `/roulette <amount> #<number>` for 36x payout!*",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-
     async def blackjack_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start a new blackjack game"""
         if not update.effective_message:
@@ -3100,28 +2873,26 @@ class AntariaCasinoBot:
         message = "🃏 <b>Blackjack</b>\n\n"
 
         # Dealer section
-        message += f"Dealer: <b>{state['dealer']['value']}</b>\n"
         if state['game_over']:
             dealer_cards_str = ""
             for card in game.dealer_hand.cards:
                 dealer_cards_str += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
-            message += f"{dealer_cards_str.strip()}\n\n"
+            message += f"Dealer: {dealer_cards_str.strip()} ({state['dealer']['value']})\n\n"
         else:
             first_card = game.dealer_hand.cards[0]
-            message += f"<b>{first_card.rank}</b>{bj_card_faces.get(first_card.suit, '')} [??]\n\n"
+            message += f"Dealer: <b>{first_card.rank}</b>{bj_card_faces.get(first_card.suit, '')} ?? ({state['dealer']['value']})\n\n"
 
         # Player Hands section
         num_player_hands = len(state['player_hands'])
         for i, h in enumerate(state['player_hands']):
-            hand_label = "Your cards" if num_player_hands == 1 else f"Hand {i+1}"
+            hand_label = "▶️ Your Hand" if num_player_hands == 1 else f"▶️ Hand {i+1}"
             current_marker = " ⬅️" if (h['is_current_turn'] and num_player_hands > 1) else ""
-            message += f"{hand_label}: <b>{h['value']}</b>{current_marker}\n"
 
             player_cards_formatted = ""
             for card in game.player_hands[i]['hand'].cards:
                 player_cards_formatted += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
 
-            message += f"{player_cards_formatted.strip()}\n\n"
+            message += f"{hand_label}: {player_cards_formatted.strip()} ({h['value']}){current_marker}\n"
 
         # Game over - show results
         result_msg = ""
@@ -3240,8 +3011,6 @@ class AntariaCasinoBot:
                 for btn in row2:
                     keyboard.append([btn])
 
-            if actions.get('can_surrender'):
-                keyboard.append([InlineKeyboardButton("Surrender", callback_data=f"bj_surrender_{user_id}")])
             if state['is_insurance_available']:
                 keyboard.append([InlineKeyboardButton("Insurance", callback_data=f"bj_insurance_{user_id}")])
         else:
@@ -3267,24 +3036,27 @@ class AntariaCasinoBot:
                     await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
                     logger.info("BJ display: edit_message_text succeeded")
                 except Exception as edit_err:
-                    logger.error(f"BJ edit failed (HTML): {edit_err}")
-                    try:
-                        # Try without HTML parse mode
-                        import re
-                        plain_message = re.sub(r'<[^>]+>', '', message)
-                        await update.callback_query.edit_message_text(plain_message, reply_markup=reply_markup)
-                        logger.info("BJ display: edit plain text succeeded")
-                    except Exception as plain_err:
-                        logger.error(f"BJ edit failed (plain): {plain_err}")
+                    error_str = str(edit_err)
+                    logger.error(f"BJ edit failed: {edit_err}")
+                    if "Message is not modified" in error_str:
+                        # Same content, just answer the query
                         try:
-                            await context.bot.send_message(
+                            await update.callback_query.answer()
+                        except:
+                            pass
+                    else:
+                        # Send as new message instead of fallback to plain text
+                        try:
+                            sent = await context.bot.send_message(
                                 chat_id=update.effective_chat.id,
                                 text=message, reply_markup=reply_markup, parse_mode="HTML"
                             )
+                            self.button_ownership[(sent.chat_id, sent.message_id)] = user_id
                         except Exception:
                             pass
             else:
-                await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
+                sent = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
+                self.button_ownership[(sent.chat_id, sent.message_id)] = user_id
         except Exception as send_err:
             logger.error(f"BJ message send completely failed: {send_err}", exc_info=True)
 
@@ -3591,103 +3363,6 @@ class AntariaCasinoBot:
         else:
             await update.message.reply_text("❌ Database file not found.")
 
-    async def save_sticker_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Save a sticker file_id for roulette numbers"""
-        if not context.args or len(context.args) < 2:
-            await update.message.reply_text(
-                f"Usage: `/savesticker <number> <file_id>`\nNumbers: 00, 0-36",
-                parse_mode="Markdown"
-            )
-            return
-
-        number = context.args[0]
-        file_id = context.args[1]
-
-        # Validate number is valid roulette number
-        valid_numbers = ['00', '0'] + [str(i) for i in range(1, 37)]
-        if number not in valid_numbers:
-            await update.message.reply_text(f"❌ Invalid number. Must be: 00, 0, 1, 2, 3... 36")
-            return
-
-        # Save to database
-        if 'roulette' not in self.stickers:
-            self.stickers['roulette'] = {}
-
-        self.stickers['roulette'][number] = file_id
-        self.db.data['stickers'] = self.stickers
-
-        await update.message.reply_text(f"✅ Sticker saved for roulette number '{number}'!")
-
-    async def list_stickers_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """List all configured stickers"""
-        sticker_text = "🎨 **Roulette Stickers**\n\n"
-
-        roulette_stickers = self.stickers.get('roulette', {})
-
-        # Count how many are set
-        all_numbers = ['00', '0'] + [str(i) for i in range(1, 37)]
-        saved_count = sum(1 for num in all_numbers if num in roulette_stickers and roulette_stickers[num])
-
-        sticker_text += f"Saved: {saved_count}/38"
-        await update.message.reply_text(sticker_text, parse_mode="Markdown")
-
-    async def save_roulette_stickers_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Save all 38 roulette stickers to the database"""
-        # Initialize roulette stickers if not present
-        if 'roulette' not in self.stickers:
-            self.stickers['roulette'] = {}
-
-        # Save all 38 roulette sticker IDs
-        self.stickers['roulette'] = {
-            "00": "CAACAgQAAxkBAAEPnjFo-TLLYpgTZExC4IIOG6PIXwsviAAC1BgAAkmhgFG_0u82E59m3DYE",
-            "0": "CAACAgQAAxkBAAEPnjNo-TMFaqDdWCkRDNlus4jcuamAAwACOh0AAtQAAYBRlMLfm2ulRSM2BA",
-            "1": "CAACAgQAAxkBAAEPnjRo-TMFH5o5R9ztNtTFBJmQVK_t3wACqBYAAvTrgVE4WCoxbBzVCDYE",
-            "2": "CAACAgQAAxkBAAEPnjdo-TMvGdoX-f6IAuR7kpYO-hh9fwAC1RYAAob0eVF1zbcG00UjMzYE",
-            "3": "CAACAgQAAxkBAAEPnjho-TMwui0CFuGEK5iwS7xMRDiPfgACSRgAAs74gVEyHQtTsRykGjYE",
-            "4": "CAACAgQAAxkBAAEPnj1o-TNGYNdmhy4n5Uyp3pzWmukTgAACfBgAAg3IgFGEjdLKewti5zYE",
-            "5": "CAACAgQAAxkBAAEPnj5o-TNHTKLFF2NpdxfLhHnsnFGTXgACyhYAAltygVECKXn73kUyCjYE",
-            "6": "CAACAgQAAxkBAAEPnkFo-TNPGqrsJJwZNwUe_I6k4W86cwACyxoAAgutgVGyiCe4lNK2-DYE",
-            "7": "CAACAgQAAxkBAAEPnkJo-TNPksXPcYnpXDWYQC68AAGlqzQAAtUYAAKU_IFRJTHChQd2yfw2BA",
-            "8": "CAACAgQAAxkBAAEPnkdo-TQOIBN5WtoKKnvcthXdcy0LLgACgBQAAmlWgVFImh6M5RcAAdI2BA",
-            "9": "CAACAgQAAxkBAAEPnkho-TQO92px4jOuq80nT2uWjURzSAAC4BcAAvPKeVFBx-TZycAWDzYE",
-            "10": "CAACAgQAAxkBAAEPnkto-TZ8-6moW-biByRYl8J2QEPnTwAC8hgAArnAgFGen1zgHwABLPc2BA",
-            "11": "CAACAgQAAxkBAAEPnkxo-TZ8ncZZ7FYYyFMJHXRv2rB0TwAC2RMAAmzdgVEao0YAAdIy41g2BA",
-            "12": "CAACAgQAAxkBAAEPnk1o-TZ9z6xAxxIeccUPXoQQ9VaikQACVRgAAovngVFUjR-qYgq8LDYE",
-            "13": "CAACAgQAAxkBAAEPnlFo-TbUs79Rm549dK3JK2L3P83q-QACTR0AAmc0gFHXnJ509OdiOjYE",
-            "14": "CAACAgQAAxkBAAEPnlJo-TbUCpjrhSxP-x84jkBerEYB8AACQxkAAqXDeVEQ5uCH3dK9OjYE",
-            "15": "CAACAgQAAxkBAAEPnlNo-TbUZokc7ubz-neSYtK9kxQ0DAACrRYAAlBWgVH9BqGde-NivjYE",
-            "16": "CAACAgQAAxkBAAEPnlRo-TbUiOcqxKI6HNExFR8yT3qyvAACrxsAAkcfeVG9im0F0tuZPzYE",
-            "17": "CAACAgQAAxkBAAEPnllo-TdIFRtpAW3PeDbxD2QxTgjk2QACLhgAAiuXgVHaPo1woXZEYTYE",
-            "18": "CAACAgQAAxkBAAEPnlpo-TdI9Gdz2Nv3icxluy8jC3keBwACYxkAAnx7eFGsZP2AXXBKwzYE",
-            "19": "CAACAgQAAxkBAAEPnlto-TdIUktLbTIhkihQz3ymy4lUIwACKRkAArDwgFH0iKqIPPiHYDYE",
-            "20": "CAACAgQAAxkBAAEPnlxo-TdJVrOSPiCRuD8Jc0XGvF3B8AACcxoAAr7OeFGSuSoHyKxf5TYE",
-            "21": "CAACAgQAAxkBAAEPnl1o-TdJ1jlMSjGQPO0zkaS_rOv5JQACxhcAAv1dgFF3khtGYFneYzYE",
-            "22": "CAACAgQAAxkBAAEPnmNo-Te2OhfAwfprG1HfmY-UNtkEAgADGQACE8KAUSJTKzPQQQ9INgQ",
-            "23": "CAACAgQAAxkBAAEPnmRo-Te3rAHmt7_CRgFp55KSNVYdKwACTBgAAundgVF6unXyM34ZYzYE",
-            "24": "CAACAgQAAxkBAAEPnmVo-Te3LcVARwsUx3Akt75bruvNXAAC4RoAAnkvgFHRL4l2927wnDYE",
-            "25": "CAACAgQAAxkBAAEPnmZo-Te3lY0O1JxF8tTLYJJhN1QcnAAC5hcAAiPegFFsMkNzpqfR0zYE",
-            "26": "CAACAgQAAxkBAAEPnmto-TgIsR6UdO8EukNYajboFnX3mgACzSAAAn15gVG-oQ4oaJLYrzYE",
-            "27": "CAACAgQAAxkBAAEPnmxo-TgIVFkyEf19Je-9awnfcm0HNAACoBcAAjK0gVFqoRMWJ0V2AjYE",
-            "28": "CAACAgQAAxkBAAEPnm1o-TgIEaTKLI1hP_FD5NoPNMoRrQAC8xUAAjTtgVFbDjOI7hjkyDYE",
-            "29": "CAACAgQAAxkBAAEPnm5o-TgIrfmuYVnfQps2DUcaDPJtYAACehcAAgL2eFFyvPJETxqlljYE",
-            "30": "CAACAgQAAxkBAAEPnm9o-TgIumJ40cFAJ7xQVVJu8yioGQACrBUAAqMsgVEiKujpQgVfJDYE",
-            "31": "CAACAgQAAxkBAAEPnndo-ThreZX7kJJpPO5idNcOeIWZpQACDhsAArW6gFENcv6I97q9xDYE",
-            "32": "CAACAgQAAxkBAAEPni9o-Ssij-qcC2-pLlmtFrUQr5AUgQACWxcAAsmneVGFqOYh9w81_TYE",
-            "33": "CAACAgQAAxkBAAEPnnto-Thsmi6zNRuaeXnBFpXJ-w2JnQACjBkAAo3JeFEYXOtgIzFLjTYE",
-            "34": "CAACAgQAAxkBAAEPnnlo-ThrHvyKnt3O8UiLblKzGgWqzQACWBYAAvn3gVElI6JyUvoRYzYE",
-            "35": "CAACAgQAAxkBAAEPnn9o-Tij1sCB1_UVenRU6QvBnfFKagACkhYAAsKTgFHHcm9rj3PDyDYE",
-            "36": "CAACAgQAAxkBAAEPnoBo-Tik1zRaZMCVCaOi9J1FtVvEiAACrBcAAtbQgVFt8Uw1gyn4MDYE"
-        }
-
-        # Save to database
-        self.db.data['stickers'] = self.stickers
-
-        await update.message.reply_text("✅ All 38 roulette stickers have been saved to the database!")
-
-    async def sticker_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle incoming stickers silently"""
-        pass
-
     # --- ADMIN COMMANDS ---
 
     async def admin_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3829,68 +3504,6 @@ Examples:
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
 
         await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
-
-    async def endgames_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End all active games and refund players"""
-        # Removed admin restriction so anyone can end games
-
-        count = 0
-        refunded_amount = 0
-
-        # 1. Refund Blackjack sessions
-        for user_id, game in list(self.blackjack_sessions.items()):
-            try:
-                bet = getattr(game, 'initial_bet', 0)
-                if bet > 0:
-                    user_data = self.db.get_user(user_id)
-                    user_data['balance'] += bet
-                    self.db.update_user(user_id, user_data)
-                    refunded_amount += bet
-                del self.blackjack_sessions[user_id]
-                count += 1
-            except Exception as e:
-                logger.error(f"Error refunding BJ user {user_id}: {e}")
-
-        # 2. Refund PvP / Bot games in GlobalState
-        with self.db.app.app_context():
-            state = db.session.get(GlobalState, "pending_pvp")
-            if state and state.value:
-                pending_pvp = state.value
-                for cid, challenge in list(pending_pvp.items()):
-                    try:
-                        wager = challenge.get('wager', 0)
-                        if cid.startswith("v2_bot_"):
-                            pid = challenge.get('player')
-                            if pid and challenge.get('wager_deducted'):
-                                user_data = self.db.get_user(pid)
-                                user_data['balance'] += wager
-                                self.db.update_user(pid, user_data)
-                                refunded_amount += wager
-                        elif cid.startswith("v2_pvp_"):
-                            p1, p2 = challenge.get('challenger'), challenge.get('opponent')
-                            if p1 and challenge.get('p1_deducted'):
-                                user_data = self.db.get_user(p1)
-                                user_data['balance'] += wager
-                                self.db.update_user(p1, user_data)
-                                refunded_amount += wager
-                            if p2 and challenge.get('p2_deducted'):
-                                user_data = self.db.get_user(p2)
-                                user_data['balance'] += wager
-                                self.db.update_user(p2, user_data)
-                                refunded_amount += wager
-
-                        count += 1
-                    except Exception as e:
-                        logger.error(f"Error refunding challenge {cid}: {e}")
-
-                # Clear the table
-                state.value = {}
-                db.session.commit()
-                # Also clear the in-memory copy
-                self.pending_pvp = {}
-
-        await update.message.reply_text(f"✅ Ended {count} games and refunded a total of ${refunded_amount:.2f}.")
-
 
     async def allusers_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all registered users (Admin only)"""
@@ -4066,33 +3679,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 admin_text += "Use /addadmin to add more admins."
 
         await update.message.reply_text(admin_text, parse_mode="Markdown")
-
-    async def send_sticker(self, chat_id: int, outcome: str, profit: float = 0):
-        """Send a sticker based on game outcome"""
-        try:
-            sticker_key = None
-
-            if outcome == "win":
-                if profit >= 50:
-                    sticker_key = "jackpot"
-                elif profit >= 10:
-                    sticker_key = "big_win"
-                else:
-                    sticker_key = "win"
-            elif outcome == "loss":
-                sticker_key = "loss"
-            elif outcome == "draw":
-                sticker_key = "draw"
-            elif outcome == "bonus_claim":
-                sticker_key = "bonus_claim"
-
-            if sticker_key and self.stickers.get(sticker_key):
-                await self.app.bot.send_sticker(
-                    chat_id=chat_id,
-                    sticker=self.stickers[sticker_key]
-                )
-        except Exception as e:
-            logger.error(f"Error sending sticker: {e}")
 
     # --- GAME LOGIC ---
 
@@ -4561,52 +4147,57 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
     def _update_user_stats(self, user_id, wager, profit, outcome):
         """Helper to update user stats in database"""
-        user_data = self.db.get_user(user_id)
-        user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
-        user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
-        user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
+        try:
+            user_data = self.db.get_user(user_id)
+            user_data['games_played'] = (user_data.get('games_played', 0) or 0) + 1
+            user_data['total_wagered'] = (user_data.get('total_wagered', 0) or 0) + wager
+            user_data['wagered_since_last_withdrawal'] = (user_data.get('wagered_since_last_withdrawal', 0) or 0) + wager
+            user_data['total_pnl'] = (user_data.get('total_pnl', 0) or 0) + profit
 
-        if outcome == "win":
-            user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
-            user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
-            user_data['win_streak'] = (user_data.get('win_streak', 0) or 0) + 1
-            if user_data['win_streak'] > (user_data.get('best_win_streak', 0) or 0):
-                user_data['best_win_streak'] = user_data['win_streak']
-        else:
-            user_data['win_streak'] = 0
+            if outcome == "win":
+                user_data['games_won'] = (user_data.get('games_won', 0) or 0) + 1
+                user_data['total_won'] = (user_data.get('total_won', 0) or 0) + (wager + profit)
+                user_data['win_streak'] = (user_data.get('win_streak', 0) or 0) + 1
+                if user_data['win_streak'] > (user_data.get('best_win_streak', 0) or 0):
+                    user_data['best_win_streak'] = user_data['win_streak']
+            else:
+                user_data['win_streak'] = 0
 
-        # Rakeback (2% standard + 10% of bet if referred)
-        rakeback_earned = wager * 0.02
+            # Rakeback (2% standard + 10% of bet if referred)
+            rakeback_earned = wager * 0.02
 
-        # Check if @davaulte in username for 20% boost (on the earned rakeback)
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-             rakeback_earned *= 1.20
+            # Check if @davaulte in username for 20% boost (on the earned rakeback)
+            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                 rakeback_earned *= 1.20
 
-        # Check if referred for extra 10%
-        if user_data.get('referred_by'):
-             rakeback_earned += wager * 0.10
+            # Check if referred for extra 10%
+            if user_data.get('referred_by'):
+                 rakeback_earned += wager * 0.10
 
-        user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
+            user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
-        # Referral earnings (10% of wager for the referrer)
-        referrer_id = user_data.get('referred_by')
-        if referrer_id:
-            referrer_data = self.db.get_user(referrer_id)
-            ref_earning = wager * 0.10
-            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
-            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
-            self.db.update_user(referrer_id, referrer_data)
+            # Referral earnings (10% of wager for the referrer)
+            referrer_id = user_data.get('referred_by')
+            if referrer_id:
+                referrer_data = self.db.get_user(referrer_id)
+                ref_earning = wager * 0.10
+                referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
+                referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
+                self.db.update_user(referrer_id, referrer_data)
 
-        # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
-        achievements = user_data.get('achievements', {}) or {}
-        pool = achievements.get('weekly_bonus_pool', 0)
-        weekly_percent = 0.001
-        if user_data.get('username') and '@davaulte' in user_data.get('username'):
-            weekly_percent = 0.0012  # 0.1% + 20% boost
-        achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
-        user_data['achievements'] = achievements
+            # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+            achievements = user_data.get('achievements', {}) or {}
+            pool = achievements.get('weekly_bonus_pool', 0)
+            weekly_percent = 0.001
+            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                weekly_percent = 0.0012  # 0.1% + 20% boost
+            achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
+            user_data['achievements'] = achievements
 
-        self.db.update_user(user_id, user_data)
+            self.db.update_user(user_id, user_data)
+            logger.info(f"Updated stats for user {user_id}: wager={wager}, profit={profit}, outcome={outcome}, total_wagered={user_data['total_wagered']}, games_played={user_data['games_played']}")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to update stats for user {user_id}: {e}", exc_info=True)
 
     async def handle_emoji_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handles dice/emoji responses from users (for game rolls)"""
@@ -4629,6 +4220,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             replied_to_id = update.message.reply_to_message.message_id
 
         # Check for matching game
+        logger.info(f"handle_emoji_response: user={user_id}, chat={chat_id}, emoji={emoji}, value={dice_value}, pending_games={len(self.pending_pvp)}")
         for cid, challenge in list(self.pending_pvp.items()):
             if (cid.startswith("v2_bot_") or cid.startswith("v2_pvp_")):
                 # Basic criteria: same chat, same emoji
@@ -4649,6 +4241,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
                 # Match found - the handle_emoji_response is usually for MANUAL rolls (not via button)
                 # If we got here, it means the user sent a dice emoji directly.
+                logger.info(f"handle_emoji_response: MATCHED game {cid} for user {user_id}")
 
                 # Delete Match Accepted message button if it exists
                 match_msg_id = challenge.get('match_accepted_msg_id')
@@ -5214,7 +4807,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
     async def _finalize_v2_round(self, update, context, cid):
         """Finalize a V2 round after all rolls are done"""
         challenge = self.pending_pvp.get(cid)
-        if not challenge: return
+        if not challenge:
+            logger.error(f"_finalize_v2_round: challenge {cid} not found!")
+            return
+        logger.info(f"_finalize_v2_round: cid={cid}, p_pts={challenge.get('p_pts')}, b_pts={challenge.get('b_pts')}, target={challenge.get('pts')}")
         chat_id = challenge['chat_id']
         user_id = challenge['player']
         game = challenge.get('game', 'dice')
@@ -5248,21 +4844,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             profit = (w * 0.95) if outcome == "win" else -w
 
             # Update user stats, total_wagered, rakeback, and weekly bonus
-            self._update_user_stats(user_id, w, profit, outcome)
+            try:
+                self._update_user_stats(user_id, w, profit, outcome)
 
-            self.db.record_game({
-                "type": f"{challenge['game']}_bot",
-                "player_id": user_id,
-                "user_id": user_id,
-                "wager": w,
-                "bet": w,
-                "result": outcome,
-                "p_score": challenge['p_pts'],
-                "b_score": challenge['b_pts'],
-                "game": challenge['game'],
-                "profit": profit,
-                "payout": w + profit if outcome == "win" else 0
-            })
+                self.db.record_game({
+                    "type": f"{challenge['game']}_bot",
+                    "player_id": user_id,
+                    "user_id": user_id,
+                    "wager": w,
+                    "bet": w,
+                    "result": outcome,
+                    "p_score": challenge['p_pts'],
+                    "b_score": challenge['b_pts'],
+                    "game": challenge['game'],
+                    "profit": profit,
+                    "payout": w + profit if outcome == "win" else 0
+                })
+                logger.info(f"_finalize_v2_round: Recorded stats+game for user {user_id}, wager={w}, outcome={outcome}")
+            except Exception as e:
+                logger.error(f"CRITICAL: _finalize_v2_round failed to record stats/game for user {user_id}: {e}", exc_info=True)
 
             # Referral Rakeback (10%)
             u_data = self.db.get_user(user_id)
@@ -5413,229 +5013,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             [InlineKeyboardButton("Tails again", callback_data=f"flip_bot_{wager:.2f}_tails")]
         ]
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await self.send_with_buttons(chat_id, result_text, reply_markup, user_id)
-
-        # Send sticker based on outcome
-        await self.send_sticker(chat_id, outcome, profit)
-
-    async def roulette_play_direct(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, choice: str):
-        """Play roulette directly from command (for specific number bets)"""
-        user_id = update.effective_user.id
-        user_data = self.db.get_user(user_id)
-        username = user_data.get('username', f'User{user_id}')
-        chat_id = update.message.chat_id
-
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-
-        # Deduct wager immediately
-        user_data['balance'] -= wager
-        self.db.update_user(user_id, {'balance': user_data['balance']})
-        self.db.add_transaction(user_id, "roulette_bet", -wager, f"Roulette Bet: ${wager:.2f}")
-
-        reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]
-        blacks = [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35]
-        greens = [0, 37]
-
-        all_numbers = reds + blacks + greens
-        result_num = random.choice(all_numbers)
-
-        if result_num in reds:
-            result_color = "red"
-            result_emoji = "🔴"
-        elif result_num in blacks:
-            result_color = "black"
-            result_emoji = "⚫"
-        else:
-            result_color = "green"
-            result_emoji = "🟢"
-
-        result_display = "0" if result_num == 0 else "00" if result_num == 37 else str(result_num)
-
-        roulette_stickers = self.stickers.get('roulette', {})
-        sticker_id = roulette_stickers.get(result_display)
-
-        if sticker_id:
-            await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-        else:
-            await update.message.reply_text("🎰 Spinning the wheel...")
-
-        await asyncio.sleep(2.5)
-
-        if choice.startswith("num_"):
-            bet_num = int(choice.split("_")[1])
-            bet_display = "0" if bet_num == 0 else "00" if bet_num == 37 else str(bet_num)
-
-            if bet_num == result_num:
-                profit = wager * 35
-                outcome = "win"
-                payout = profit + wager
-                # Credit full payout (wager was already deducted)
-                user_data = self.db.get_user(user_id)
-                user_data['balance'] += payout
-                user_data['total_won'] = user_data.get('total_won', 0) + payout
-                self.db.update_user(user_id, user_data)
-                user_mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-                result_text = f"🎉 Congratulations, {user_mention}! You won <b>${profit:,.2f}</b>!"
-                self.db.update_house_balance(-profit)
-            else:
-                profit = -wager
-                outcome = "loss"
-                result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
-                self.db.update_house_balance(wager)
-
-            self._update_user_stats(user_id, wager, profit, outcome)
-            self.db.add_transaction(user_id, "roulette", profit, f"Roulette - Bet: #{bet_display} - Wager: ${wager:.2f}")
-            self.db.record_game({
-                "type": "roulette",
-                "player_id": user_id,
-                "wager": wager,
-                "choice": f"#{bet_display}",
-                "result": result_display,
-                "result_color": result_color,
-                "outcome": outcome
-            })
-
-            # Referral Rakeback (10%)
-            referrer_id = user_data.get('referred_by')
-            if referrer_id:
-                referrer_data = self.db.get_user(referrer_id)
-                bonus_amount = wager * 0.001 
-                referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-                self.db.update_user(referrer_id, referrer_data)
-
-            await update.message.reply_text(result_text, parse_mode="Markdown")
-
-    async def roulette_play(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, choice: str):
-        """Play roulette (called from button)"""
-        query = update.callback_query
-        user_id = query.from_user.id
-        user_data = self.db.get_user(user_id)
-        username = user_data.get('username', f'User{user_id}')
-        chat_id = query.message.chat_id
-
-        if wager > user_data['balance']:
-            await context.bot.send_message(chat_id=chat_id, text=f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-
-        # Deduct wager immediately
-        user_data['balance'] -= wager
-        self.db.update_user(user_id, {'balance': user_data['balance']})
-        self.db.add_transaction(user_id, "roulette_bet", -wager, f"Roulette Bet: ${wager:.2f}")
-
-        reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]
-        blacks = [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35]
-        greens = [0, 37]
-
-        all_numbers = reds + blacks + greens
-        result_num = random.choice(all_numbers)
-
-        if result_num in reds:
-            result_color = "red"
-            result_emoji = "🔴"
-        elif result_num in blacks:
-            result_color = "black"
-            result_emoji = "⚫"
-        else:
-            result_color = "green"
-            result_emoji = "🟢"
-
-        result_display = "0" if result_num == 0 else "00" if result_num == 37 else str(result_num)
-
-        roulette_stickers = self.stickers.get('roulette', {})
-        sticker_id = roulette_stickers.get(result_display)
-
-        if sticker_id:
-            await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-        else:
-            await context.bot.send_message(chat_id=chat_id, text="🎰 Spinning the wheel...")
-
-        await asyncio.sleep(2.5)
-
-        profit = 0.0
-        outcome = "loss"
-        multiplier = 0
-        won = False
-        bet_description = choice.upper()
-
-        if choice == "red" and result_num in reds:
-            won = True
-            multiplier = 2
-            bet_description = "RED"
-        elif choice == "black" and result_num in blacks:
-            won = True
-            multiplier = 2
-            bet_description = "BLACK"
-        elif choice == "green" and result_num in greens:
-            won = True
-            multiplier = 14
-            bet_description = "GREEN"
-        elif choice == "odd" and result_num > 0 and result_num != 37 and result_num % 2 == 1:
-            won = True
-            multiplier = 2
-            bet_description = "ODD"
-        elif choice == "even" and result_num > 0 and result_num != 37 and result_num % 2 == 0:
-            won = True
-            multiplier = 2
-            bet_description = "EVEN"
-        elif choice == "low" and result_num >= 1 and result_num <= 18:
-            won = True
-            multiplier = 2
-            bet_description = "LOW (1-18)"
-        elif choice == "high" and result_num >= 19 and result_num <= 36:
-            won = True
-            multiplier = 2
-            bet_description = "HIGH (19-36)"
-
-        if won:
-            profit = wager * (multiplier - 1)
-            outcome = "win"
-            payout = profit + wager
-            # Credit full payout (wager was already deducted)
-            user_data = self.db.get_user(user_id)
-            user_data['balance'] += payout
-            user_data['total_won'] = user_data.get('total_won', 0) + payout
-            self.db.update_user(user_id, user_data)
-            result_text = f"<b>{username}</b> won <b>${payout:,.2f}</b>!"
-            self.db.update_house_balance(-profit)
-        else:
-            profit = -wager
-            outcome = "loss"
-            result_text = f"<b>Bot</b> won <b>${wager * 1.95:,.2f}</b>!"
-            self.db.update_house_balance(wager)
-
-        self._update_user_stats(user_id, wager, profit, outcome)
-        self.db.add_transaction(user_id, "roulette", profit, f"Roulette - Bet: {bet_description} - Wager: ${wager:.2f}")
-        self.db.record_game({
-            "type": "roulette",
-            "player_id": user_id,
-            "wager": wager,
-            "choice": choice,
-            "result": result_display,
-            "result_color": result_color,
-            "outcome": outcome
-        })
-
-        # Referral Rakeback (10%)
-        referrer_id = user_data.get('referred_by')
-        if referrer_id:
-            referrer_data = self.db.get_user(referrer_id)
-            bonus_amount = wager * 0.001 
-            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-            self.db.update_user(referrer_id, referrer_data)
-
-        keyboard = [
-            [InlineKeyboardButton("Red (2x)", callback_data=f"roulette_{wager:.2f}_red"),
-             InlineKeyboardButton("Black (2x)", callback_data=f"roulette_{wager:.2f}_black")],
-            [InlineKeyboardButton("Green (14x)", callback_data=f"roulette_{wager:.2f}_green")],
-            [InlineKeyboardButton("Odd (2x)", callback_data=f"roulette_{wager:.2f}_odd"),
-             InlineKeyboardButton("Even (2x)", callback_data=f"roulette_{wager:.2f}_even")],
-            [InlineKeyboardButton("Low (2x)", callback_data=f"roulette_{wager:.2f}_low"),
-             InlineKeyboardButton("High (2x)", callback_data=f"roulette_{wager:.2f}_high")]
-        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await self.send_with_buttons(chat_id, result_text, reply_markup, user_id)
@@ -6102,21 +5479,186 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         user_id = query.from_user.id
         chat_id = query.message.chat_id
         message_id = query.message.message_id
+        chat = query.message.chat
         data = query.data
 
-        # Public buttons that anyone can click
+        # --- PvP acceptance: allow anyone but the challenger ---
+        if data.startswith("v2_accept_"):
+            parts = data.split("_")
+            cid = parts[2]
+            challenge = self.pending_pvp.get(cid)
+            if challenge and user_id == challenge.get('challenger'):
+                await query.answer("❌ You cannot accept your own challenge.", show_alert=True)
+                return
+
+        # --- Blackjack Action Buttons ---
+        elif data.startswith("bj_") and not data.startswith("bj_play_again_") and not data.startswith("bj_bet_change_"):
+            parts = data.split("_")
+
+            # bj_bot_{wager} - start a new blackjack game from bet menu
+            if len(parts) >= 3 and parts[1] == "bot":
+                try:
+                    wager = float(parts[2])
+                except (IndexError, ValueError):
+                    await query.answer("❌ Invalid wager!", show_alert=True)
+                    return
+
+                user_data = self.db.get_user(user_id)
+                if wager > user_data['balance']:
+                    await query.answer(f"❌ Insufficient balance! (${user_data['balance']:.2f})", show_alert=True)
+                    return
+
+                if user_id in self.blackjack_sessions:
+                    await query.answer("❌ You already have an active Blackjack game!", show_alert=True)
+                    return
+
+                self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
+                self.db.add_transaction(user_id, "blackjack_bet", -wager, f"Blackjack Bet: {wager}")
+
+                from blackjack import BlackjackGame
+                game = BlackjackGame(bet_amount=wager)
+                game.start_game()
+                self.blackjack_sessions[user_id] = game
+                await self._display_blackjack_state(update, context, user_id)
+                return
+
+            # Gameplay actions: bj_action_{user_id}
+            if len(parts) >= 3:
+                try:
+                    action = parts[1]
+                    target_user_id = int(parts[2])
+                except (ValueError, IndexError):
+                    return
+
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your game!", show_alert=True)
+                    return
+
+                if user_id not in self.blackjack_sessions:
+                    await query.answer("❌ No active game found.")
+                    return
+
+                game = self.blackjack_sessions[user_id]
+                msg = ""
+                if action == "hit":
+                    msg = game.hit()
+                elif action == "stand":
+                    msg = game.stand()
+                elif action == "double":
+                    user_data = self.db.get_user(user_id)
+                    current_hand = game.player_hands[game.current_hand_index]
+                    additional_bet = current_hand['bet']
+                    if user_data['balance'] < additional_bet:
+                        await query.answer("❌ Insufficient balance to double down!", show_alert=True)
+                        return
+                    self.db.update_user(user_id, {'balance': user_data['balance'] - additional_bet})
+                    self.db.add_transaction(user_id, "blackjack_double", -additional_bet, f"Blackjack Double Down")
+                    msg = game.double_down()
+                elif action == "split":
+                    user_data = self.db.get_user(user_id)
+                    current_hand = game.player_hands[game.current_hand_index]
+                    additional_bet = current_hand['bet']
+                    if user_data['balance'] < additional_bet:
+                        await query.answer("❌ Insufficient balance to split!", show_alert=True)
+                        return
+                    self.db.update_user(user_id, {'balance': user_data['balance'] - additional_bet})
+                    self.db.add_transaction(user_id, "blackjack_split", -additional_bet, f"Blackjack Split")
+                    msg = game.split()
+                elif action == "insurance":
+                    user_data = self.db.get_user(user_id)
+                    insurance_cost = game.initial_bet / 2
+                    if user_data['balance'] < insurance_cost:
+                        await query.answer("❌ Insufficient balance for insurance!", show_alert=True)
+                        return
+                    self.db.update_user(user_id, {'balance': user_data['balance'] - insurance_cost})
+                    self.db.add_transaction(user_id, "blackjack_insurance", -insurance_cost, f"Blackjack Insurance")
+                    msg = game.take_insurance()
+
+                try:
+                    await query.answer()
+                except Exception:
+                    pass
+                try:
+                    await self._display_blackjack_state(update, context, user_id)
+                except Exception as e:
+                    logger.error(f"Error in _display_blackjack_state: {e}", exc_info=True)
+                    try:
+                        await query.edit_message_text("❌ An error occurred processing your blackjack game. Please try /blackjack again.")
+                    except Exception:
+                        pass
+                    if user_id in self.blackjack_sessions:
+                        del self.blackjack_sessions[user_id]
+                return
+
+        # --- BJ play again ---
+        if data.startswith("bj_play_again_"):
+            parts = data.split("_")
+            if len(parts) >= 5:
+                target_user_id = int(parts[3])
+                amount_str = parts[4]
+                if user_id != target_user_id:
+                    await query.answer("❌ This is not your game!", show_alert=True)
+                    return
+                context.args = [amount_str]
+                await self.blackjack_command(update, context)
+                return
+
+        # --- BJ bet change ---
+        if data.startswith("bj_bet_change_"):
+            parts = data.split("_")
+            try:
+                target_user_id = int(parts[3])
+                new_bet = float(parts[4])
+            except (ValueError, IndexError):
+                return
+
+            if user_id != target_user_id:
+                await query.answer("❌ This is not your game!", show_alert=True)
+                return
+
+            new_bet = max(1.0, new_bet)
+            keyboard = [
+                [InlineKeyboardButton("✅ Start Game", callback_data=f"bj_bot_{new_bet:.2f}")],
+                [
+                    InlineKeyboardButton("Half Bet", callback_data=f"bj_bet_change_{user_id}_{max(1.0, new_bet/2):.2f}"),
+                    InlineKeyboardButton(f"Bet: ${new_bet:.2f}", callback_data="dummy"),
+                    InlineKeyboardButton("Double Bet", callback_data=f"bj_bet_change_{user_id}_{new_bet*2:.2f}")
+                ],
+                [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]
+            ]
+            try:
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+                await query.answer(f"Bet: ${new_bet:.2f}")
+            except Exception:
+                await query.answer(f"Bet: ${new_bet:.2f}")
+            return
+
+        # --- Start / Main Menu back ---
+        if data == "start_back" or data == "main_menu":
+            await self.start_command(update, context)
+            return
+
+        # --- Public buttons: ownership check ---
         public_buttons = ["v2_accept_", "lb_page_", "transactions_history", "deposit_mock", "withdraw_mock", "bonus_", "rakeback_", "weekly_", "menu_bonus"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
-        # Check ownership for private menus
         ownership_key = (chat_id, message_id)
         if not is_public and ownership_key in self.button_ownership:
             owner_id = self.button_ownership[ownership_key]
             if owner_id != user_id:
-                await query.answer("❌ This menu is not for you!", show_alert=True)
-                return
+                # Allow setup/game buttons through even without ownership match
+                setup_prefixes = [
+                    "setup_mode_", "setup_bet_", "setup_predict_", "setup_cancel",
+                    "predict_start_", "v2_bot_", "v2_pvp_", "emoji_setup_", "v2_send_emoji_",
+                    "flip_bot_", "bj_", "setup_mode_normal_", "setup_mode_crazy_",
+                ]
+                is_setup = any(data.startswith(p) for p in setup_prefixes)
+                if not is_setup:
+                    await query.answer("❌ This menu is not for you!", show_alert=True)
+                    return
 
         try:
+            # --- Bonus/Rakeback ---
             if data == "bonus_weekly_menu":
                 await self.weekly_bonus_submenu(update, context)
                 return
@@ -6132,7 +5674,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 if amount <= 0:
                     await query.answer("❌ No rakeback to claim!", show_alert=True)
                     return
-
                 user_data["balance"] += amount
                 user_data["rakeback_balance"] = 0
                 self.db.update_user(user_id, user_data)
@@ -6156,6 +5697,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             if data.startswith("weekly_claim_direct_"):
                 parts = data.split("_")
+                amount = float(parts[3])
+                user_data = self.db.get_user(user_id)
                 import pytz
                 from datetime import datetime, timedelta
                 est = pytz.timezone("US/Eastern")
@@ -6185,12 +5728,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     return
                 await self.rakeback_double_roll(update, context, amount, is_weekly=True)
                 return
-        except Exception as e:
-            logger.error(f"Error in button_callback: {e}")
-            try:
-                await query.answer("❌ An error occurred processing your request.", show_alert=True)
-            finally: pass
 
+            # --- Referrals ---
             if data == "menu_referrals":
                 await query.answer()
                 user_data = self.db.get_user(user_id)
@@ -6219,16 +5758,472 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await query.edit_message_text(f"✅ Claimed ${unclaimed:.2f} referral bonus!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="menu_referrals")]]), parse_mode="HTML")
                 return
 
+            # --- Menu navigation ---
+            if data == "menu_deposit":
+                await self.deposit_command(update, context)
+                return
+
+            if data == "menu_withdraw":
+                await self.withdraw_command(update, context)
+                return
+
+            if data == "menu_races":
+                await query.answer("🏎️ Races coming soon!", show_alert=True)
+                return
+
+            if data == "menu_stats_from_start" or data == "menu_stats":
+                from sqlalchemy import or_, cast, String
+                user_data = self.db.get_user(user_id)
+                username = query.from_user.username or query.from_user.first_name
+                if username and username.startswith('@'): username = username[1:]
+
+                games_played = user_data.get('games_played', 0)
+                games_won = user_data.get('games_won', 0)
+                total_wagered = user_data.get('total_wagered', 0)
+                total_won = user_data.get('total_won', 0)
+                win_rate = (games_won / games_played * 100) if games_played > 0 else 0
+
+                if total_wagered >= 100000: rank_emoji = "🥇 Gold I"
+                elif total_wagered >= 50000: rank_emoji = "🥈 Silver IV"
+                elif total_wagered >= 25000: rank_emoji = "🥈 Silver III"
+                elif total_wagered >= 10000: rank_emoji = "🥈 Silver I"
+                else: rank_emoji = "🥉 Bronze I"
+
+                stats_text = (
+                    f"ℹ️ <b>Stats of {username}</b>\n\n"
+                    f"Level: <b>{rank_emoji}</b>\n"
+                    f"Games Played: <b>{games_played}</b>\n"
+                    f"Wins: <b>{games_won} ({win_rate:.2f}%)</b>\n"
+                    f"Total Wagered: <b>${total_wagered:,.2f}</b>\n"
+                    f"Total Won: <b>${total_won:,.2f}</b>"
+                )
+
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                return
+
+            # --- Withdraw flow ---
+            if data == "withdraw_mock":
+                user_data = self.db.get_user(user_id)
+                withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+                keyboard = [
+                    [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
+                    [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
+                     InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+                    [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
+                     InlineKeyboardButton("USDC", callback_data="wit_usdc")],
+                    [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+                     InlineKeyboardButton("BNB", callback_data="wit_bnb")],
+                    [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
+                     InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                    [InlineKeyboardButton("⬅️ Back", callback_data="balance_menu")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.answer()
+                await query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+                return
+
+            if data.startswith("wit_"):
+                currency = data.split("_")[1].upper()
+                context.user_data['wit_currency'] = currency
+                user_data = self.db.get_user(user_id)
+                withdraw_info_text = (
+                    f"Enter withdrawal amount\n"
+                    f"Withdrawal fee: $0.01 + 2.00%\n\n"
+                    f"Current balance: ${user_data['balance']:,.2f}"
+                )
+                context.user_data['awaiting_wit_amount'] = True
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")],
+                            [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.answer()
+                await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup)
+                return
+
+            if data == "balance_menu":
+                await self.balance_command(update, context)
+                return
+
+            if data == "deposit_mock":
+                ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+                user_data = self.db.get_user(user_id)
+                deposit_text = (
+                    f"💳 <b>LTC Deposit Request</b>\n\n"
+                    f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
+                    f"To deposit, send LTC to the address below:\n"
+                    f"<code>{ltc_address}</code>"
+                )
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.answer()
+                await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
+                return
+
+            # --- Dummy / None ---
+            if data == "none" or data == "dummy":
+                try:
+                    await query.answer()
+                except:
+                    pass
+                return
+
+            # --- Cancel game ---
+            if data.startswith("v2_cancel_"):
+                cid = data.replace("v2_cancel_", "")
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    wager = challenge.get('wager', 0)
+                    if cid.startswith("v2_bot_"):
+                        pid = challenge.get('player')
+                        if pid and challenge.get('wager_deducted'):
+                            ud = self.db.get_user(pid)
+                            ud['balance'] += wager
+                            self.db.update_user(pid, ud)
+                    elif cid.startswith("v2_pvp_"):
+                        p1, p2 = challenge.get('challenger'), challenge.get('opponent')
+                        if p1 and challenge.get('p1_deducted'):
+                            ud = self.db.get_user(p1)
+                            ud['balance'] += wager
+                            self.db.update_user(p1, ud)
+                        if p2 and challenge.get('p2_deducted'):
+                            ud = self.db.get_user(p2)
+                            ud['balance'] += wager
+                            self.db.update_user(p2, ud)
+                    del self.pending_pvp[cid]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                    await query.edit_message_text("❌ Game cancelled and wager refunded.")
+                else:
+                    await query.answer("❌ Game no longer exists!", show_alert=True)
+                return
+
+            if data == "setup_cancel" or data == "setup_cancel_roll":
+                if hasattr(self, "_predict_selections") and user_id in self._predict_selections:
+                    del self._predict_selections[user_id]
+                for cid in list(self.pending_pvp.keys()):
+                    challenge = self.pending_pvp[cid]
+                    if (challenge.get('player') == user_id or
+                        challenge.get('challenger') == user_id or
+                        challenge.get('opponent') == user_id):
+                        wager = challenge.get('wager', 0)
+                        if challenge.get('wager_deducted') or challenge.get('p1_deducted'):
+                            ud = self.db.get_user(user_id)
+                            ud['balance'] += wager
+                            self.db.update_user(user_id, ud)
+                        del self.pending_pvp[cid]
+                self.db.update_pending_pvp(self.pending_pvp)
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+                return
+
+            # --- Emoji game setup + roll handler ---
             if data.startswith("emoji_setup_") or data.startswith("v2_send_emoji_"):
                 from roll_handler import handle_roll
                 await handle_roll(self, update, context)
                 return
-        except Exception as e:
-            logger.error(f"Error in button_callback: {e}")
+
+            # --- Predict handler ---
+            if data.startswith("setup_predict_select_") or data.startswith("predict_start_"):
+                from predict_handler import handle_predict
+                await handle_predict(self, update, context)
+                return
+
+            if data.startswith("setup_mode_predict_edit_"):
+                from predict_handler import handle_predict
+                await handle_predict(self, update, context)
+                return
+
+            if data.startswith("setup_mode_predict_"):
+                from predict_handler import handle_predict
+                await handle_predict(self, update, context)
+                return
+
+            # --- Game mode selection from bet menu ---
+            if data.startswith("setup_mode_dice_"):
+                wager = float(data.split("_")[3])
+                await self._show_emoji_game_setup(update, context, wager, "dice", "mode", {})
+                return
+
+            if data.startswith("setup_mode_darts_"):
+                wager = float(data.split("_")[3])
+                await self._show_emoji_game_setup(update, context, wager, "darts", "mode", {})
+                return
+
+            if data.startswith("setup_mode_basketball_"):
+                wager = float(data.split("_")[3])
+                await self._show_emoji_game_setup(update, context, wager, "basketball", "mode", {})
+                return
+
+            if data.startswith("setup_mode_soccer_"):
+                wager = float(data.split("_")[3])
+                await self._show_emoji_game_setup(update, context, wager, "soccer", "mode", {})
+                return
+
+            if data.startswith("setup_mode_bowling_"):
+                wager = float(data.split("_")[3])
+                await self._show_emoji_game_setup(update, context, wager, "bowling", "mode", {})
+                return
+
+            if data.startswith("flip_bot_"):
+                parts = data.split("_")
+                wager = float(parts[2])
+                if len(parts) > 3:
+                    choice = parts[3]
+                    await self.coinflip_vs_bot(update, context, wager, choice)
+                else:
+                    await self._show_emoji_game_setup(update, context, wager, "coinflip", "mode", {})
+                return
+
+            # --- Generic V2 bot games ---
+            if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
+                parts = data.split("_")
+                if data.startswith("v2_bot_"):
+                    game, wager, rolls, mode, pts = parts[2], float(parts[3]), int(parts[4]), parts[5], int(parts[6])
+                else:
+                    game = parts[0]
+                    wager = float(parts[2])
+                    rolls = 1
+                    mode = "normal"
+                    pts = 1
+                await self.start_generic_v2_bot(update, context, game, wager, rolls, mode, pts)
+                return
+
+            # --- PvP ---
+            if data.startswith("v2_pvp_create_"):
+                parts = data.split("_")
+                game, wager, rolls, mode, pts = parts[3], float(parts[4]), int(parts[5]), parts[6], int(parts[7])
+                await self.start_generic_v2_pvp(update, context, game, wager, rolls, mode, pts)
+                return
+
+            if data.startswith("v2_pvp_accept_confirm_"):
+                await self.v2_pvp_accept_confirm(update, context)
+                return
+
+            if data.startswith("v2_pvp_back_"):
+                cid = data.replace("v2_pvp_back_", "")
+                challenge = self.pending_pvp.get(cid)
+                if not challenge:
+                    await query.answer("❌ Challenge no longer exists!", show_alert=True)
+                    return
+                game = challenge.get('game', 'dice')
+                wager = challenge.get('wager', 1.0)
+                pts = challenge.get('pts', 1)
+                mode = challenge.get('mode', 'normal')
+                emoji = challenge.get('emoji', '🎲')
+                challenger_data = self.db.get_user(challenge['challenger'])
+                keyboard = [[InlineKeyboardButton("Join Challenge", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{challenge['rolls']}_{mode}_{pts}_{cid}")]]
+                msg_text = f"{emoji} <b>{game.capitalize()} PvP</b>\nChallenger: @{challenger_data.get('username', 'User')}\nWager: ${wager:.2f}\nMode: {mode.capitalize()}\nTarget: {pts}\n\nClick below to join!"
+                await query.edit_message_text(text=msg_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                return
+
+            # --- PvP game creation ---
+            if data.startswith("darts_player_open_"):
+                wager = float(data.split('_')[3])
+                await self.create_emoji_pvp_challenge(update, context, wager, "darts", "🎯")
+                return
+
+            if data.startswith("basketball_player_open_"):
+                wager = float(data.split('_')[3])
+                await self.create_emoji_pvp_challenge(update, context, wager, "basketball", "🏀")
+                return
+
+            if data.startswith("soccer_player_open_"):
+                wager = float(data.split('_')[3])
+                await self.create_emoji_pvp_challenge(update, context, wager, "soccer", "⚽")
+                return
+
+            if data.startswith("bowling_player_open_"):
+                wager = float(data.split('_')[3])
+                await self.create_emoji_pvp_challenge(update, context, wager, "bowling", "🎳")
+                return
+
+            if data.startswith("accept_darts_") or data.startswith("accept_basketball_") or data.startswith("accept_soccer_") or data.startswith("accept_bowling_"):
+                challenge_id = data.split('_', 2)[2]
+                await self.accept_emoji_pvp_challenge(update, context, challenge_id)
+                return
+
+            # --- Cashout ---
+            if data.startswith("v2_cashout_"):
+                cid = data.replace("v2_cashout_", "")
+                challenge = self.pending_pvp.get(cid)
+                if not challenge:
+                    await query.answer("❌ Game no longer exists!", show_alert=True)
+                    return
+
+                w = challenge['wager']
+                p_pts = challenge.get('p_pts', 0)
+                b_pts = challenge.get('b_pts', 0)
+                target_pts = challenge.get('pts', 1)
+
+                payout = self.calculate_cashout(p_pts, b_pts, target_pts, w)
+                ud = self.db.get_user(user_id)
+                ud['balance'] += payout
+                self.db.update_user(user_id, ud)
+                self.db.update_house_balance(-(payout - w))
+                self.db.add_transaction(user_id, "cashout", payout, f"Cashout: ${payout:.2f}")
+                self._update_user_stats(user_id, w, payout - w, "cashout")
+
+                username = ud.get('username', f'User{user_id}')
+                game_name = challenge.get('game', 'dice')
+                rolls = challenge.get('rolls', 1)
+                mode = challenge.get('mode', 'normal')
+
+                cashout_text = f"💰 <b>{username}</b> cashed out <b>${payout:,.2f}</b>"
+                kb = [[InlineKeyboardButton("🔄 Play Again", callback_data=f"v2_bot_{game_name}_{w:.2f}_{rolls}_{mode}_{target_pts}"),
+                       InlineKeyboardButton("🔄 Double", callback_data=f"v2_bot_{game_name}_{w*2:.2f}_{rolls}_{mode}_{target_pts}")]]
+
+                try:
+                    await query.edit_message_text(text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                except Exception:
+                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=cashout_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+                    self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
+
+                del self.pending_pvp[cid]
+                self.db.update_pending_pvp(self.pending_pvp)
+                return
+
+            # --- Leaderboard ---
+            if data.startswith("lb_page_"):
+                page = int(data.split('_')[2])
+                await self.show_leaderboard_page(update, page)
+                return
+
+            if data == "menu_leaderboard":
+                await self._show_leaderboard_menu(query, "most_wagered")
+                return
+
+            # --- Tip ---
+            if data == "tip_cancel":
+                try:
+                    await query.message.delete()
+                    if query.message.reply_to_message:
+                        await query.message.reply_to_message.delete()
+                except Exception:
+                    pass
+                return
+
+            if data.startswith("tip_confirm_"):
+                parts = data.split("_")
+                recipient_id = int(parts[2])
+                amount = float(parts[3])
+
+                user_data = self.db.get_user(user_id)
+                if amount > user_data['balance']:
+                    await query.answer("❌ Insufficient balance for this tip.", show_alert=True)
+                    return
+
+                recipient_data = self.db.get_user(recipient_id)
+                recipient_display_name = recipient_data.get('username') or recipient_data.get('first_name') or f"User{recipient_id}"
+
+                user_data['balance'] -= amount
+                self.db.update_user(user_id, user_data)
+                recipient_data['balance'] += amount
+                self.db.update_user(recipient_id, recipient_data)
+
+                self.db.add_transaction(user_id, "tip_sent", -amount, f"Tip to {recipient_display_name}")
+                self.db.add_transaction(recipient_id, "tip_received", amount, f"Tip from {user_data.get('username', user_id)}")
+
+                mention = f'<a href="tg://user?id={recipient_id}">{recipient_display_name}</a>'
+                await query.message.delete()
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🎉 Tip successful!! {mention} received <b>${amount:,.2f}</b>",
+                    parse_mode="HTML"
+                )
+                try:
+                    sender_name = user_data.get('username') or user_data.get('first_name') or f"User{user_id}"
+                    sender_mention = f'<a href="tg://user?id={user_id}">{sender_name}</a>'
+                    await context.bot.send_message(
+                        chat_id=recipient_id,
+                        text=f"🎁 You received a tip of <b>${amount:,.2f}</b> from {sender_mention}!",
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
+                return
+
+            # --- Setup bet back ---
+            if data.startswith("setup_bet_back_"):
+                parts = data.split("_")
+                wager = float(parts[3])
+                await self.bet_command(update, context, amount=wager)
+                return
+
+            if data.startswith("setup_bet_"):
+                parts = data.split("_")
+                action = parts[2]
+                wager = float(parts[3])
+                game_mode = parts[4]
+                new_wager = wager
+                if action == "half":
+                    new_wager = wager / 2
+                elif action == "double":
+                    new_wager = wager * 2
+                if new_wager < 1.0:
+                    await query.answer("❌ Minimum bet is $1.00", show_alert=False)
+                    return
+                await self._show_game_prediction_menu(update, context, new_wager, game_mode)
+                return
+
+            # --- Admin withdrawal ---
+            if data.startswith("adm_wit_"):
+                if not self.is_admin(user_id):
+                    await query.answer("❌ Admin only!", show_alert=True)
+                    return
+                parts = data.split("_")
+                action = parts[2]
+                target_user_id = int(parts[3])
+                amount = float(parts[4])
+                if action == "approve":
+                    target_mention = f'<a href="tg://user?id={target_user_id}">User{target_user_id}</a>'
+                    await query.edit_message_text(f"✅ Withdrawal of ${amount:,.2f} for {target_mention} approved!", parse_mode="HTML")
+                    try:
+                        await self.app.bot.send_message(target_user_id, f"✅ Your withdrawal of ${amount:,.2f} has been approved and sent!")
+                    except:
+                        pass
+                elif action == "deny":
+                    target_user_data = self.db.get_user(target_user_id)
+                    target_user_data['balance'] += amount
+                    self.db.update_user(target_user_id, target_user_data)
+                    target_mention = f'<a href="tg://user?id={target_user_id}">User{target_user_id}</a>'
+                    await query.edit_message_text(f"❌ Withdrawal of ${amount:,.2f} for {target_mention} denied. Balance refunded.", parse_mode="HTML")
+                    try:
+                        await self.app.bot.send_message(target_user_id, f"Your withdrawal of ${amount:,.2f} was unsuccessful. Your balance has been refunded.")
+                    except:
+                        pass
+                return
+
+            # --- Decline PvP ---
+            if data.startswith("decline_"):
+                challenge_id = data.split('_', 1)[1]
+                if challenge_id in self.pending_pvp and self.pending_pvp[challenge_id]['challenger'] == user_id:
+                    await query.edit_message_text("✅ Challenge canceled.")
+                    del self.pending_pvp[challenge_id]
+                    self.db.update_pending_pvp(self.pending_pvp)
+                else:
+                    await query.answer("❌ Only the challenger can cancel this game.", show_alert=True)
+                return
+
+            if data == "button_unavailable":
+                await query.answer("❌ This button is no longer available as the game has started!", show_alert=True)
+                return
+
+            # --- Generic unhandled ---
+            logger.warning(f"Unhandled callback data: {data}")
             try:
-                await query.answer("❌ Error processing request.", show_alert=True)
+                await query.answer()
             except:
                 pass
+
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in button_callback: {e}\n{traceback.format_exc()}")
+            if "query is answered" not in str(e) and "Message is not modified" not in str(e):
+                try:
+                    await query.answer("❌ An error occurred.", show_alert=True)
+                except:
+                    pass
         return
 
 if __name__ == "__main__":
