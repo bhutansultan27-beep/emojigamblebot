@@ -959,7 +959,7 @@ class AntariaCasinoBot:
         ltc_usd_rate = await self.get_live_rate("litecoin")
         ltc_balance = user_data['balance'] / ltc_usd_rate
 
-        balance_text = f"Your balance <b>${user_data['balance']:,.2f}</b> ({ltc_balance:.5f} LTC)"
+        balance_text = f"Your balance <b>${user_data['balance']:,.2f}</b> ({ltc_balance:.2f} LTC)"
 
         keyboard = [
             [InlineKeyboardButton("💳 Deposit", callback_data="deposit_from_bal"),
