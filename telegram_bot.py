@@ -337,17 +337,16 @@ class AntariaCasinoBot:
 
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.start_command))
+        self.app.add_handler(CommandHandler("stats", self.stats_command))
+        self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("balance", self.balance_command))
         self.app.add_handler(CommandHandler("bal", self.balance_command))
         self.app.add_handler(CommandHandler("bonus", self.bonus_command))
-        self.app.add_handler(CommandHandler("matches", self.matches_command))
         self.app.add_handler(CommandHandler("history", self.matches_command))
         self.app.add_handler(CommandHandler("leaderboard", self.leaderboard_command))
         self.app.add_handler(CommandHandler("global", self.leaderboard_command))
 
         self.app.add_handler(CommandHandler("housebal", self.housebal_command))
-
-        self.app.add_handler(CommandHandler("dice", self.dice_command))
         self.app.add_handler(CommandHandler("darts", self.darts_command))
         self.app.add_handler(CommandHandler("basketball", self.basketball_command))
         self.app.add_handler(CommandHandler("bball", self.basketball_command))
@@ -1000,22 +999,28 @@ class AntariaCasinoBot:
 
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, show_back=False):
         """Show player statistics"""
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-        username = update.effective_user.username or update.effective_user.first_name
-        if username.startswith('@'): username = username[1:]
+        logger.info(f"stats_command: user={update.effective_user.id if update.effective_user else 'N/A'}, show_back={show_back}")
+        try:
+            user_data = self.ensure_user_registered(update)
+            user_id = update.effective_user.id
+            username = update.effective_user.username or update.effective_user.first_name
+            if username.startswith('@'): username = username[1:]
 
-        stats_text = self._build_stats_text(user_id, username, user_data)
+            stats_text = self._build_stats_text(user_id, username, user_data)
 
-        keyboard = [
-            [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_noback")]
-        ]
+            keyboard = [
+                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_noback")]
+            ]
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        if update.callback_query:
-            await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
-        else:
-            await update.message.reply_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if update.callback_query:
+                await update.callback_query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+            else:
+                await update.message.reply_text(stats_text, reply_markup=reply_markup, parse_mode="HTML")
+        except Exception as e:
+            logger.error(f"Error in stats_command: {e}", exc_info=True)
+            if update.message:
+                await update.message.reply_text("❌ Error loading stats.")
 
     def _build_stats_text(self, user_id, username, user_data):
         """Build stats text used by both /stats command and menu"""
@@ -4161,16 +4166,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             else:
                 user_data['win_streak'] = 0
 
-            # Rakeback (2% standard + 10% of bet if referred)
+            # Rakeback (2% standard)
             rakeback_earned = wager * 0.02
-
-            # Check if @davaulte in username for 20% boost (on the earned rakeback)
-            if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                 rakeback_earned *= 1.20
-
-            # Check if referred for extra 10%
-            if user_data.get('referred_by'):
-                 rakeback_earned += wager * 0.10
 
             user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
@@ -4183,12 +4180,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
                 self.db.update_user(referrer_id, referrer_data)
 
-            # Weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+            # Weekly bonus pool (base 2%)
             achievements = user_data.get('achievements', {}) or {}
             pool = achievements.get('weekly_bonus_pool', 0)
-            weekly_percent = 0.001
+            weekly_percent = 0.02
+            # 20% boost if @davaulte in name (2% * 1.2 = 2.4%)
             if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                weekly_percent = 0.0012  # 0.1% + 20% boost
+                weekly_percent = 0.024
             achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
             user_data['achievements'] = achievements
 
@@ -5637,7 +5635,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         # --- Public buttons: ownership check ---
-        public_buttons = ["v2_accept_", "lb_page_", "transactions_history", "deposit_mock", "withdraw_mock", "bonus_", "rakeback_", "weekly_", "menu_bonus"]
+        public_buttons = ["v2_accept_", "lb_page_", "transactions_history", "deposit_mock", "withdraw_mock", "bonus_", "rakeback_", "weekly_", "menu_bonus", "matches_page_", "menu_stats"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
         ownership_key = (chat_id, message_id)
@@ -5801,6 +5799,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
                 ]
                 await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                return
+
+            if data.startswith("matches_page_"):
+                parts = data.split("_")
+                page = int(parts[2])
+                back_tag = parts[3]
+                show_back = (back_tag == "back")
+                await self.matches_command(update, context, page=page, show_back=show_back)
                 return
 
             # --- Withdraw flow ---
