@@ -38,4 +38,4 @@ Uses PostgreSQL (Replit built-in) with the following tables:
 - `global_state` - Key-value store for bot configuration
 
 ## Deployment
-Configured for VM deployment since the bot needs to run continuously.
+Configured for autoscale deployment for the web app. The Telegram bot runs as a separate workflow.
