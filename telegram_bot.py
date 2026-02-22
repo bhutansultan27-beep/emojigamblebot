@@ -2756,6 +2756,15 @@ class AntariaCasinoBot:
             'payout': (wager * multiplier) if actual_roll in predictions else 0
         })
 
+        # Referral Rakeback (10%)
+        u_data = self.db.get_user(user_id)
+        referrer_id = u_data.get('referred_by')
+        if referrer_id:
+            referrer_data = self.db.get_user(referrer_id)
+            bonus_amount = wager * 0.001 
+            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+            self.db.update_user(referrer_id, referrer_data)
+
     async def coinflip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play coinflip game setup"""
         if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
@@ -3089,6 +3098,14 @@ class AntariaCasinoBot:
                     'result': ('win' if total_payout > 0 else ('loss' if total_payout < 0 else 'push')),
                     'winner': user_id if total_payout > 0 else None
                 })
+
+                # Referral Rakeback (10%)
+                referrer_id = user_data.get('referred_by')
+                if referrer_id:
+                    referrer_data = self.db.get_user(referrer_id)
+                    bonus_amount = total_bet * 0.001 
+                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                    self.db.update_user(referrer_id, referrer_data)
 
                 # Re-read for accurate balance display
                 user_data = self.db.get_user(user_id)
@@ -4743,6 +4760,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 "b_score": challenge['b_pts']
             })
 
+            # Referral Rakeback (10%)
+            referrer_id = u_data.get('referred_by')
+            if referrer_id:
+                referrer_data = self.db.get_user(referrer_id)
+                bonus_amount = w * 0.001 
+                referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                self.db.update_user(referrer_id, referrer_data)
+
             del self.pending_pvp[cid]
         else:
             # Next round
@@ -5187,6 +5212,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     "profit": profit,
                     "payout": w + profit if outcome == "win" else 0
                 })
+
+                # Referral Rakeback (10%)
+                u_data = self.db.get_user(user_id)
+                referrer_id = u_data.get('referred_by')
+                if referrer_id:
+                    referrer_data = self.db.get_user(referrer_id)
+                    bonus_amount = w * 0.001 
+                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                    self.db.update_user(referrer_id, referrer_data)
                 
                 # Series End logic
                 if challenge['p_pts'] >= challenge['pts']:
@@ -5322,6 +5356,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             "result": result, # The actual flip result
             "outcome": outcome # win or loss
         })
+
+        # Referral Rakeback (10%)
+        u_data = self.db.get_user(user_id)
+        referrer_id = u_data.get('referred_by')
+        if referrer_id:
+            referrer_data = self.db.get_user(referrer_id)
+            bonus_amount = wager * 0.001 
+            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+            self.db.update_user(referrer_id, referrer_data)
         self.db.add_transaction(user_id, "coinflip_bot", profit, f"CoinFlip vs Bot - Wager: ${wager:.2f}")
 
         keyboard = [
@@ -5414,6 +5457,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 "result_color": result_color,
                 "outcome": outcome
             })
+
+            # Referral Rakeback (10%)
+            referrer_id = user_data.get('referred_by')
+            if referrer_id:
+                referrer_data = self.db.get_user(referrer_id)
+                bonus_amount = wager * 0.001 
+                referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                self.db.update_user(referrer_id, referrer_data)
 
             await update.message.reply_text(result_text, parse_mode="Markdown")
 
@@ -5526,6 +5577,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             "result_color": result_color,
             "outcome": outcome
         })
+
+        # Referral Rakeback (10%)
+        referrer_id = user_data.get('referred_by')
+        if referrer_id:
+            referrer_data = self.db.get_user(referrer_id)
+            bonus_amount = wager * 0.001 
+            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+            self.db.update_user(referrer_id, referrer_data)
 
         keyboard = [
             [InlineKeyboardButton("Red (2x)", callback_data=f"roulette_{wager:.2f}_red"),
@@ -8208,6 +8267,15 @@ To deposit, send LTC to the address below:
                     'result': 'win' if profit > 0 else 'loss',
                     'payout': profit
                 })
+
+                # Referral Rakeback (10%)
+                u_data = self.db.get_user(user_id)
+                referrer_id = u_data.get('referred_by')
+                if referrer_id:
+                    referrer_data = self.db.get_user(referrer_id)
+                    bonus_amount = wager * 0.001 
+                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                    self.db.update_user(referrer_id, referrer_data)
 
             # Leaderboard Pagination
             elif data.startswith("lb_page_"):
