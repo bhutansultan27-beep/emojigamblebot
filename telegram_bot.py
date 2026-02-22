@@ -8,16 +8,10 @@ import socket
 import sys
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
+import pytz
+from decimal import Decimal
 
 # External dependencies
-import sys
-import os
-
-# Use specific import path for python-telegram-bot to avoid conflicts with 'telegram' package
-import sys
-import os
-import logging
-
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
 from telegram.ext import (
@@ -7309,6 +7303,13 @@ To deposit, send LTC to the address below:
             if data == "button_unavailable":
                 await query.answer("❌ This button is no longer available as the game has started!", show_alert=True)
                 return
+        except Exception as e:
+            logger.error(f"Error in button_callback: {e}")
+            try:
+                await query.answer("❌ An error occurred processing your request.", show_alert=True)
+            except:
+                pass
+        return
 
                 parts = data.split("_")
                 # Parts: emoji_setup, game_mode, wager, step, [pts, rolls, mode, opponent]

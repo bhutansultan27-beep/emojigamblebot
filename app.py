@@ -145,10 +145,20 @@ def play_game():
         crash_point = 1.00 if r < 0.03 else max(1.01, round(0.99 / (1 - random.random()), 2))
         session['crash_point'] = crash_point
         
-        # We'll need a way to record crash games when the user cashes out.
-        # For now, let's at least ensure we track the bet.
-        telegram_user_id = session.get('telegram_user_id')
-        user = User.query.filter_by(user_id=telegram_user_id).first()
+        # Add to weekly bonus pool (0.1% rakeback)
+        achievements = user.achievements or {}
+        pool = achievements.get('weekly_bonus_pool', 0)
+        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        bonus_percent = 0.001
+        if user.username and '@davaulte' in user.username:
+            bonus_percent = 0.0012  # 0.1% + 20% boost
+
+        achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
+        user.achievements = achievements
+        
+        # Add to rakeback (2%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+
         user.total_wagered = (user.total_wagered or 0) + bet
         db.session.commit()
 
@@ -245,6 +255,10 @@ def play_game():
             'result_type': 'win' if profit > 0 else 'loss'
         })
         db.session.add(game_record)
+        
+        # Add to rakeback (2%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+        
         db.session.commit()
         
         return jsonify({'result': r, 'payout': payout, 'balance': user.balance})
@@ -302,6 +316,9 @@ def mines_reveal():
             
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
+        
+        # Add to rakeback (2%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
         
         # Record game
         game_record = Game(data={
@@ -453,6 +470,9 @@ def game_result():
         
     achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
     user.achievements = achievements
+    
+    # Add to rakeback (2%)
+    user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
 
     update_house_balance(-profit)
     db.session.commit()
