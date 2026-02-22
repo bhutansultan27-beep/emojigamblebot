@@ -758,8 +758,8 @@ class AntariaCasinoBot:
 
         keyboard = [
             [
-                InlineKeyboardButton("💳 Deposit", callback_data="menu_deposit"),
-                InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
+                InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
+                InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")
             ],
             [
                 InlineKeyboardButton("🎁 Bonus", callback_data="menu_bonus"),
@@ -886,6 +886,11 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly_menu")
             ]
         ]
+        
+        # Add back button if accessed via menu
+        if update.callback_query and update.callback_query.data == "menu_bonus":
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
+            
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
@@ -1009,8 +1014,10 @@ class AntariaCasinoBot:
             stats_text = self._build_stats_text(user_id, username, user_data)
 
             keyboard = [
-                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_noback")]
+                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_back")]
             ]
+            if show_back:
+                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
             if update.callback_query:
@@ -1161,7 +1168,7 @@ class AntariaCasinoBot:
         if nav_row:
             keyboard.append(nav_row)
 
-        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{back_tag}")])
+        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")])
         if show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
@@ -5767,11 +5774,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await query.answer("🏎️ Races coming soon!", show_alert=True)
                 return
 
-            if data == "menu_stats_from_start" or data == "menu_stats":
+        if data == "menu_stats_from_start" or data == "menu_stats_back" or data == "menu_stats_noback":
                 from sqlalchemy import or_, cast, String
                 user_data = self.db.get_user(user_id)
                 username = query.from_user.username or query.from_user.first_name
                 if username and username.startswith('@'): username = username[1:]
+                
+                # Check if we should show back button
+                show_back = (data == "menu_stats_from_start" or data == "menu_stats_back")
 
                 games_played = user_data.get('games_played', 0)
                 games_won = user_data.get('games_won', 0)
@@ -5795,9 +5805,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 )
 
                 keyboard = [
-                    [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_back")],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'back' if show_back else 'noback'}")]
                 ]
+                if show_back:
+                    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
+                
                 await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
                 return
 
