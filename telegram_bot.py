@@ -3106,11 +3106,11 @@ class AntariaCasinoBot:
         if state['game_over']:
             dealer_cards_str = ""
             for card in game.dealer_hand.cards:
-                dealer_cards_str += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')}  "
+                dealer_cards_str += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')} "
             message += f"{dealer_cards_str.strip()}\n\n"
         else:
             first_card = game.dealer_hand.cards[0]
-            message += f"<b>{first_card.rank}</b>{CARD_FACES.get(first_card.suit, '')}  [??]\n\n"
+            message += f"<b>{first_card.rank}</b>{CARD_FACES.get(first_card.suit, '')} [??]\n\n"
 
         # Player Hands section
         num_player_hands = len(state['player_hands'])
@@ -3121,7 +3121,7 @@ class AntariaCasinoBot:
 
             player_cards_formatted = ""
             for card in game.player_hands[i]['hand'].cards:
-                player_cards_formatted += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')}  "
+                player_cards_formatted += f"<b>{card.rank}</b>{CARD_FACES.get(card.suit, '')} "
 
             message += f"{player_cards_formatted.strip()}\n\n"
 
@@ -3379,8 +3379,8 @@ class AntariaCasinoBot:
             await update.message.reply_text("❌ Invalid amount.")
             return
 
-        if amount < 5.00:
-            await update.message.reply_text("❌ Minimum withdrawal is $5.00")
+        if amount < 1.00:
+            await update.message.reply_text("❌ Minimum withdrawal is $1.00")
             return
 
         if amount > user_data['balance']:
@@ -6173,13 +6173,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 
             ref_code = user_data.get('referral_code', 'N/A')
             unclaimed = user_data.get('unclaimed_referral_earnings', 0)
+            
+            bot_me = await context.bot.get_me()
+            bot_username = bot_me.username
+            
             text = (
                 "👥 <b>Referrals</b>\n\n"
-                f"Your referral code: <code>{ref_code}</code>\n\n"
+                f"Your referral code: <code>{ref_code}</code>\n"
+                f"Your link: <code>https://t.me/{bot_username}?start=ref_{ref_code}</code>\n\n"
                 f"Claimable bonus: <b>${unclaimed:,.2f}</b>\n\n"
                 "Earn 10% rakeback on all bets your referrals place!\n\n"
                 "To set a referral code type this command:\n"
-                "<code>/refcode <code></code>"
+                "<code>/refcode [code]</code>"
             )
             keyboard = [
                 [InlineKeyboardButton(f"🎁 Claim Bonus (${unclaimed:,.2f})", callback_data="claim_referral_bonus")],
@@ -6873,8 +6878,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     pass
             return
 
-        # Handle Currency selection for withdrawal
-        if data.startswith("wit_"):
+        elif data.startswith("wit_"):
             currency = data.split("_")[1].upper()
             context.user_data['wit_currency'] = currency
             user_data = self.db.get_user(user_id)
@@ -6882,7 +6886,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             withdraw_info_text = (
                 f"Enter withdrawal amount for <b>{currency}</b>\n"
                 f"Withdrawal fee: $0.01 + 2.00%\n\n"
-                f"Current balance: ${user_data['balance']:,.2f}"
+                f"Current balance: ${user_data['balance']:,.2f}\n"
+                f"Minimum withdrawal: $1.00"
             )
 
             context.user_data['awaiting_wit_amount'] = True
