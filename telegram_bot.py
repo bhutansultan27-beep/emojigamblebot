@@ -829,12 +829,12 @@ class AntariaCasinoBot:
 
         keyboard = [
             [
-                InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
-                InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")
+                InlineKeyboardButton("💳 Deposit", callback_data="menu_deposit"),
+                InlineKeyboardButton("💸 Withdraw", callback_data="menu_withdraw")
             ],
             [
                 InlineKeyboardButton("🎁 Bonuses", callback_data="menu_bonus"),
-                InlineKeyboardButton("📊 Stats", callback_data="menu_stats")
+                InlineKeyboardButton("📊 Stats", callback_data="menu_stats_from_start")
             ],
             [
                 InlineKeyboardButton("👥 Referrals", callback_data="menu_referrals"),
@@ -951,8 +951,8 @@ class AntariaCasinoBot:
         balance_text = f"Your balance <b>${user_data['balance']:,.2f}</b> ({ltc_balance:.5f} LTC)"
 
         keyboard = [
-            [InlineKeyboardButton("💳 Deposit", callback_data="deposit_mock"),
-             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_mock")]
+            [InlineKeyboardButton("💳 Deposit", callback_data="deposit_from_bal"),
+             InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_from_bal")]
         ]
         if update.callback_query:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
@@ -1014,7 +1014,7 @@ class AntariaCasinoBot:
             sent_msg = await update.message.reply_text(bonus_text, reply_markup=reply_markup, parse_mode="HTML")
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
-    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, show_back=False):
         """Show player statistics"""
         user_data = self.ensure_user_registered(update)
         user_id = update.effective_user.id
@@ -1024,8 +1024,10 @@ class AntariaCasinoBot:
         stats_text = self._build_stats_text(user_id, username, user_data)
 
         keyboard = [
-            [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0")]
+            [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'back' if show_back else 'noback'}")]
         ]
+        if show_back:
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
@@ -1084,7 +1086,7 @@ class AntariaCasinoBot:
 
         await self._show_matches_page(update, context, user_id, page)
 
-    async def _show_matches_page(self, update, context, user_id, page, edit=False):
+    async def _show_matches_page(self, update, context, user_id, page, edit=False, show_back=False):
         """Display a page of match history"""
         per_page = 7
         matches = self.db.get_user_matches(user_id, limit=100)
@@ -1094,7 +1096,9 @@ class AntariaCasinoBot:
         
         if not matches:
             text = "📋 <b>No match history found.</b>"
-            keyboard = [[InlineKeyboardButton("📊 Stats", callback_data="menu_stats")]]
+            keyboard = [[InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")]]
+            if show_back:
+                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             if edit and update.callback_query:
                 await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
@@ -1163,14 +1167,17 @@ class AntariaCasinoBot:
         # Pagination buttons
         keyboard = []
         nav_row = []
+        back_tag = 'back' if show_back else 'noback'
         if page > 0:
-            nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"matches_page_{page - 1}"))
+            nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"matches_page_{page - 1}_{back_tag}"))
         if page < total_pages - 1:
-            nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"matches_page_{page + 1}"))
+            nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"matches_page_{page + 1}_{back_tag}"))
         if nav_row:
             keyboard.append(nav_row)
         
-        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats")])
+        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{back_tag}")])
+        if show_back:
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5944,17 +5951,102 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
-            
+
         if data == "menu_referrals":
             await query.answer()
+            user_data = self.db.get_user(user_id)
+            ref_code = user_data.get('referral_code', 'N/A')
+            unclaimed = user_data.get('unclaimed_referral_earnings', 0)
             text = (
                 "👥 <b>Referrals</b>\n\n"
-                "To set a referral code type this command:\n\n"
+                f"Your referral code: <code>{ref_code}</code>\n\n"
+                f"Claimable bonus: <b>${unclaimed:,.2f}</b>\n\n"
+                "Earn 10% rakeback on all bets your referrals place!\n\n"
+                "To set a referral code type this command:\n"
                 "<code>/refcode <code></code>\n\n"
                 "If you want your own code contact a support member in chat or send a support ticket to @gamblesupport"
             )
-            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            keyboard = [
+                [InlineKeyboardButton(f"🎁 Claim Bonus (${unclaimed:,.2f})", callback_data="claim_referral_bonus")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data == "claim_referral_bonus":
+            user_data = self.db.get_user(user_id)
+            unclaimed = user_data.get('unclaimed_referral_earnings', 0)
+            if unclaimed <= 0:
+                await query.answer("❌ No bonus to claim!", show_alert=True)
+                return
+            
+            user_data['balance'] += unclaimed
+            user_data['referral_earnings'] = user_data.get('referral_earnings', 0) + unclaimed
+            user_data['unclaimed_referral_earnings'] = 0
+            self.db.update_user(user_id, user_data)
+            self.db.add_transaction(user_id, "referral_claim", unclaimed, f"Referral Bonus Claim: ${unclaimed:.2f}")
+            
+            await query.answer(f"🎉 Claimed ${unclaimed:.2f}!", show_alert=True)
+            # Refresh referrals menu
+            query.data = "menu_referrals"
+            await self.button_callback(update, context)
+            return
+
+        if data == "menu_stats_from_start":
+            await query.answer()
+            await self.stats_command(update, context, show_back=True)
+            return
+
+        if data.startswith("menu_stats_"):
+            back_tag = data.split("_")[-1]
+            show_back = (back_tag == "back")
+            await query.answer()
+            await self.stats_command(update, context, show_back=show_back)
+            return
+
+        if data == "menu_deposit" or data == "deposit_from_bal":
+            await query.answer()
+            user_data = self.db.get_user(user_id)
+            back_data = "start_back" if data == "menu_deposit" else "balance_back"
+            
+            text = (
+                "💳 <b>Deposit</b>\n\n"
+                "To deposit funds, please send LTC to the following address:\n"
+                "<code>LTC_ADDRESS_HERE</code>\n\n"
+                "Minimum deposit: $1.00\n"
+                "Your balance will be updated automatically after 1 confirmation."
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data=back_data)]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data == "menu_withdraw" or data == "withdraw_from_bal":
+            await query.answer()
+            user_data = self.db.get_user(user_id)
+            back_data = "start_back" if data == "menu_withdraw" else "balance_back"
+            
+            text = (
+                "💸 <b>Withdraw</b>\n\n"
+                f"Your balance: <b>${user_data['balance']:,.2f}</b>\n\n"
+                "To withdraw, use the following command:\n"
+                "<code>/withdraw [amount] [LTC_address]</code>\n\n"
+                "Minimum withdrawal: $5.00"
+            )
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data=back_data)]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            return
+
+        if data == "balance_back":
+            await query.answer()
+            await self.balance_command(update, context)
+            return
+
+        if data.startswith("matches_page_"):
+            parts = data.split("_")
+            page = int(parts[2])
+            show_back = (parts[3] == "back") if len(parts) > 3 else False
+            await query.answer()
+            await self._show_matches_page(update, context, user_id, page, edit=True, show_back=show_back)
             return
         owner_id = self.button_ownership.get((chat.id, message_id))
 
