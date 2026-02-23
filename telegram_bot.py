@@ -2710,8 +2710,8 @@ class AntariaCasinoBot:
 
                 self.db.update_house_balance(-total_payout)
 
-                # Add rakeback (2%) and weekly bonus pool to update_fields
-                rakeback_percent = 0.02
+                # Add rakeback (2.5%) and weekly bonus pool to update_fields
+                rakeback_percent = 0.025
                 update_fields['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
 
                 # Weekly bonus pool (1% base, 2% with @davaulte)
@@ -3907,15 +3907,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             else:
                 user_data['win_streak'] = 0
 
-            # Rakeback (2% standard)
-            rakeback_earned = wager * 0.02
+            # Rakeback (2.5% standard)
+            rakeback_earned = wager * 0.025
 
             user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
-            # Referral earnings (2% of wager for the referrer)
+            # Referral earnings (2.5% of wager for the referrer)
             referrer_id = user_data.get('referred_by')
             if referrer_id:
-                ref_earning = wager * 0.02
+                ref_earning = wager * 0.025
                 if referrer_id == user_id:
                     # Self-referral: update the same user_data dict to avoid overwrite
                     user_data['referral_earnings'] = (user_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
@@ -4150,7 +4150,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer_id = u_data.get('referred_by')
             if referrer_id:
                 referrer_data = self.db.get_user(referrer_id)
-                bonus_amount = w * 0.001 
+                bonus_amount = w * 0.025
                 referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
                 self.db.update_user(referrer_id, referrer_data)
 
@@ -5234,7 +5234,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer.referral_count += 1
             db.session.commit()
 
-        await update.message.reply_text(f"✅ Referral code '{code}' set! Your referrer will now earn 2.5% on all your bets.")
+        await update.message.reply_text(f"✅ Referral code '{code}' set! You will now earn 2.5% on all their bets.")
 
     async def rakeback_double_roll(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: float, is_weekly: bool = False):
         """Handle the doubling roll for rakeback or weekly bonus"""
