@@ -2882,7 +2882,16 @@ class AntariaCasinoBot:
                 return
 
             recipient_username = context.args[1].lstrip('@')
-            recipient_data = next((u for u in self.db.data['users'].values() if u.get('username') == recipient_username), None)
+            
+            # Fix: Query DB for user by username instead of accessing non-existent self.db.data['users']
+            recipient_data = None
+            with self.db.app.app_context():
+                from sqlalchemy import select
+                from models import User
+                user_obj = db.session.execute(select(User).filter_by(username=recipient_username)).scalar_one_or_none()
+                if user_obj:
+                    recipient_data = self.db._user_to_dict(user_obj)
+            
             recipient_display_name = recipient_username
 
         if amount <= 0.01:
@@ -4931,8 +4940,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            await query.answer()
-            await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+            if query:
+                await query.answer()
+                await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+            else:
+                sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="HTML")
+                self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
         except Exception as e:
             logger.error(f"Error creating PvP challenge: {e}")
             # Refund on error
@@ -4941,7 +4954,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if cid in self.pending_pvp:
                 del self.pending_pvp[cid]
                 self.db.update_pending_pvp(self.pending_pvp)
-            await query.answer("❌ Error creating challenge", show_alert=True)
+            
+            # Fix: Ensure query.answer() is called if possible to clear the loading state
+            if query:
+                try:
+                    await query.answer("❌ Error creating challenge", show_alert=True)
+                except:
+                    pass
+            else:
+                await context.bot.send_message(chat_id=chat_id, text="❌ An error occurred creating the challenge.")
+        return
 
     async def accept_generic_v2_pvp(self, update: Update, context: ContextTypes.DEFAULT_TYPE, cid: str):
         query = update.callback_query
