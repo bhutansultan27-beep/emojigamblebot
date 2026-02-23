@@ -386,17 +386,76 @@ class AntariaCasinoBot:
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
 
     async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle incoming text messages for betting and registration"""
+        """Handle incoming text messages for betting, registration, and withdrawals"""
         user_id = update.effective_user.id
-        text = update.effective_message.text.strip().lower()
-
+        text = update.effective_message.text.strip()
+        
         # Ensure user is registered
         user_data = self.ensure_user_registered(update)
 
-        # Check for /bet pattern without slash (common for some users)
-        if text.startswith("bet "):
+        # Check for withdrawal amount
+        if context.user_data.get('awaiting_wit_amount'):
             try:
-                amount_str = text.split(" ")[1]
+                amount = float(text.replace("$", "").replace(",", ""))
+                if amount < 0.01:
+                    await update.message.reply_text("❌ Minimum withdrawal is $0.01")
+                    return
+                
+                if amount > user_data['balance']:
+                    await update.message.reply_text(f"❌ Insufficient balance. You have ${user_data['balance']:.2f}")
+                    return
+                
+                context.user_data['wit_amount'] = amount
+                context.user_data['awaiting_wit_amount'] = False
+                context.user_data['awaiting_wit_address'] = True
+                
+                currency = context.user_data.get('wit_currency', 'LTC')
+                await update.message.reply_text(
+                    f"✅ Amount set: <b>${amount:.2f}</b>\n"
+                    f"Now, please enter your <b>{currency}</b> withdrawal address:",
+                    parse_mode="HTML"
+                )
+                return
+            except ValueError:
+                await update.message.reply_text("❌ Invalid amount. Please enter a number (e.g. 0.01):")
+                return
+
+        # Check for withdrawal address
+        if context.user_data.get('awaiting_wit_address'):
+            address = text
+            amount = context.user_data.get('wit_amount')
+            currency = context.user_data.get('wit_currency', 'LTC')
+            
+            # Plisio Integration logic
+            api_key = os.environ.get("PLISIO_API_KEY")
+            if api_key:
+                import requests
+                try:
+                    requests.post("https://plisio.net/api/v1/payouts", data={
+                        'api_key': api_key, 'address': address, 'amount': amount, 'currency': currency
+                    })
+                except: pass
+
+            user_data['balance'] -= amount
+            self.db.update_user(user_id, user_data)
+            self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal ({currency}) to {address}")
+            
+            context.user_data['awaiting_wit_address'] = False
+            
+            await update.message.reply_text(
+                f"✅ <b>Withdrawal Processed!</b>\n\n"
+                f"Amount: ${amount:.2f}\n"
+                f"Currency: {currency}\n"
+                f"Address: <code>{address}</code>",
+                parse_mode="HTML"
+            )
+            return
+
+        # Check for /bet pattern without slash (common for some users)
+        low_text = text.lower()
+        if low_text.startswith("bet "):
+            try:
+                amount_str = low_text.split(" ")[1]
                 if amount_str == "all":
                     amount = user_data['balance']
                 else:
@@ -2981,58 +3040,24 @@ class AntariaCasinoBot:
             await update.effective_message.reply_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def withdraw_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle withdrawal with $0.01 minimum and Plisio integration"""
+        """Show withdrawal currency selection menu."""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
-        
-        if not context.args:
-            await update.message.reply_text(
-                "<b>Withdraw Funds</b>\n\n"
-                "To withdraw, use: /withdraw [amount] [address]\n"
-                "Example: /withdraw 0.01 YOUR_ADDRESS\n\n"
-                "Minimum withdrawal: $0.01",
-                parse_mode="HTML"
-            )
-            return
-
-        try:
-            amount = float(context.args[0])
-            if amount < 0.01:
-                await update.message.reply_text("❌ Minimum withdrawal is $0.01")
-                return
-            
-            if amount > user_data['balance']:
-                await update.message.reply_text(f"❌ Insufficient balance. You have ${user_data['balance']:.2f}")
-                return
-                
-            address = context.args[1] if len(context.args) > 1 else None
-            if not address:
-                await update.message.reply_text("❌ Please provide a withdrawal address.\nUsage: /withdraw [amount] [address]")
-                return
-
-            # Plisio Integration logic
-            api_key = os.environ.get("PLISIO_API_KEY")
-            if api_key:
-                import requests
-                try:
-                    # Hypothesized Plisio Payout API
-                    requests.post("https://plisio.net/api/v1/payouts", data={
-                        'api_key': api_key, 'address': address, 'amount': amount, 'currency': 'LTC'
-                    })
-                except: pass
-
-            user_data['balance'] -= amount
-            self.db.update_user(user_id, user_data)
-            self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal to {address}")
-            
-            await update.message.reply_text(
-                f"✅ <b>Withdrawal Processed!</b>\n\n"
-                f"Amount: ${amount:.2f}\n"
-                f"Address: <code>{address}</code>",
-                parse_mode="HTML"
-            )
-        except (ValueError, IndexError):
-            await update.message.reply_text("❌ Invalid format. Use: /withdraw [amount] [address]")
+        withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n💸 Select withdrawal currency"
+        keyboard = [
+            [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+             InlineKeyboardButton("Bitcoin", callback_data="wit_btc")],
+            [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
+             InlineKeyboardButton("Monero", callback_data="wit_xmr")],
+            [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.effective_message.reply_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def deposit_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show deposit menu directly."""
