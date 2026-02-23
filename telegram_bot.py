@@ -425,16 +425,42 @@ class AntariaCasinoBot:
             address = text
             amount = context.user_data.get('wit_amount')
             currency = context.user_data.get('wit_currency', 'LTC')
-            
+
+            # Address Validation
+            if currency == 'SOL':
+                # Basic Solana address validation (Base58, 32-44 chars)
+                import re
+                if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
+                    await update.message.reply_text("❌ Invalid Solana address. Please enter a valid SOL address:")
+                    return
+            elif currency == 'LTC':
+                # Basic LTC address validation (starts with L, M, or ltc1)
+                import re
+                if not re.match(r"^(L|M|[a-zA-Z0-9]{26,45}|ltc1[a-z0-9]{39,59})$", address):
+                    await update.message.reply_text("❌ Invalid Litecoin address. Please enter a valid LTC address:")
+                    return
+
             # Plisio Integration logic
             api_key = os.environ.get("PLISIO_API_KEY")
             if api_key:
                 import requests
                 try:
-                    requests.post("https://plisio.net/api/v1/payouts", data={
-                        'api_key': api_key, 'address': address, 'amount': amount, 'currency': currency
-                    })
-                except: pass
+                    # Get Replit domain for callback
+                    replit_domain = os.environ.get("REPLIT_DEV_DOMAIN") or os.environ.get("REPLIT_DOMAINS")
+                    callback_url = f"https://{replit_domain}/plisio/webhook" if replit_domain else None
+                    
+                    payload = {
+                        'api_key': api_key, 
+                        'address': address, 
+                        'amount': amount, 
+                        'currency': currency
+                    }
+                    if callback_url:
+                        payload['callback_url'] = callback_url
+
+                    requests.post("https://plisio.net/api/v1/payouts", data=payload)
+                except Exception as e:
+                    logger.error(f"Plisio payout error: {e}")
 
             user_data['balance'] -= amount
             self.db.update_user(user_id, user_data)
