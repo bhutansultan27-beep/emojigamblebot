@@ -12,8 +12,15 @@ import pytz
 from decimal import Decimal
 
 # External dependencies
-import telegram
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    BotCommand,
+    BotCommandScopeDefault,
+    BotCommandScopeAllPrivateChats,
+    BotCommandScopeAllGroupChats
+)
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -953,21 +960,23 @@ class AntariaCasinoBot:
         minutes, seconds = divmod(remainder, 60)
         time_str = f"{diff.days}d {hours}h {minutes}m"
 
-        # Simple weekly bonus logic based on wagered amount (e.g., 0.1% of weekly wager)
+        # Calculate weekly bonus
         weekly_bonus = user_data.get('achievements', {}).get('weekly_bonus_pool', 0)
 
         boost_active = user_data.get('username') and '@davaulte' in user_data.get('username')
         boost_status = "✅ Active" if boost_active else "❌ Inactive"
 
-        # Check if already claimed this week
-        last_claim = user_data.get('achievements', {}).get('last_weekly_claim_date')
-        is_claimed = False
-        if last_claim:
-            last_claim_dt = datetime.fromisoformat(last_claim)
-            # If last claim was after the previous Friday 9PM
-            last_friday = target_date - timedelta(days=7)
-            if last_claim_dt > last_friday:
-                is_claimed = True
+        # Check if it's currently Friday 9PM EST or later
+        is_friday_night = diff.days == 6 and diff.seconds <= 0 # This logic is slightly flawed, let's use a better one
+        # If the next Friday 9PM is more than 6 days away, it means we are currently in the "claim window" (Friday 9PM to Saturday 9PM)
+        # However, the user specifically asked to see it but not roll/claim until Friday.
+        
+        can_claim = False
+        # Simple check: if weekday is Friday (4) and hour >= 21
+        if now_est.weekday() == 4 and now_est.hour >= 21:
+            can_claim = True
+        elif now_est.weekday() == 5: # Saturday
+            can_claim = True
 
         if text_override:
             text = text_override
@@ -985,8 +994,27 @@ class AntariaCasinoBot:
                 "🎲 4 = 1x  |  5 = 1.5x  |  6 = 2x"
             )
 
+        # Check if already claimed this week
+        last_claim = user_data.get('achievements', {}).get('last_weekly_claim_date')
+        is_claimed = False
+        if last_claim:
+            try:
+                last_claim_dt = datetime.fromisoformat(last_claim)
+                # If last claim was after the previous Friday 9PM
+                # We need to find the START of the current/most recent claim period
+                # If it's currently Thursday, the most recent Friday was 6 days ago.
+                days_since_friday = (now_est.weekday() - 4) % 7
+                most_recent_friday = now_est.replace(hour=21, minute=0, second=0, microsecond=0) - timedelta(days=days_since_friday)
+                if last_claim_dt > most_recent_friday:
+                    is_claimed = True
+            except:
+                pass
+
         if is_claimed:
             text += "\n\n✅ <b>You have already claimed your bonus for this week!</b>"
+            keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
+        elif not can_claim:
+            text += "\n\n⏳ <b>This bonus can be claimed on Friday at 9PM EST.</b>"
             keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="menu_bonus")]]
         else:
             keyboard = [
@@ -1174,8 +1202,9 @@ class AntariaCasinoBot:
         if nav_row:
             keyboard.append(nav_row)
 
-        if show_stats_back:
-            keyboard.append([InlineKeyboardButton("📊 Back to Stats", callback_data="menu_stats_back")])
+        # Add stats button if requested or if we came from stats
+        if show_stats_back or back_tag == 'stats':
+            keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats_back")])
         elif show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
@@ -1185,12 +1214,8 @@ class AntariaCasinoBot:
             await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-
-        if edit and update.callback_query:
-            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
-        else:
-            await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            if sent_msg:
+                self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def leaderboard_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show leaderboard with pagination"""
