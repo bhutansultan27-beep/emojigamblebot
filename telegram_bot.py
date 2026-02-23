@@ -428,9 +428,11 @@ class AntariaCasinoBot:
 
             # Address Validation
             if currency == 'SOL':
-                # Basic Solana address validation (Base58, 32-44 chars)
-                import re
-                if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
+                # Robust Solana address validation using the solana library
+                from solana.publickey import PublicKey
+                try:
+                    PublicKey(address)
+                except ValueError:
                     await update.message.reply_text("❌ Invalid Solana address. Please enter a valid SOL address:")
                     return
             elif currency == 'LTC':
