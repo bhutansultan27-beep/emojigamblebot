@@ -354,6 +354,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("global", self.leaderboard_command))
 
         self.app.add_handler(CommandHandler("housebal", self.housebal_command))
+        self.app.add_handler(CommandHandler("dice", self.dice_command))
         self.app.add_handler(CommandHandler("darts", self.darts_command))
         self.app.add_handler(CommandHandler("basketball", self.basketball_command))
         self.app.add_handler(CommandHandler("bball", self.basketball_command))
@@ -362,6 +363,7 @@ class AntariaCasinoBot:
         self.app.add_handler(CommandHandler("football", self.soccer_command))
         self.app.add_handler(CommandHandler("ball", self.soccer_command))
         self.app.add_handler(CommandHandler("bowling", self.bowling_command))
+        self.app.add_handler(CommandHandler("bowl", self.bowling_command))
         self.app.add_handler(CommandHandler("roll", self.roll_command))
         self.app.add_handler(CommandHandler("predict", self.dr_command))
         self.app.add_handler(CommandHandler("dr", self.dr_command))
@@ -382,6 +384,7 @@ class AntariaCasinoBot:
 
         # Admin commands
         self.app.add_handler(CommandHandler("p", self.p_command))
+        self.app.add_handler(CommandHandler("selfref", self.selfref_command))
 
         self.app.add_handler(MessageHandler(filters.Dice.ALL, self.handle_emoji_response))
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
@@ -461,6 +464,14 @@ class AntariaCasinoBot:
         self.db.add_transaction(user_id, "admin_p", amount, f"Self-grant /p by {user_id}")
 
         await update.message.reply_text(f"✅ Added ${amount:,.2f} to your balance.\nNew balance: ${user_data['balance']:,.2f}")
+
+    async def selfref_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Set yourself as your own referrer for testing"""
+        user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        user_data['referred_by'] = user_id
+        self.db.update_user(user_id, user_data)
+        await update.message.reply_text(f"✅ You are now your own referrer (testing mode). Referral earnings from your bets will go to yourself.")
 
     async def check_expired_challenges(self, context: ContextTypes.DEFAULT_TYPE):
         """Check for challenges older than 5 minutes and handle refunds/forfeits"""
@@ -893,11 +904,11 @@ class AntariaCasinoBot:
                 InlineKeyboardButton("🎁 Weekly Bonus", callback_data="bonus_weekly_menu")
             ]
         ]
-        
+
         # Add back button if accessed via menu or explicitly requested
         if show_back or (update.callback_query and update.callback_query.data == "menu_bonus"):
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-            
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if update.callback_query:
@@ -970,12 +981,14 @@ class AntariaCasinoBot:
         is_friday_night = diff.days == 6 and diff.seconds <= 0 # This logic is slightly flawed, let's use a better one
         # If the next Friday 9PM is more than 6 days away, it means we are currently in the "claim window" (Friday 9PM to Saturday 9PM)
         # However, the user specifically asked to see it but not roll/claim until Friday.
-        
+
         can_claim = False
-        # Simple check: if weekday is Friday (4) and hour >= 21
+        # Simple check: if weekday is Friday (4) and hour >= 21, Saturday (5), or Monday (0)
         if now_est.weekday() == 4 and now_est.hour >= 21:
             can_claim = True
         elif now_est.weekday() == 5: # Saturday
+            can_claim = True
+        elif now_est.weekday() == 0: # Monday
             can_claim = True
 
         if text_override:
@@ -1003,7 +1016,7 @@ class AntariaCasinoBot:
                 # Ensure last_claim_dt is timezone-aware if now_est is
                 if last_claim_dt.tzinfo is None and now_est.tzinfo is not None:
                     last_claim_dt = pytz.utc.localize(last_claim_dt).astimezone(now_est.tzinfo)
-                
+
                 # If last claim was after the previous Friday 9PM
                 days_since_friday = (now_est.weekday() - 4) % 7
                 most_recent_friday = now_est.replace(hour=21, minute=0, second=0, microsecond=0) - timedelta(days=days_since_friday)
@@ -1044,10 +1057,11 @@ class AntariaCasinoBot:
 
             stats_text = self._build_stats_text(user_id, username, user_data)
 
+            has_back = show_back or (update.callback_query and "noback" not in update.callback_query.data)
             keyboard = [
-                [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_back")]
+                [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'statsback' if has_back else 'stats'}")]
             ]
-            if show_back or (update.callback_query and "noback" not in update.callback_query.data):
+            if has_back:
                 keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1108,7 +1122,7 @@ class AntariaCasinoBot:
         if context.args and context.args[0].isdigit():
             page = max(0, int(context.args[0]) - 1)
 
-        await self._show_matches_page(update, context, user_id, page, show_back=show_back)
+        await self._show_matches_page(update, context, user_id, page, show_back=show_back, show_stats_back=True)
 
     async def _show_matches_page(self, update, context, user_id, page, edit=False, show_back=False, show_stats_back=False):
         """Display a page of match history"""
@@ -1192,12 +1206,13 @@ class AntariaCasinoBot:
         # Pagination buttons
         keyboard = []
         nav_row = []
-        
+
         # Determine back_tag for pagination
         back_tag = 'noback'
-        if show_stats_back: back_tag = 'stats'
+        if show_stats_back and show_back: back_tag = 'statsback'
+        elif show_stats_back: back_tag = 'stats'
         elif show_back: back_tag = 'back'
-        
+
         if page > 0:
             nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"matches_page_{page - 1}_{back_tag}"))
         if page < total_pages - 1:
@@ -1205,10 +1220,12 @@ class AntariaCasinoBot:
         if nav_row:
             keyboard.append(nav_row)
 
-        # Add stats button if requested or if we came from stats
-        if show_stats_back or back_tag == 'stats':
-            keyboard.append([InlineKeyboardButton("📊 Stats", callback_data="menu_stats_back")])
-        elif show_back:
+        # Add stats and/or back buttons
+        if show_stats_back:
+            # Stats button goes back to stats with or without menu back
+            stats_cb = "menu_stats_back" if show_back else "menu_stats_noback"
+            keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=stats_cb)])
+        if show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1958,150 +1975,6 @@ class AntariaCasinoBot:
             )
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
-    async def dice_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play dice game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "dice")
-
-    async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play darts game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "darts")
-
-    async def basketball_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play basketball game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "basketball")
-
-    async def soccer_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play soccer game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "soccer")
-
-    async def bowling_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play bowling game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-
-        # Save command message ID for cleanup
-        if update.message:
-            context.user_data['last_dice_cmd_id'] = update.message.message_id
-
-        amount = 1.0
-        if context.args:
-            try:
-                arg = context.args[0].lower().replace('$', '').replace(',', '')
-                if arg == 'all':
-                    user_id = update.effective_user.id
-                    user_data = self.db.get_user(user_id)
-                    amount = user_data['balance']
-                else:
-                    amount = float(arg)
-            except ValueError:
-                pass
-
-        # Ensure minimum bet
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00", reply_to_message_id=update.effective_message.message_id)
-            return
-
-        await self._show_game_prediction_menu(update, context, amount, "bowling")
 
     async def coinflip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play coinflip game setup"""
@@ -2257,153 +2130,6 @@ class AntariaCasinoBot:
             sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML", reply_to_message_id=update.effective_message.message_id)
             self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
-    async def darts_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play darts game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-
-        if not context.args:
-            await update.message.reply_text("Usage: `/darts <amount|all>`", parse_mode="Markdown")
-            return
-
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                wager = round(float(context.args[0]), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount")
-                return
-
-        if wager <= 0.01:
-            await update.message.reply_text("❌ Min: $0.01")
-            return
-
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-
-        keyboard = [
-            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"darts_bot_{wager:.2f}")],
-            [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"darts_player_open_{wager:.2f}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        sent_msg = await update.message.reply_text(
-            f"🎯 **Darts Game**\n\nWager: ${wager:.2f}\n\nChoose your opponent:",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-
-    async def basketball_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Play basketball game setup"""
-        if await self.check_balance_and_delete(update, context) or await self.check_active_game_and_delete(update, context):
-            return
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-
-        if not context.args:
-            await update.message.reply_text("Usage: `/basketball <amount|all>`", parse_mode="Markdown")
-            return
-
-        wager = 0.0
-        if context.args[0].lower() == "all":
-            wager = user_data['balance']
-        else:
-            try:
-                wager = round(float(context.args[0]), 2)
-            except ValueError:
-                await update.message.reply_text("❌ Invalid amount")
-                return
-
-        if wager <= 0.01:
-            await update.message.reply_text("❌ Min: $0.01")
-            return
-
-        if wager > user_data['balance']:
-            await update.message.reply_text(f"❌ Balance: ${user_data['balance']:.2f}")
-            return
-
-        keyboard = [
-            [InlineKeyboardButton("🤖 Play vs Bot", callback_data=f"basketball_bot_{wager:.2f}")],
-            [InlineKeyboardButton("👥 Create PvP Challenge", callback_data=f"basketball_player_open_{wager:.2f}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        sent_msg = await update.message.reply_text(
-            f"🏀 **Basketball Game**\n\nWager: ${wager:.2f}\n\nChoose your opponent:",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
-
-    async def bet_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: Optional[float] = None):
-        """Unified betting command with game selection menu."""
-        user_id = update.effective_user.id
-        self.db.get_user(user_id) # Ensure registered
-
-        if amount is None:
-            if not context.args:
-                await update.effective_message.reply_text("Usage: /bet <amount|all>")
-                return
-
-            amount_str = context.args[0].lower()
-            user_data = self.db.get_user(user_id)
-
-            if amount_str == 'all':
-                amount = user_data['balance']
-            else:
-                try:
-                    # Remove common currency symbols and commas
-                    clean_str = amount_str.replace('$', '').replace(',', '')
-                    # If there are any letters (excluding 'all' which is handled above), ignore the message
-                    if any(c.isalpha() for c in clean_str):
-                        return
-                    amount = float(clean_str)
-                except ValueError:
-                    # Silently ignore invalid numeric formats with letters
-                    return
-
-        user_data = self.db.get_user(user_id)
-        if amount < 1.0:
-            await update.effective_message.reply_text("❌ Minimum bet is $1.00")
-            return
-
-        if amount > user_data['balance']:
-            await update.effective_message.reply_text(f"❌ Insufficient balance! (${user_data['balance']:.2f})")
-            return
-
-        keyboard = [
-            [InlineKeyboardButton("🎲 Dice", callback_data=f"setup_mode_dice_{amount:.2f}"),
-             InlineKeyboardButton("🎱 Predict", callback_data=f"setup_mode_predict_{amount:.2f}")],
-            [InlineKeyboardButton("🎯 Darts", callback_data=f"setup_mode_darts_{amount:.2f}"),
-             InlineKeyboardButton("🏀 Basketball", callback_data=f"setup_mode_basketball_{amount:.2f}")],
-            [InlineKeyboardButton("⚽ Soccer", callback_data=f"setup_mode_soccer_{amount:.2f}"),
-             InlineKeyboardButton("🎳 Bowling", callback_data=f"setup_mode_bowling_{amount:.2f}")],
-            [InlineKeyboardButton("🪙 CoinFlip", callback_data=f"flip_bot_{amount:.2f}"),
-             InlineKeyboardButton("🃏 Blackjack", callback_data=f"bj_bot_{amount:.2f}")],
-        ]
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                f"💰 **Bet: ${amount:.2f}**\nSelect a game to play:",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-        else:
-            sent_msg = await update.effective_message.reply_text(
-                f"💰 **Bet: ${amount:.2f}**\nSelect a game to play:",
-                reply_markup=reply_markup,
-                parse_mode="Markdown",
-                reply_to_message_id=update.effective_message.message_id
-            )
-            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
     async def dice_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Play dice game setup"""
@@ -2787,14 +2513,14 @@ class AntariaCasinoBot:
             'payout': (wager * multiplier) if actual_roll in predictions else 0
         })
 
-        # Referral Rakeback (10%)
+        # Referral earnings (2%)
         u_data = self.db.get_user(user_id)
         referrer_id = u_data.get('referred_by')
         if referrer_id:
             referrer_data = self.db.get_user(referrer_id)
-            bonus_percent = 0.001
-            bonus_amount = wager * bonus_percent 
-            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+            bonus_amount = wager * 0.02
+            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + bonus_amount
+            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + bonus_amount
             self.db.update_user(referrer_id, referrer_data)
 
     async def coinflip_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2990,6 +2716,20 @@ class AntariaCasinoBot:
                     update_fields['total_won'] = user_data.get('total_won', 0) + actual_return
 
                 self.db.update_house_balance(-total_payout)
+
+                # Add rakeback (2%) and weekly bonus pool to update_fields
+                rakeback_percent = 0.02
+                update_fields['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
+
+                # Weekly bonus pool (1% base, 2% with @davaulte)
+                achievements = user_data.get('achievements', {}) or {}
+                pool = achievements.get('weekly_bonus_pool', 0)
+                weekly_percent = 0.01
+                if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                    weekly_percent = 0.02
+                achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
+                update_fields['achievements'] = achievements
+
                 self.db.update_user(user_id, update_fields)
 
                 self.db.record_game({
@@ -3003,33 +2743,18 @@ class AntariaCasinoBot:
                     'winner': user_id if total_payout > 0 else None
                 })
 
-                # Referral Rakeback (10%)
+                # Referral earnings (2%)
                 referrer_id = user_data.get('referred_by')
                 if referrer_id:
                     referrer_data = self.db.get_user(referrer_id)
-                    bonus_percent = 0.001
-                    bonus_amount = total_bet * bonus_percent 
-                    referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+                    bonus_amount = total_bet * 0.02
+                    referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + bonus_amount
+                    referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + bonus_amount
                     self.db.update_user(referrer_id, referrer_data)
-
-                # Add to rakeback (2%)
-                rakeback_percent = 0.02
-                user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
-
-                # Add to weekly bonus pool (2% + 20% if @davaulte in name)
-                achievements = user_data.get('achievements', {}) or {}
-                pool = achievements.get('weekly_bonus_pool', 0)
-                weekly_percent = 0.02
-                if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                    weekly_percent = 0.20
-
-                achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
-                user_data['achievements'] = achievements
-                self.db.update_user(user_id, user_data)
 
                 # Re-read for accurate balance display
                 user_data = self.db.get_user(user_id)
-                logger.info(f"BJ: game resolved, payout={total_payout}, return={actual_return}")
+                logger.info(f"BJ: game resolved, payout={total_payout}, return={actual_return}, games_played={user_data.get('games_played')}, total_wagered={user_data.get('total_wagered')}")
             except Exception as e:
                 logger.error(f"BJ balance/stats update error: {e}", exc_info=True)
                 # Still show the result even if stats fail
@@ -3196,42 +2921,41 @@ class AntariaCasinoBot:
         )
 
     async def deposit_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show deposit menu directly."""
+        """Show deposit currency selection menu."""
         user_id = update.effective_user.id
-        ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
         user_data = self.db.get_user(user_id)
-        deposit_text = (
-            f"💳 <b>LTC Deposit Request</b>\n\n"
-            f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
-            f"To deposit, send LTC to the address below:\n"
-            f"<code>{ltc_address}</code>"
-        )
-        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+        deposit_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n💳 Select deposit currency"
+        keyboard = [
+            [InlineKeyboardButton("Solana", callback_data="dep_sol"),
+             InlineKeyboardButton("Bitcoin", callback_data="dep_btc")],
+            [InlineKeyboardButton("Litecoin", callback_data="dep_ltc"),
+             InlineKeyboardButton("Monero", callback_data="dep_xmr")],
+            [InlineKeyboardButton("Toncoin", callback_data="dep_ton")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
+            await update.callback_query.answer()
             await update.callback_query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             await update.effective_message.reply_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
 
     async def withdraw_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show withdrawal menu directly."""
+        """Show withdrawal currency selection menu."""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
-        withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+        withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n💸 Select withdrawal currency"
         keyboard = [
-            [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
-            [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
-             InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
-            [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
-             InlineKeyboardButton("USDC", callback_data="wit_usdc")],
             [InlineKeyboardButton("Solana", callback_data="wit_sol"),
-             InlineKeyboardButton("BNB", callback_data="wit_bnb")],
-            [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
-             InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+             InlineKeyboardButton("Bitcoin", callback_data="wit_btc")],
+            [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
+             InlineKeyboardButton("Monero", callback_data="wit_xmr")],
+            [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
             [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
+            await update.callback_query.answer()
             await update.callback_query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
         else:
             await update.effective_message.reply_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -4194,11 +3918,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
-            # Referral earnings (10% of wager for the referrer)
+            # Referral earnings (2% of wager for the referrer)
             referrer_id = user_data.get('referred_by')
             if referrer_id:
                 referrer_data = self.db.get_user(referrer_id)
-                ref_earning = wager * 0.10
+                ref_earning = wager * 0.02
                 referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
                 referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
                 self.db.update_user(referrer_id, referrer_data)
@@ -4206,10 +3930,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             # Weekly bonus pool (base 2%)
             achievements = user_data.get('achievements', {}) or {}
             pool = achievements.get('weekly_bonus_pool', 0)
-            weekly_percent = 0.02
-            # 20% boost if @davaulte in name (2% * 1.2 = 2.4%)
+            weekly_percent = 0.01
+            # 2% with @davaulte in name
             if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                weekly_percent = 0.024
+                weekly_percent = 0.02
             achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
             user_data['achievements'] = achievements
 
@@ -4883,16 +4607,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             except Exception as e:
                 logger.error(f"CRITICAL: _finalize_v2_round failed to record stats/game for user {user_id}: {e}", exc_info=True)
 
-            # Referral Rakeback (10%)
-            u_data = self.db.get_user(user_id)
-            referrer_id = u_data.get('referred_by')
-            if referrer_id:
-                referrer_data = self.db.get_user(referrer_id)
-                bonus_percent = 0.001
-                bonus_amount = w * bonus_percent 
-                referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
-                self.db.update_user(referrer_id, referrer_data)
-
             # Series End logic
             u = self.db.get_user(user_id)
             p1_name = u.get('username', f'User{user_id}')
@@ -5016,14 +4730,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             "outcome": outcome # win or loss
         })
 
-        # Referral Rakeback (10%)
+        # Referral earnings (2%)
         u_data = self.db.get_user(user_id)
         referrer_id = u_data.get('referred_by')
         if referrer_id:
             referrer_data = self.db.get_user(referrer_id)
-            bonus_percent = 0.001
-            bonus_amount = wager * bonus_percent 
-            referrer_data['unclaimed_referral_earnings'] = referrer_data.get('unclaimed_referral_earnings', 0) + bonus_amount
+            bonus_amount = wager * 0.02
+            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + bonus_amount
+            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + bonus_amount
             self.db.update_user(referrer_id, referrer_data)
         self.db.add_transaction(user_id, "coinflip_bot", profit, f"CoinFlip vs Bot - Wager: ${wager:.2f}")
 
@@ -5475,21 +5189,28 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             self.db.update_user(user_id, updates)
             self.db.add_transaction(user_id, tx_type, final_bonus, f"{bonus_type} Double: {dice_val} ({mult}x)")
 
-            msg = f"🎲 Roll: {dice_val} ({mult}x)\n\n🔥 **BOOM!** You got **${final_bonus:.2f}**!"
+            alert_msg = f"Claimed ${final_bonus:.2f} bonus"
         else:
             updates = {'achievements': achievements}
             if not is_weekly:
                 updates['rakeback_balance'] = 0
             else:
+                achievements['last_weekly_claim_date'] = datetime.now().isoformat()
                 achievements['weekly_bonus_pool'] = 0
 
             self.db.update_user(user_id, updates)
-            msg = f"🎲 Roll: {dice_val} (0x)\n\n💀 **RIP!** You lost your bonus."
+            alert_msg = f"Claimed $0.00 bonus"
+
+        # Show result as popup alert
+        try:
+            await query.answer(alert_msg, show_alert=True)
+        except Exception:
+            pass
 
         if is_weekly:
-            await self.weekly_bonus_submenu(update, context, text_override=msg)
+            await self.weekly_bonus_submenu(update, context)
         else:
-            await self.rakeback_submenu(update, context, text_override=msg)
+            await self.rakeback_submenu(update, context)
         return
 
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5658,7 +5379,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         # --- Public buttons: ownership check ---
-        public_buttons = ["v2_accept_", "lb_page_", "transactions_history", "deposit_mock", "withdraw_mock", "bonus_", "rakeback_", "weekly_", "menu_bonus", "matches_page_", "menu_stats"]
+        public_buttons = ["v2_accept_", "lb_page_", "transactions_history", "deposit_mock", "withdraw_mock", "deposit_from_bal", "withdraw_from_bal", "dep_", "bonus_", "rakeback_", "weekly_", "menu_bonus", "matches_page_", "menu_stats"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
         ownership_key = (chat_id, message_id)
@@ -5701,7 +5422,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 user_data["rakeback_balance"] = 0
                 self.db.update_user(user_id, user_data)
                 self.db.add_transaction(user_id, "rakeback_claim", amount, f"Rakeback Claim: ${amount:.2f}")
-                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await query.answer(f"Claimed ${amount:.2f} bonus", show_alert=True)
                 await self.rakeback_submenu(update, context)
                 return
 
@@ -5735,7 +5456,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 user_data["achievements"] = achievements
                 self.db.update_user(user_id, user_data)
                 self.db.add_transaction(user_id, "weekly_claim", amount, f"Weekly Bonus Claim: ${amount:.2f}")
-                await query.answer(f"🎉 Claimed ${amount:.2f}!", show_alert=True)
+                await query.answer(f"Claimed ${amount:.2f} bonus", show_alert=True)
                 await self.weekly_bonus_submenu(update, context)
                 return
 
@@ -5746,13 +5467,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await query.answer("❌ No weekly bonus to double!", show_alert=True)
                     return
 
-                # Check if it is Friday
+                # Check if it is a valid claim day
                 import pytz
                 from datetime import datetime
                 est = pytz.timezone("US/Eastern")
                 now_est = datetime.now(est)
-                if now_est.weekday() != 4:  # 4 is Friday
-                    await query.answer("❌ Weekly bonus can only be doubled on Fridays (EST)!", show_alert=True)
+                valid_day = (now_est.weekday() == 4 and now_est.hour >= 21) or now_est.weekday() == 5 or now_est.weekday() == 0
+                if not valid_day:
+                    await query.answer("❌ Weekly bonus can only be claimed on Fridays (EST)!", show_alert=True)
                     return
 
                 await self.rakeback_double_roll(update, context, amount, is_weekly=True)
@@ -5805,7 +5527,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 user_data = self.db.get_user(user_id)
                 username = query.from_user.username or query.from_user.first_name
                 if username and username.startswith('@'): username = username[1:]
-                
+
                 # Check if we should show back button
                 show_back = (data == "menu_stats_from_start" or data == "menu_stats_back")
 
@@ -5831,11 +5553,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 )
 
                 keyboard = [
-                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_stats")]
+                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'statsback' if show_back else 'stats'}")]
                 ]
                 if show_back:
                     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
-                
+
                 await query.edit_message_text(stats_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
                 return
 
@@ -5843,33 +5565,30 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 parts = data.split("_")
                 page = int(parts[2])
                 back_tag = parts[3]
-                
+
                 # Tag logic:
-                # 'stats' -> from stats page, show "Back to Stats"
+                # 'statsback' -> from stats page that came from start menu, show Stats + Back
+                # 'stats' -> from stats page (no menu), show Stats only
                 # 'back' -> from start menu, show "Back to Menu"
                 # 'noback' -> direct command, show nothing
-                
+
                 edit_mode = True
-                show_stats_back = (back_tag == "stats")
-                show_menu_back = (back_tag == "back")
-                
+                show_stats_back = (back_tag in ("stats", "statsback"))
+                show_menu_back = (back_tag in ("back", "statsback"))
+
                 await self._show_matches_page(update, context, user_id, page, edit=edit_mode, show_back=show_menu_back, show_stats_back=show_stats_back)
                 return
 
             # --- Withdraw flow ---
-            if data == "withdraw_mock":
+            if data == "withdraw_mock" or data == "withdraw_from_bal":
                 user_data = self.db.get_user(user_id)
-                withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+                withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n💸 Select withdrawal currency"
                 keyboard = [
-                    [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
-                    [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
-                     InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
-                    [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
-                     InlineKeyboardButton("USDC", callback_data="wit_usdc")],
                     [InlineKeyboardButton("Solana", callback_data="wit_sol"),
-                     InlineKeyboardButton("BNB", callback_data="wit_bnb")],
-                    [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
-                     InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+                     InlineKeyboardButton("Bitcoin", callback_data="wit_btc")],
+                    [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
+                     InlineKeyboardButton("Monero", callback_data="wit_xmr")],
+                    [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
                     [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -5898,16 +5617,40 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await self.balance_command(update, context)
                 return
 
-            if data == "deposit_mock":
-                ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+            if data == "deposit_mock" or data == "deposit_from_bal":
+                user_data = self.db.get_user(user_id)
+                deposit_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n💳 Select deposit currency"
+                keyboard = [
+                    [InlineKeyboardButton("Solana", callback_data="dep_sol"),
+                     InlineKeyboardButton("Bitcoin", callback_data="dep_btc")],
+                    [InlineKeyboardButton("Litecoin", callback_data="dep_ltc"),
+                     InlineKeyboardButton("Monero", callback_data="dep_xmr")],
+                    [InlineKeyboardButton("Toncoin", callback_data="dep_ton")],
+                    [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.answer()
+                await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
+                return
+
+            if data.startswith("dep_"):
+                currency = data.split("_")[1].upper()
+                currency_names = {"SOL": "Solana", "BTC": "Bitcoin", "LTC": "Litecoin", "XMR": "Monero", "TON": "Toncoin"}
+                currency_env_keys = {"SOL": "SOL_ADDRESS", "BTC": "BTC_ADDRESS", "LTC": "LTC_ADDRESS", "XMR": "XMR_ADDRESS", "TON": "TON_ADDRESS"}
+                address = os.environ.get(currency_env_keys.get(currency, ""), "Contact admin for address")
+                currency_name = currency_names.get(currency, currency)
                 user_data = self.db.get_user(user_id)
                 deposit_text = (
-                    f"💳 <b>LTC Deposit Request</b>\n\n"
+                    f"💳 <b>{currency_name} Deposit</b>\n\n"
                     f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
-                    f"To deposit, send LTC to the address below:\n"
-                    f"<code>{ltc_address}</code>"
+                    f"Send {currency_name} to the address below:\n"
+                    f"<code>{address}</code>\n\n"
+                    f"After sending, contact admin to confirm your deposit."
                 )
-                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+                keyboard = [
+                    [InlineKeyboardButton("⬅️ Back", callback_data="deposit_mock")],
+                    [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]
+                ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
                 await query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
