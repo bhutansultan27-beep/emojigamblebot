@@ -2974,12 +2974,12 @@ class AntariaCasinoBot:
                 rakeback_percent = 0.02
                 user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
 
-                # Add to weekly bonus pool (base 0.1% + 20% if @davaulte in name)
+                # Add to weekly bonus pool (2% + 20% if @davaulte in name)
                 achievements = user_data.get('achievements', {}) or {}
                 pool = achievements.get('weekly_bonus_pool', 0)
-                weekly_percent = 0.001
+                weekly_percent = 0.02
                 if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                    weekly_percent = 0.0012
+                    weekly_percent = 0.20
 
                 achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
                 user_data['achievements'] = achievements
@@ -5779,7 +5779,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 )
 
                 keyboard = [
-                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_{'back' if show_back else 'noback'}")]
+                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_noback")]
                 ]
                 if show_back:
                     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
@@ -5810,7 +5810,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                      InlineKeyboardButton("BNB", callback_data="wit_bnb")],
                     [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
                      InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="balance_menu")]
+                    [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
