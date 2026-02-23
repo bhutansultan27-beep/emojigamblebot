@@ -1079,7 +1079,7 @@ class AntariaCasinoBot:
 
         await self._show_matches_page(update, context, user_id, page, show_back=show_back)
 
-    async def _show_matches_page(self, update, context, user_id, page, edit=False, show_back=False):
+    async def _show_matches_page(self, update, context, user_id, page, edit=False, show_back=False, show_stats_back=False):
         """Display a page of match history"""
         per_page = 7
         matches = self.db.get_user_matches(user_id, limit=100)
@@ -1089,7 +1089,9 @@ class AntariaCasinoBot:
 
         if not matches:
             text = "📋 <b>No match history found.</b>"
-            keyboard = [[InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")]]
+            keyboard = []
+            if show_stats_back:
+                keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")])
             if show_back:
                 keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1159,7 +1161,12 @@ class AntariaCasinoBot:
         # Pagination buttons
         keyboard = []
         nav_row = []
-        back_tag = 'back' if show_back else 'noback'
+        
+        # Determine back_tag for pagination
+        back_tag = 'noback'
+        if show_stats_back: back_tag = 'stats'
+        elif show_back: back_tag = 'back'
+        
         if page > 0:
             nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"matches_page_{page - 1}_{back_tag}"))
         if page < total_pages - 1:
@@ -1167,11 +1174,18 @@ class AntariaCasinoBot:
         if nav_row:
             keyboard.append(nav_row)
 
-        keyboard.append([InlineKeyboardButton("📊 Stats", callback_data=f"menu_stats_{'back' if show_back else 'noback'}")])
-        if show_back:
+        if show_stats_back:
+            keyboard.append([InlineKeyboardButton("📊 Back to Stats", callback_data="menu_stats_back")])
+        elif show_back:
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if edit and update.callback_query:
+            await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            sent_msg = await update.effective_message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            self.button_ownership[(sent_msg.chat_id, sent_msg.message_id)] = user_id
 
         if edit and update.callback_query:
             await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
@@ -5703,6 +5717,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 if amount <= 0:
                     await query.answer("❌ No weekly bonus to double!", show_alert=True)
                     return
+
+                # Check if it is Friday
+                import pytz
+                from datetime import datetime
+                est = pytz.timezone("US/Eastern")
+                now_est = datetime.now(est)
+                if now_est.weekday() != 4:  # 4 is Friday
+                    await query.answer("❌ Weekly bonus can only be doubled on Fridays (EST)!", show_alert=True)
+                    return
+
                 await self.rakeback_double_roll(update, context, amount, is_weekly=True)
                 return
 
@@ -5779,7 +5803,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 )
 
                 keyboard = [
-                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_noback")]
+                    [InlineKeyboardButton("📅 Match History", callback_data=f"matches_page_0_stats")]
                 ]
                 if show_back:
                     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
@@ -5791,9 +5815,17 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 parts = data.split("_")
                 page = int(parts[2])
                 back_tag = parts[3]
-                show_back = (back_tag == "back")
-                # Fix: call _show_matches_page directly with edit=True
-                await self._show_matches_page(update, context, user_id, page, edit=True, show_back=show_back)
+                
+                # Tag logic:
+                # 'stats' -> from stats page, show "Back to Stats"
+                # 'back' -> from start menu, show "Back to Menu"
+                # 'noback' -> direct command, show nothing
+                
+                edit_mode = True
+                show_stats_back = (back_tag == "stats")
+                show_menu_back = (back_tag == "back")
+                
+                await self._show_matches_page(update, context, user_id, page, edit=edit_mode, show_back=show_menu_back, show_stats_back=show_stats_back)
                 return
 
             # --- Withdraw flow ---
