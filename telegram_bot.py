@@ -6,12 +6,13 @@ import json
 import logging
 import socket
 import sys
+import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 import pytz
 from decimal import Decimal
 
-# External dependencies
+# Use python-telegram-bot
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -4848,7 +4849,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.add_transaction(user_id, "pvp_bet", -wager, f"PvP {game} bet: ${wager:.2f}")
 
         cid = f"v2_pvp_{user_id}_{int(time.time())}"
-        emoji = self.game_emojis.get(game, "🎲")
+        emoji = self.emoji_map.get(game, "🎲")
 
         challenge = {
             'type': f'{game}_pvp_v2',
@@ -4861,7 +4862,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             'emoji': emoji,
             'status': 'pending',
             'chat_id': chat_id,
-            'created_at': time.time(),
+            'created_at': datetime.now().isoformat(),
             'p1_rolls': [],
             'p2_rolls': [],
             'p1_pts': 0,
@@ -4906,26 +4907,25 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         ])
 
         # Navigation row
-        modes = ["dice", "basketball", "soccer", "darts", "bowling"]
+        modes_list = ["dice", "basketball", "soccer", "darts", "bowling"]
         try:
-            idx = modes.index(game)
-            next_game = modes[(idx + 1) % len(modes)]
-            prev_game = modes[(idx - 1) % len(modes)]
+            current_idx = modes_list.index(game)
+            next_game = modes_list[(current_idx + 1) % len(modes_list)]
+            prev_game = modes_list[(current_idx - 1) % len(modes_list)]
         except ValueError:
-            next_game, prev_game = "dice", "bowling"
+            next_game = "dice"
+            prev_game = "dice"
 
-        next_emoji = emoji_map.get(next_game, "🎲")
-        prev_emoji = emoji_map.get(prev_game, "🎲")
         keyboard.append([
             InlineKeyboardButton("⬅️", callback_data=f"emoji_setup_{prev_game}_{wager:.2f}_final{suffix}"),
             InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
             InlineKeyboardButton("➡️", callback_data=f"emoji_setup_{next_game}_{wager:.2f}_final{suffix}")
         ])
 
-        # Back and cancel
+        # Back / Cancel row
         keyboard.append([
-            InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game}_{wager:.2f}_points_{rolls}_{mode}"),
-            InlineKeyboardButton("❌ Cancel", callback_data=f"v2_cancel_{cid}")
+            InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game}_{wager:.2f}_final{suffix}"),
+            InlineKeyboardButton("❌ Cancel", callback_data=f"decline_{cid}")
         ])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
