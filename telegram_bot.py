@@ -868,7 +868,7 @@ class AntariaCasinoBot:
             context.user_data[f"cmd_msg_{sent_msg.message_id}"] = update.message.message_id
 
 
-    async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def bonus_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, show_back=False):
         """Show bonus status"""
         user_id = update.effective_user.id
         user_data = self.db.get_user(user_id)
@@ -887,8 +887,8 @@ class AntariaCasinoBot:
             ]
         ]
         
-        # Add back button if accessed via menu
-        if update.callback_query and update.callback_query.data == "menu_bonus":
+        # Add back button if accessed via menu or explicitly requested
+        if show_back or (update.callback_query and update.callback_query.data == "menu_bonus"):
             keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
             
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1016,7 +1016,7 @@ class AntariaCasinoBot:
             keyboard = [
                 [InlineKeyboardButton("📅 Match History", callback_data="matches_page_0_back")]
             ]
-            if show_back:
+            if show_back or (update.callback_query and "noback" not in update.callback_query.data):
                 keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="start_back")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1071,14 +1071,13 @@ class AntariaCasinoBot:
             f"Last game: <b>{last_str}</b>"
         )
 
-    async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def matches_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page=0, show_back=False):
         """Show match history with pagination"""
         user_id = update.effective_user.id
-        page = 0
         if context.args and context.args[0].isdigit():
             page = max(0, int(context.args[0]) - 1)
 
-        await self._show_matches_page(update, context, user_id, page)
+        await self._show_matches_page(update, context, user_id, page, show_back=show_back)
 
     async def _show_matches_page(self, update, context, user_id, page, edit=False, show_back=False):
         """Display a page of match history"""
@@ -2879,7 +2878,7 @@ class AntariaCasinoBot:
 
         logger.info(f"BJ display: game_over={state['game_over']}, hands={len(state['player_hands'])}")
 
-        # Build message text
+        # Build message text matching the screenshots
         message = "🃏 <b>Blackjack</b>\n\n"
 
         # Dealer section
@@ -2887,22 +2886,23 @@ class AntariaCasinoBot:
             dealer_cards_str = ""
             for card in game.dealer_hand.cards:
                 dealer_cards_str += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
-            message += f"Dealer: {dealer_cards_str.strip()} ({state['dealer']['value']})\n\n"
+            message += f"Dealer: {state['dealer']['value']}\n{dealer_cards_str.strip()}\n\n"
         else:
             first_card = game.dealer_hand.cards[0]
-            message += f"Dealer: <b>{first_card.rank}</b>{bj_card_faces.get(first_card.suit, '')} ?? ({state['dealer']['value']})\n\n"
+            # In-game dealer display matches screenshot: Dealer: 10 \n T♦
+            message += f"Dealer: {state['dealer']['value']}\n<b>{first_card.rank}</b>{bj_card_faces.get(first_card.suit, '')}\n\n"
 
         # Player Hands section
         num_player_hands = len(state['player_hands'])
         for i, h in enumerate(state['player_hands']):
-            hand_label = "▶️ Your Hand" if num_player_hands == 1 else f"▶️ Hand {i+1}"
+            hand_label = "Your cards" if num_player_hands == 1 else f"Hand {i+1}"
             current_marker = " ⬅️" if (h['is_current_turn'] and num_player_hands > 1) else ""
 
             player_cards_formatted = ""
             for card in game.player_hands[i]['hand'].cards:
                 player_cards_formatted += f"<b>{card.rank}</b>{bj_card_faces.get(card.suit, '')} "
 
-            message += f"{hand_label}: {player_cards_formatted.strip()} ({h['value']}){current_marker}\n"
+            message += f"{hand_label}: {h['value']}\n{player_cards_formatted.strip()}{current_marker}\n"
 
         # Game over - show results
         result_msg = ""
@@ -2916,13 +2916,13 @@ class AntariaCasinoBot:
             username = user_data.get('username') or update.effective_user.first_name
 
             if player_hand['status'] == 'Blackjack':
-                result_msg = "<b>BLACKJACK!</b>"
+                result_msg = "<b>You win!</b>"
             elif player_hand['status'] == 'Bust':
-                result_msg = "<b>Busted. You lost!</b>"
+                result_msg = "<b>Dealer won!</b>"
             elif dealer_hand['final_status'] == 'Bust':
-                result_msg = "<b>Dealer bust. You won!</b>"
+                result_msg = "<b>You win!</b>"
             elif total_payout > 0:
-                result_msg = f"<b>Congratulations {username}, you won!</b>"
+                result_msg = "<b>You win!</b>"
             elif total_payout < 0:
                 result_msg = "<b>Dealer won!</b>"
             else:
@@ -2993,11 +2993,11 @@ class AntariaCasinoBot:
                 # Still show the result even if stats fail
                 user_data = self.db.get_user(user_id)
 
-        message += f"Bet: <b>${total_bet:.2f}</b>\n"
+        message += f"\nBet: <b>${total_bet:.2f}</b>\n"
         message += f"Balance: <b>${user_data['balance']:.2f}</b>\n"
 
         if result_msg:
-            message += f"\n{result_msg}\n"
+            message += f"\n{result_msg}"
 
         # Action Buttons
         keyboard = []
@@ -3153,80 +3153,54 @@ class AntariaCasinoBot:
             reply_to_message_id=update.message.message_id
         )
 
+    async def deposit_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show deposit menu directly."""
+        user_id = update.effective_user.id
+        ltc_address = os.environ.get("LTC_ADDRESS", "YOUR_LTC_ADDRESS_HERE")
+        user_data = self.db.get_user(user_id)
+        deposit_text = (
+            f"💳 <b>LTC Deposit Request</b>\n\n"
+            f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n"
+            f"To deposit, send LTC to the address below:\n"
+            f"<code>{ltc_address}</code>"
+        )
+        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.edit_message_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.effective_message.reply_text(deposit_text, reply_markup=reply_markup, parse_mode="HTML")
+
+    async def withdraw_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show withdrawal menu directly."""
+        user_id = update.effective_user.id
+        user_data = self.db.get_user(user_id)
+        withdraw_text = f"Your balance <b>${user_data['balance']:,.2f}</b>\n\n🟢 Select withdrawal currency"
+        keyboard = [
+            [InlineKeyboardButton("Litecoin", callback_data="wit_ltc")],
+            [InlineKeyboardButton("Bitcoin", callback_data="wit_btc"),
+             InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+            [InlineKeyboardButton("USDT", callback_data="wit_usdt"),
+             InlineKeyboardButton("USDC", callback_data="wit_usdc")],
+            [InlineKeyboardButton("Solana", callback_data="wit_sol"),
+             InlineKeyboardButton("BNB", callback_data="wit_bnb")],
+            [InlineKeyboardButton("Monero", callback_data="wit_xmr"),
+             InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.edit_message_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.effective_message.reply_text(withdraw_text, reply_markup=reply_markup, parse_mode="HTML")
+
     async def deposit_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Redirect to balance menu."""
-        await self.balance_command(update, context)
+        """Show deposit menu directly."""
+        await self.deposit_submenu(update, context)
 
     async def withdraw_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Process withdrawal request"""
-        user_data = self.ensure_user_registered(update)
-        user_id = update.effective_user.id
-
-        if not context.args or len(context.args) < 3:
-            await update.message.reply_text("Usage: `/withdraw <amount> <currency> <address>`\nExample: `/withdraw 10 LTC L...`", parse_mode="Markdown")
-            return
-
-        try:
-            amount = float(context.args[0])
-            coin_type = context.args[1].upper()
-            address = context.args[2]
-        except ValueError:
-            await update.message.reply_text("❌ Invalid amount.")
-            return
-
-        if amount < 1.00:
-            await update.message.reply_text("❌ Minimum withdrawal is $1.00")
-            return
-
-        if amount > user_data['balance']:
-            await update.message.reply_text(f"❌ Insufficient balance! Balance: ${user_data['balance']:.2f}")
-            return
-
-        # Basic crypto address validation
-        is_valid = False
-        coin_type = "Unknown"
-
-        # Simple regex-based check
-        import re
-        if coin_type == "LTC":
-            if re.match(r"^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$", address) or re.match(r"^ltc1[a-z0-9]{39,59}$", address):
-                is_valid = True
-        elif coin_type == "BTC":
-            if re.match(r"^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address) or re.match(r"^bc1[a-z0-9]{39,59}$", address):
-                is_valid = True
-        elif coin_type == "ETH" or coin_type == "USDT" or coin_type == "USDC":
-            if re.match(r"^0x[a-fA-F0-9]{40}$", address):
-                is_valid = True
-        elif coin_type == "SOL":
-            if re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
-                is_valid = True
-        elif coin_type == "TON":
-            if re.match(r"^[a-zA-Z0-9_-]{48}$", address):
-                is_valid = True
-
-        if not is_valid:
-            await update.message.reply_text(f"❌ Invalid {coin_type} address format. Please check your address and try again.")
-            return
-
-        # Deduct balance and record transaction
-        user_data['balance'] -= amount
-        self.db.update_user(user_id, {'balance': user_data['balance']})
-        self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal of ${amount:.2f} ({coin_type}) to {address}")
-
-        await update.message.reply_text(f"✅ Withdrawal request of <b>${amount:.2f}</b> ({coin_type}) to <code>{address}</code> received and is being processed!", parse_mode="HTML")
-
-        # Notify admin
-        admin_ids = os.environ.get("ADMIN_IDS", "").split(",")
-        for admin_id in admin_ids:
-            if admin_id.strip():
-                try:
-                    await context.bot.send_message(
-                        chat_id=int(admin_id),
-                        text=f"🚨 <b>New Withdrawal Request</b>\n\nUser: {update.effective_user.username} ({user_id})\nAmount: ${amount:.2f}\nCoin: {coin_type}\nAddress: <code>{address}</code>",
-                        parse_mode="HTML"
-                    )
-                except Exception:
-                    pass
+        """Show withdrawal menu directly."""
+        await self.withdraw_submenu(update, context)
 
     async def pending_deposits_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """View all pending deposits (Admin only)."""
@@ -5818,7 +5792,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 page = int(parts[2])
                 back_tag = parts[3]
                 show_back = (back_tag == "back")
-                await self.matches_command(update, context, page=page, show_back=show_back)
+                # Fix: call _show_matches_page directly with edit=True
+                await self._show_matches_page(update, context, user_id, page, edit=True, show_back=show_back)
                 return
 
             # --- Withdraw flow ---
