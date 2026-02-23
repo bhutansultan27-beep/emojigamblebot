@@ -428,12 +428,16 @@ class AntariaCasinoBot:
 
             # Address Validation
             if currency == 'SOL':
-                # Robust Solana address validation using the solana library
-                from solana.publickey import PublicKey
-                try:
-                    PublicKey(address)
-                except ValueError:
+                # Basic SOL address validation: 32-44 base58 characters
+                import re
+                if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
                     await update.message.reply_text("❌ Invalid Solana address. Please enter a valid SOL address:")
+                    return
+            elif currency == 'BTC':
+                # Basic BTC address validation
+                import re
+                if not re.match(r"^(1|3|[a-zA-Z0-9]{25,34}|bc1[a-zA-Z0-9]{25,90})$", address):
+                    await update.message.reply_text("❌ Invalid Bitcoin address. Please enter a valid BTC address:")
                     return
             elif currency == 'LTC':
                 # Basic LTC address validation (starts with L, M, or ltc1)
