@@ -434,16 +434,28 @@ class AntariaCasinoBot:
                     await update.message.reply_text("❌ Invalid Solana address. Please enter a valid SOL address:")
                     return
             elif currency == 'BTC':
-                # Basic BTC address validation
+                # Basic BTC address validation (Legacy, SegWit, and Native SegWit)
                 import re
-                if not re.match(r"^(1|3|[a-zA-Z0-9]{25,34}|bc1[a-zA-Z0-9]{25,90})$", address):
+                if not re.match(r"^(1|3|[a-zA-Z0-9]{25,34}|bc1[a-zA-Z0-9]{25,90})$", address) or len(address) < 26:
                     await update.message.reply_text("❌ Invalid Bitcoin address. Please enter a valid BTC address:")
                     return
             elif currency == 'LTC':
                 # Basic LTC address validation (starts with L, M, or ltc1)
                 import re
-                if not re.match(r"^(L|M|[a-zA-Z0-9]{26,45}|ltc1[a-z0-9]{39,59})$", address):
+                if not re.match(r"^(L|M|[a-zA-Z0-9]{26,45}|ltc1[a-z0-9]{39,59})$", address) or len(address) < 26:
                     await update.message.reply_text("❌ Invalid Litecoin address. Please enter a valid LTC address:")
+                    return
+            elif currency == 'XMR':
+                # Monero address validation: 95 or 106 characters, base58
+                import re
+                if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{95,106}$", address):
+                    await update.message.reply_text("❌ Invalid Monero address. Please enter a valid XMR address:")
+                    return
+            elif currency == 'TON':
+                # TON address validation: 48 characters, base64url or hex
+                import re
+                if not re.match(r"^[a-zA-Z0-9_-]{48}$|^[a-fA-F0-9]{64}$", address):
+                    await update.message.reply_text("❌ Invalid TON address. Please enter a valid TON address:")
                     return
 
             # Plisio Integration logic
