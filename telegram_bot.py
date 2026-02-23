@@ -3909,7 +3909,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         return max(0.0, round(float(cashout_val), 2))
 
-    def _update_user_stats(self, user_id, wager, profit, outcome):
+    def _update_user_stats(self, user_id, wager, profit, outcome, is_pvp: bool = False):
         """Helper to update user stats in database"""
         try:
             user_data = self.db.get_user(user_id)
@@ -3927,37 +3927,39 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             else:
                 user_data['win_streak'] = 0
 
-            # Rakeback (2.0% standard)
-            rakeback_earned = wager * 0.02
+            # PvP games don't count towards rakeback, referrals, or bonuses
+            if not is_pvp:
+                # Rakeback (2.0% standard)
+                rakeback_earned = wager * 0.02
 
-            user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
+                user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
-            # Referral earnings (2.5% of wager for the referrer)
-            referrer_id = user_data.get('referred_by')
-            if referrer_id:
-                ref_earning = wager * 0.025
-                if referrer_id == user_id:
-                    # Self-referral: update the same user_data dict to avoid overwrite
-                    user_data['referral_earnings'] = (user_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
-                    user_data['unclaimed_referral_earnings'] = (user_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
-                else:
-                    referrer_data = self.db.get_user(referrer_id)
-                    referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
-                    referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
-                    self.db.update_user(referrer_id, referrer_data)
+                # Referral earnings (2.5% of wager for the referrer)
+                referrer_id = user_data.get('referred_by')
+                if referrer_id:
+                    ref_earning = wager * 0.025
+                    if referrer_id == user_id:
+                        # Self-referral: update the same user_data dict to avoid overwrite
+                        user_data['referral_earnings'] = (user_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
+                        user_data['unclaimed_referral_earnings'] = (user_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
+                    else:
+                        referrer_data = self.db.get_user(referrer_id)
+                        referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + ref_earning
+                        referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
+                        self.db.update_user(referrer_id, referrer_data)
 
-            # Weekly bonus pool (base 1%, 2% with @davaulte)
-            achievements = user_data.get('achievements', {}) or {}
-            pool = achievements.get('weekly_bonus_pool', 0)
-            weekly_percent = 0.01
-            # 2% with @davaulte in name
-            if user_data.get('username') and '@davaulte' in user_data.get('username'):
-                weekly_percent = 0.02
-            achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
-            user_data['achievements'] = achievements
+                # Weekly bonus pool (base 1%, 2% with @davaulte)
+                achievements = user_data.get('achievements', {}) or {}
+                pool = achievements.get('weekly_bonus_pool', 0)
+                weekly_percent = 0.01
+                # 2% with @davaulte in name
+                if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                    weekly_percent = 0.02
+                achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
+                user_data['achievements'] = achievements
 
             self.db.update_user(user_id, user_data)
-            logger.info(f"Updated stats for user {user_id}: wager={wager}, profit={profit}, outcome={outcome}, total_wagered={user_data['total_wagered']}, games_played={user_data['games_played']}")
+            logger.info(f"Updated stats for user {user_id}: wager={wager}, profit={profit}, outcome={outcome}, is_pvp={is_pvp}")
         except Exception as e:
             logger.error(f"CRITICAL: Failed to update stats for user {user_id}: {e}", exc_info=True)
 
@@ -4122,7 +4124,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                         self.db.update_user(user_id, {'balance': u['balance'] + tie_payout})
                         self.db.update_house_balance(-(tie_payout - w))
                         self.db.add_transaction(user_id, "game_tie", tie_payout, f"Game tie payout (0.95x)")
-                        self._update_user_stats(user_id, w, tie_payout - w, "draw")
+                        self._update_user_stats(user_id, w, tie_payout - w, "draw", is_pvp=False)
 
                         user_username = u.get('username', f'User{user_id}')
                         tie_text = f"🤝 <b>Draw!</b> {user_username} cashed out <b>${tie_payout:,.2f}</b>"
@@ -4156,7 +4158,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             outcome = "win" if challenge['p_pts'] >= challenge['pts'] else "loss"
             profit = w * 0.95 if outcome == "win" else -w
 
-            self._update_user_stats(user_id, w, profit, outcome)
+            self._update_user_stats(user_id, w, profit, outcome, is_pvp=False)
             self.db.record_game({
                 "type": f"{challenge['game']}_bot",
                 "player_id": user_id,
@@ -4348,8 +4350,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             self.db.update_user(user_id, {'balance': acceptor_user['balance'] + wager})
             result_text = "🤝 Draw! Refunded"
 
-            self._update_user_stats(challenger_id, wager, 0.0, "draw")
-            self._update_user_stats(user_id, wager, 0.0, "draw")
+            self._update_user_stats(challenger_id, wager, 0.0, "draw", is_pvp=True)
+            self._update_user_stats(user_id, wager, 0.0, "draw", is_pvp=True)
 
             self.db.record_game({
                 "type": f"{game_type}_pvp", 
@@ -4388,9 +4390,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # but here we just need to add the winnings to their current state.
         self.db.update_user(winner_id, {'balance': winner_user['balance'] + winnings})
 
-        self._update_user_stats(winner_id, wager, winner_profit, "win")
+        self._update_user_stats(winner_id, wager, winner_profit, "win", is_pvp=False)
         # Fix: Don't subtract the wager again in _update_user_stats since it was already deducted at start
-        self._update_user_stats(loser_id, wager, -wager, "loss")
+        self._update_user_stats(loser_id, wager, -wager, "loss", is_pvp=False)
 
         self.db.add_transaction(winner_id, f"{game_type}_pvp_win", winner_profit, f"{game_type.upper()} PvP Win vs {self.db.get_user(loser_id)['username']}")
         self.db.add_transaction(loser_id, f"{game_type}_pvp_loss", -wager, f"{game_type.upper()} PvP Loss vs {self.db.get_user(winner_id)['username']}")
@@ -4607,7 +4609,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             # Update user stats, total_wagered, rakeback, and weekly bonus
             try:
-                self._update_user_stats(user_id, w, profit, outcome)
+                self._update_user_stats(user_id, w, profit, outcome, is_pvp=False)
 
                 self.db.record_game({
                     "type": f"{challenge['game']}_bot",
@@ -4726,7 +4728,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         profit = wager * 0.95 if outcome == "win" else -wager
 
         # Update user stats and database
-        self._update_user_stats(user_id, wager, profit, outcome)
+        self._update_user_stats(user_id, wager, profit, outcome, is_pvp=False)
 
         if outcome == "win":
             payout = wager * 1.95
@@ -4949,9 +4951,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Answer the query
+        await query.answer()
+
+        # Build keyboard: Join Challenge button
+        keyboard = [[InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         try:
             if query:
-                await query.answer()
                 await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
             else:
                 sent_msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode="HTML")
@@ -5038,9 +5046,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Both players already had wager deducted when accepting/starting
         # Winner gets (wager * 2) total payout
         self.db.update_user(winner_id, {'balance': self.db.get_user(winner_id)['balance'] + wager * 2})
-        self._update_user_stats(winner_id, wager, wager, "win")
+        self._update_user_stats(winner_id, wager, wager, "win", is_pvp=True)
         # Fix: Don't subtract the wager again in _update_user_stats since it was already deducted at start
-        self._update_user_stats(loser_id, wager, -wager, "loss")
+        self._update_user_stats(loser_id, wager, -wager, "loss", is_pvp=True)
 
         self.db.record_game({
             "type": f"{challenge['game']}_pvp",
@@ -6048,6 +6056,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 await self.start_generic_v2_pvp(update, context, game, wager, rolls, mode, pts)
                 return
 
+            if data.startswith("v2_pvp_accept_"):
+                cid = data.replace("v2_pvp_accept_", "")
+                await self.accept_generic_v2_pvp(update, context, cid)
+                return
+
             if data.startswith("v2_pvp_accept_confirm_"):
                 await self.v2_pvp_accept_confirm(update, context)
                 return
@@ -6114,7 +6127,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 self.db.update_user(user_id, ud)
                 self.db.update_house_balance(-(payout - w))
                 self.db.add_transaction(user_id, "cashout", payout, f"Cashout: ${payout:.2f}")
-                self._update_user_stats(user_id, w, payout - w, "cashout")
+                self._update_user_stats(user_id, w, payout - w, "cashout", is_pvp=False)
 
                 username = ud.get('username', f'User{user_id}')
                 game_name = challenge.get('game', 'dice')

@@ -244,7 +244,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 bot_instance.db.update_house_balance(-(payout - w))
                 
                 # Update stats and record game
-                bot_instance._update_user_stats(user_id, w, payout - w, "win")
+                bot_instance._update_user_stats(user_id, w, payout - w, "win", is_pvp=False)
                 bot_instance.db.record_game({
                     'type': f"{challenge['game']}_bot",
                     'player_id': user_id,
@@ -274,7 +274,7 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 u_data = bot_instance.db.get_user(user_id)
                 
                 # Update stats and record game
-                bot_instance._update_user_stats(user_id, w, -w, "loss")
+                bot_instance._update_user_stats(user_id, w, -w, "loss", is_pvp=False)
                 bot_instance.db.record_game({
                     'type': f"{challenge['game']}_bot",
                     'player_id': user_id,
