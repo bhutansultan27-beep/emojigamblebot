@@ -2736,14 +2736,17 @@ class AntariaCasinoBot:
                     'winner': user_id if total_payout > 0 else None
                 })
 
-        # Referral earnings (2.5%)
-        referrer_id = user_data.get('referred_by')
-        if referrer_id:
-            referrer_data = self.db.get_user(referrer_id)
-            bonus_amount = total_bet * 0.025
-            referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + bonus_amount
-            referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + bonus_amount
-            self.db.update_user(referrer_id, referrer_data)
+                # Referral earnings (2.5%)
+                referrer_id = user_data.get('referred_by')
+                if referrer_id:
+                    try:
+                        referrer_data = self.db.get_user(referrer_id)
+                        bonus_amount = total_bet * 0.025
+                        referrer_data['referral_earnings'] = (referrer_data.get('referral_earnings', 0.0) or 0.0) + bonus_amount
+                        referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + bonus_amount
+                        self.db.update_user(referrer_id, referrer_data)
+                    except Exception as ref_err:
+                        logger.error(f"Referral bonus update failed: {ref_err}")
 
                 # Re-read for accurate balance display
                 user_data = self.db.get_user(user_id)
@@ -2923,8 +2926,7 @@ class AntariaCasinoBot:
              InlineKeyboardButton("Bitcoin", callback_data="dep_btc")],
             [InlineKeyboardButton("Litecoin", callback_data="dep_ltc"),
              InlineKeyboardButton("Monero", callback_data="dep_xmr")],
-            [InlineKeyboardButton("Toncoin", callback_data="dep_ton")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("Toncoin", callback_data="dep_ton")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
@@ -2943,8 +2945,7 @@ class AntariaCasinoBot:
              InlineKeyboardButton("Bitcoin", callback_data="wit_btc")],
             [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
              InlineKeyboardButton("Monero", callback_data="wit_xmr")],
-            [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
+            [InlineKeyboardButton("Toncoin", callback_data="wit_ton")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         if update.callback_query:
@@ -5202,6 +5203,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         code = context.args[0].strip()
+        # If user pastes the whole link, extract the code
+        if "start=ref_" in code:
+            code = code.split("start=ref_")[-1]
+        elif "/" in code: # Handle other potential link formats
+            code = code.split("/")[-1]
+            if "ref_" in code:
+                code = code.split("ref_")[-1]
+
         user_id = update.effective_user.id
 
         # Logic to set referral code
@@ -5802,8 +5811,24 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     f"Current balance: ${user_data['balance']:,.2f}"
                 )
                 context.user_data['awaiting_wit_amount'] = True
-                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")],
-                            [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]]
+                
+                # Check if in group
+                if query.message.chat.type in ['group', 'supergroup']:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=f"💸 <b>Withdrawal Request ({currency})</b>\n\n{withdraw_info_text}",
+                            parse_mode="HTML"
+                        )
+                        await query.edit_message_text(
+                            "📩 I've sent you a private message to finish your withdrawal request.",
+                            reply_markup=None
+                        )
+                    except Exception:
+                        await query.answer("❌ Please start the bot in private messages first!", show_alert=True)
+                    return
+
+                keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="withdraw_mock")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
                 await query.edit_message_text(withdraw_info_text, reply_markup=reply_markup)
@@ -5844,8 +5869,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     f"After sending, contact admin to confirm your deposit."
                 )
                 keyboard = [
-                    [InlineKeyboardButton("⬅️ Back", callback_data="deposit_mock")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="start_back")]
+                    [InlineKeyboardButton("⬅️ Back", callback_data="deposit_mock")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.answer()
