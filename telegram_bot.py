@@ -5234,7 +5234,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             referrer.referral_count += 1
             db.session.commit()
 
-        await update.message.reply_text(f"✅ Referral code '{code}' set! You now get 10% bonus rakeback.")
+        await update.message.reply_text(f"✅ Referral code '{code}' set! Your referrer will now earn 2.5% on all your bets.")
 
     async def rakeback_double_roll(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: float, is_weekly: bool = False):
         """Handle the doubling roll for rakeback or weekly bonus"""
