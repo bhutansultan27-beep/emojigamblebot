@@ -5674,7 +5674,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 except Exception:
                     pass
 
-                # Refresh referrals menu via sending new message since original was stripped
+                # Refresh referrals menu via editing message instead of sending new
                 ref_code = user_data.get("referral_code", "N/A")
                 bot_me = await context.bot.get_me()
                 bot_username = bot_me.username
@@ -5699,7 +5699,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     ],
                     [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
                 ]
-                await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                try:
+                    await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+                except Exception:
+                    await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
                 return
 
             # --- Menu navigation ---
