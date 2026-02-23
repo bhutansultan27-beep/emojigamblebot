@@ -1000,14 +1000,17 @@ class AntariaCasinoBot:
         if last_claim:
             try:
                 last_claim_dt = datetime.fromisoformat(last_claim)
+                # Ensure last_claim_dt is timezone-aware if now_est is
+                if last_claim_dt.tzinfo is None and now_est.tzinfo is not None:
+                    last_claim_dt = pytz.utc.localize(last_claim_dt).astimezone(now_est.tzinfo)
+                
                 # If last claim was after the previous Friday 9PM
-                # We need to find the START of the current/most recent claim period
-                # If it's currently Thursday, the most recent Friday was 6 days ago.
                 days_since_friday = (now_est.weekday() - 4) % 7
                 most_recent_friday = now_est.replace(hour=21, minute=0, second=0, microsecond=0) - timedelta(days=days_since_friday)
                 if last_claim_dt > most_recent_friday:
                     is_claimed = True
-            except:
+            except Exception as e:
+                logger.error(f"Error checking last claim date: {e}")
                 pass
 
         if is_claimed:
