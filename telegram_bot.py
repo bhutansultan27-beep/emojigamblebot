@@ -681,8 +681,10 @@ class AntariaCasinoBot:
             user_data['referral_code'] = code
 
         # Get the users chat name (First Name + Last Name if available)
-        chat_name = user.first_name
-        if user.last_name:
+        chat_name = user.username or user.first_name
+        if not chat_name and user.last_name:
+            chat_name = user.last_name
+        elif chat_name and user.last_name and user.username is None:
             chat_name += f" {user.last_name}"
 
         # Update username if it has changed or is not set
@@ -985,7 +987,7 @@ class AntariaCasinoBot:
                 f"Next claim in: <b>{time_str}</b>\n"
                 "(Every Friday at 9PM EST)\n\n"
                 "Your weekly reward based on your activity!\n\n"
-                "Add @davaulte to your name to boost the rakeback by 20%!\n"
+                "Add @davaulte to your name to boost the weekly bonus by 100%!\n"
                 f"Boost: {boost_status}\n\n"
                 "You can claim your weekly bonus directly or try to double it with a dice roll!\n\n"
                 "<b>Dice Multipliers:</b>\n"
@@ -2711,8 +2713,8 @@ class AntariaCasinoBot:
 
                 self.db.update_house_balance(-total_payout)
 
-                # Add rakeback (2.5%) and weekly bonus pool to update_fields
-                rakeback_percent = 0.025
+                # Add rakeback (2.0%) and weekly bonus pool to update_fields
+                rakeback_percent = 0.02
                 update_fields['rakeback_balance'] = (user_data.get('rakeback_balance', 0) or 0) + (total_bet * rakeback_percent)
 
                 # Weekly bonus pool (1% base, 2% with @davaulte)
@@ -2850,14 +2852,13 @@ class AntariaCasinoBot:
         reply_to_message = update.message.reply_to_message
         recipient_data = None
         recipient_display_name = None
+        amount = 0.0
 
         if reply_to_message and not reply_to_message.from_user.is_bot:
             recipient_id = reply_to_message.from_user.id
-            # Prefer username, fallback to first_name
             recipient_display_name = reply_to_message.from_user.username or reply_to_message.from_user.first_name
             recipient_data = self.db.get_user(recipient_id)
 
-            # Update username in DB if it changed
             if reply_to_message.from_user.username and recipient_data.get('username') != reply_to_message.from_user.username:
                 self.db.update_user(recipient_id, {'username': reply_to_message.from_user.username})
                 recipient_data['username'] = reply_to_message.from_user.username
@@ -2871,19 +2872,28 @@ class AntariaCasinoBot:
                 await update.message.reply_text("❌ Invalid amount")
                 return
         else:
+            # Handle both: /tip <amount> @user and /tip @user <amount>
             if len(context.args) < 2:
-                await update.message.reply_text("Usage: `/tip <amount> @user` or reply to a message with `/tip <amount>`", parse_mode="Markdown")
+                await update.message.reply_text("Usage: `/tip <amount> @user` or `/tip @user <amount>`", parse_mode="Markdown")
                 return
 
+            arg1, arg2 = context.args[0], context.args[1]
+            recipient_username = None
+
             try:
-                amount = round(float(context.args[0]), 2)
+                if arg1.startswith('@'):
+                    recipient_username = arg1.lstrip('@')
+                    amount = round(float(arg2), 2)
+                elif arg2.startswith('@'):
+                    recipient_username = arg2.lstrip('@')
+                    amount = round(float(arg1), 2)
+                else:
+                    await update.message.reply_text("❌ Please specify a user with @username")
+                    return
             except ValueError:
                 await update.message.reply_text("❌ Invalid amount")
                 return
 
-            recipient_username = context.args[1].lstrip('@')
-            
-            # Fix: Query DB for user by username instead of accessing non-existent self.db.data['users']
             recipient_data = None
             with self.db.app.app_context():
                 from sqlalchemy import select
@@ -3917,8 +3927,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             else:
                 user_data['win_streak'] = 0
 
-            # Rakeback (2.5% standard)
-            rakeback_earned = wager * 0.025
+            # Rakeback (2.0% standard)
+            rakeback_earned = wager * 0.02
 
             user_data['rakeback_balance'] = (user_data.get('rakeback_balance', 0.0) or 0.0) + rakeback_earned
 
@@ -3936,7 +3946,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     referrer_data['unclaimed_referral_earnings'] = (referrer_data.get('unclaimed_referral_earnings', 0.0) or 0.0) + ref_earning
                     self.db.update_user(referrer_id, referrer_data)
 
-            # Weekly bonus pool (base 2%)
+            # Weekly bonus pool (base 1%, 2% with @davaulte)
             achievements = user_data.get('achievements', {}) or {}
             pool = achievements.get('weekly_bonus_pool', 0)
             weekly_percent = 0.01
