@@ -156,8 +156,8 @@ def play_game():
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
         
-        # Add to rakeback (2%)
-        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+        # Add to rakeback (2.5%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.025)
 
         user.total_wagered = (user.total_wagered or 0) + bet
         db.session.commit()
@@ -194,8 +194,8 @@ def play_game():
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
         
-        # Add to rakeback (2%)
-        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+        # Add to rakeback (2.5%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.025)
 
         update_house_balance(-profit)
         db.session.commit()
@@ -256,8 +256,8 @@ def play_game():
         })
         db.session.add(game_record)
         
-        # Add to rakeback (2%)
-        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+        # Add to rakeback (2.5%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.025)
         
         db.session.commit()
         
@@ -317,8 +317,8 @@ def mines_reveal():
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
         user.achievements = achievements
         
-        # Add to rakeback (2%)
-        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.02)
+        # Add to rakeback (2.5%)
+        user.rakeback_balance = (user.rakeback_balance or 0) + (bet * 0.025)
         
         # Record game
         game_record = Game(data={
