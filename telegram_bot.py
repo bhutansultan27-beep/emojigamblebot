@@ -1915,12 +1915,6 @@ class AntariaCasinoBot:
             if params.get('opponent'):
                 suffix += f"_{params['opponent']}"
 
-        keyboard.append([
-            InlineKeyboardButton("Half Bet", callback_data=f"emoji_setup_{game_mode}_{half_wager:.2f}_{step}{suffix}"),
-            InlineKeyboardButton(f"Bet: ${wager:,.2f}", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_{step}{suffix}"),
-            InlineKeyboardButton("Double Bet", callback_data=f"emoji_setup_{game_mode}_{double_wager:.2f}_{step}{suffix}")
-        ])
-
         # Navigation row
         next_game = self._get_next_game_mode(game_mode)
         prev_game = self._get_prev_game_mode(game_mode)
@@ -5210,17 +5204,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         # Accept button (wide, at top) - anyone except challenger can click
         keyboard.append([
-            InlineKeyboardButton(f"⚔️ Accept Challenge", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{rolls}_{mode}_{pts}_{cid}")
-        ])
-
-        # Bet control row
-        half_wager = max(1.0, wager / 2)
-        double_wager = wager * 2
-        suffix = f"_{pts}_{rolls}_{mode}_player"
-        keyboard.append([
-            InlineKeyboardButton("Half Bet", callback_data=f"emoji_setup_{game}_{half_wager:.2f}_final{suffix}"),
-            InlineKeyboardButton(f"Bet: ${wager:,.2f}", callback_data="none"),
-            InlineKeyboardButton("Double Bet", callback_data=f"emoji_setup_{game}_{double_wager:.2f}_final{suffix}")
+            InlineKeyboardButton(f"🤝 Accept Match", callback_data=f"v2_pvp_accept_confirm_{game}_{wager:.2f}_{rolls}_{mode}_{pts}_{cid}")
         ])
 
         # Navigation row
