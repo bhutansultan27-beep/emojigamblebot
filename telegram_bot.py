@@ -5837,7 +5837,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 # Allow setup/game buttons through even without ownership match
                 setup_prefixes = [
                     "setup_mode_", "setup_bet_", "setup_predict_", "setup_cancel",
-                    "predict_start_", "v2_bot_", "v2_pvp_", "emoji_setup_", "v2_send_emoji_",
+                    "predict_start_", "predict_confirm_start_", "v2_bot_", "v2_pvp_", "emoji_setup_", "v2_send_emoji_",
                     "flip_bot_", "bj_", "setup_mode_normal_", "setup_mode_crazy_",
                 ]
                 is_setup = any(data.startswith(p) for p in setup_prefixes)
@@ -6319,7 +6319,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 return
 
             # --- Predict handler ---
-            if data.startswith("setup_predict_select_") or data.startswith("predict_start_"):
+            if data.startswith("setup_predict_select_") or data.startswith("predict_start_") or data.startswith("predict_confirm_start_") or data.startswith("setup_predict_clear_"):
                 from predict_handler import handle_predict
                 await handle_predict(self, update, context)
                 return

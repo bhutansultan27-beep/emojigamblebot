@@ -76,6 +76,19 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         await bot_instance._setup_predict_interface(update, context, wager, game_mode)
         return
 
+    if data.startswith("setup_predict_clear_"):
+        parts = data.split("_")
+        wager = float(parts[3])
+        game_mode = parts[4]
+        
+        if hasattr(bot_instance, "_predict_selections") and user_id in bot_instance._predict_selections:
+            if game_mode in bot_instance._predict_selections[user_id]:
+                bot_instance._predict_selections[user_id][game_mode] = set()
+        
+        await query.answer("Selections cleared")
+        await bot_instance._setup_predict_interface(update, context, wager, game_mode)
+        return
+
     if data.startswith("predict_start_"):
         parts = data.split("_")
         wager = float(parts[2])
@@ -87,6 +100,37 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             await query.answer("❌ Please make a selection first!", show_alert=True)
             return
 
+        # Show confirmation screen instead of starting immediately
+        emoji_map = {"dice": "🎲", "basketball": "🏀", "soccer": "⚽", "darts": "🎯", "bowling": "🎳", "coinflip": "🪙"}
+        current_emoji = emoji_map.get(game_mode, "🎲")
+        
+        selection_list = sorted(list(selections))
+        selection_text = ", ".join([s.capitalize() for s in selection_list])
+        
+        text = (
+            f"{current_emoji} <b>Confirm Prediction</b>\n\n"
+            f"Game: <b>{game_mode.capitalize()}</b>\n"
+            f"Bet: <b>${wager:,.2f}</b>\n"
+            f"Selections: <b>{selection_text}</b>\n\n"
+            f"Click the button below to start the game!"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("✅ Accept Match", callback_data=f"predict_confirm_start_{wager:.2f}_{game_mode}")],
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{game_mode}")]
+        ]
+        
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        return
+
+    if data.startswith("predict_confirm_start_"):
+        parts = data.split("_")
+        wager = float(parts[3])
+        game_mode = parts[4]
+
+        user_selections = bot_instance._predict_selections.get(user_id, {})
+        selections = user_selections.get(game_mode, set())
+        
         user_data = bot_instance.db.get_user(user_id)
         if user_data['balance'] < wager:
             await query.answer("❌ Insufficient balance!", show_alert=True)
