@@ -5847,7 +5847,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         # --- Public buttons: ownership check ---
-        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_", "transactions_history", "deposit_mock", "withdraw_mock", "deposit_from_bal", "withdraw_from_bal", "dep_", "bonus_", "rakeback_", "weekly_", "referral_claim_", "referral_double_", "menu_bonus", "matches_page_", "menu_stats"]
+        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_", "transactions_history", "deposit_mock", "withdraw_mock", "deposit_from_bal", "withdraw_from_bal", "dep_", "bonus_", "rakeback_", "weekly_", "referral_claim_", "referral_double_", "menu_bonus", "matches_page_", "menu_stats", "tip_confirm_", "tip_cancel"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
         ownership_key = (chat_id, message_id)
