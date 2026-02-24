@@ -5676,10 +5676,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         data = query.data
 
         # --- PvP acceptance: allow anyone but the challenger ---
-        if data.startswith("v2_accept_"):
+        if data.startswith("v2_pvp_accept_"):
             parts = data.split("_")
-            cid = parts[2]
-            challenge = self.pending_pvp.get(cid)
+            challenge_id = "_".join(parts[3:])
+            challenge = self.pending_pvp.get(challenge_id)
             if challenge and user_id == challenge.get('challenger'):
                 await query.answer("❌ You cannot accept your own challenge.", show_alert=True)
                 return

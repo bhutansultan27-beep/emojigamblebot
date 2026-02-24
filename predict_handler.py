@@ -100,37 +100,6 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             await query.answer("❌ Please make a selection first!", show_alert=True)
             return
 
-        # Show confirmation screen instead of starting immediately
-        emoji_map = {"dice": "🎲", "basketball": "🏀", "soccer": "⚽", "darts": "🎯", "bowling": "🎳", "coinflip": "🪙"}
-        current_emoji = emoji_map.get(game_mode, "🎲")
-        
-        selection_list = sorted(list(selections))
-        selection_text = ", ".join([s.capitalize() for s in selection_list])
-        
-        text = (
-            f"{current_emoji} <b>Confirm Prediction</b>\n\n"
-            f"Game: <b>{game_mode.capitalize()}</b>\n"
-            f"Bet: <b>${wager:,.2f}</b>\n"
-            f"Selections: <b>{selection_text}</b>\n\n"
-            f"Click the button below to start the game!"
-        )
-        
-        keyboard = [
-            [InlineKeyboardButton("✅ Accept Match", callback_data=f"predict_confirm_start_{wager:.2f}_{game_mode}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{game_mode}")]
-        ]
-        
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        return
-
-    if data.startswith("predict_confirm_start_"):
-        parts = data.split("_")
-        wager = float(parts[3])
-        game_mode = parts[4]
-
-        user_selections = bot_instance._predict_selections.get(user_id, {})
-        selections = user_selections.get(game_mode, set())
-        
         user_data = bot_instance.db.get_user(user_id)
         if user_data['balance'] < wager:
             await query.answer("❌ Insufficient balance!", show_alert=True)
@@ -140,22 +109,6 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
         user_data['balance'] -= wager
         bot_instance.db.update_user(user_id, {'balance': user_data['balance']})
         bot_instance.db.add_transaction(user_id, f"predict_{game_mode}", -wager, f"Prediction bet on {game_mode}")
-
-        # Make buttons unclickable - DISABLED as per user request to remove "game in progress" feel
-        # if query.message and query.message.reply_markup:
-        #     try:
-        #         new_keyboard = []
-        #         for row in query.message.reply_markup.inline_keyboard:
-        #             new_row = []
-        #             for button in row:
-        #                 # Create a new button with same text but no callback data (or dummy)
-        #                 new_row.append(InlineKeyboardButton(button.text, callback_data="dummy"))
-        #             new_keyboard.append(new_row)
-        #         await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
-        #     except Exception as e:
-        #         logger.error(f"Error making markup unclickable in predict_start: {e}")
-
-        # await query.answer("Game started!")
 
         # Mapping for emoji values
         # Dice: 1-6
