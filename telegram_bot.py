@@ -2486,8 +2486,7 @@ class AntariaCasinoBot:
         user_data = self.ensure_user_registered(update)
 
         if user_data.get('balance', 0) <= 0:
-            await update.message.reply_text("❌ Your balance is $0.00. Please deposit to play!")
-            return
+            return await self.bal_command(update, context)
 
         wager = 1.0
         if context.args:
@@ -2513,8 +2512,7 @@ class AntariaCasinoBot:
         user_data = self.ensure_user_registered(update)
 
         if user_data.get('balance', 0) <= 0:
-            await update.message.reply_text("❌ Your balance is $0.00. Please deposit to play!")
-            return
+            return await self.bal_command(update, context)
 
         wager = 1.0
         if context.args:
@@ -5827,11 +5825,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             new_bet = max(1.0, new_bet)
             keyboard = [
                 [InlineKeyboardButton("✅ Start Game", callback_data=f"bj_bot_{new_bet:.2f}")],
-                [
-                    InlineKeyboardButton("Half Bet", callback_data=f"bj_bet_change_{user_id}_{max(1.0, new_bet/2):.2f}"),
-                    InlineKeyboardButton(f"Bet: ${new_bet:.2f}", callback_data="dummy"),
-                    InlineKeyboardButton("Double Bet", callback_data=f"bj_bet_change_{user_id}_{new_bet*2:.2f}")
-                ],
                 [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]
             ]
             try:
@@ -6171,6 +6164,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     [InlineKeyboardButton("Solana", callback_data="wit_sol"),
                      InlineKeyboardButton("Bitcoin", callback_data="wit_btc")],
                     [InlineKeyboardButton("Litecoin", callback_data="wit_ltc"),
+                     InlineKeyboardButton("Ethereum", callback_data="wit_eth")],
+                    [InlineKeyboardButton("USDT (ERC-20)", callback_data="wit_usdt"),
+                     InlineKeyboardButton("USDC (ERC-20)", callback_data="wit_usdc")],
+                    [InlineKeyboardButton("TRX", callback_data="wit_trx"),
                      InlineKeyboardButton("Monero", callback_data="wit_xmr")],
                     [InlineKeyboardButton("Toncoin", callback_data="wit_ton")],
                     [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
@@ -6224,6 +6221,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     [InlineKeyboardButton("Solana", callback_data="dep_sol"),
                      InlineKeyboardButton("Bitcoin", callback_data="dep_btc")],
                     [InlineKeyboardButton("Litecoin", callback_data="dep_ltc"),
+                     InlineKeyboardButton("Ethereum", callback_data="dep_eth")],
+                    [InlineKeyboardButton("USDT (ERC-20)", callback_data="dep_usdt"),
+                     InlineKeyboardButton("USDC (ERC-20)", callback_data="dep_usdc")],
+                    [InlineKeyboardButton("TRX", callback_data="dep_trx"),
                      InlineKeyboardButton("Monero", callback_data="dep_xmr")],
                     [InlineKeyboardButton("Toncoin", callback_data="dep_ton")],
                     [InlineKeyboardButton("⬅️ Back", callback_data="start_back")]
@@ -6235,8 +6236,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             if data.startswith("dep_"):
                 currency = data.split("_")[1].upper()
-                currency_names = {"SOL": "Solana", "BTC": "Bitcoin", "LTC": "Litecoin", "XMR": "Monero", "TON": "Toncoin"}
-                currency_env_keys = {"SOL": "SOL_ADDRESS", "BTC": "BTC_ADDRESS", "LTC": "LTC_ADDRESS", "XMR": "XMR_ADDRESS", "TON": "TON_ADDRESS"}
+                currency_names = {
+                    "SOL": "Solana", "BTC": "Bitcoin", "LTC": "Litecoin", 
+                    "ETH": "Ethereum", "USDT": "USDT (ERC-20)", "USDC": "USDC (ERC-20)",
+                    "TRX": "TRX", "XMR": "Monero", "TON": "Toncoin"
+                }
+                currency_env_keys = {
+                    "SOL": "SOL_ADDRESS", "BTC": "BTC_ADDRESS", "LTC": "LTC_ADDRESS",
+                    "ETH": "ETH_ADDRESS", "USDT": "USDT_ADDRESS", "USDC": "USDC_ADDRESS",
+                    "TRX": "TRX_ADDRESS", "XMR": "XMR_ADDRESS", "TON": "TON_ADDRESS"
+                }
                 address = os.environ.get(currency_env_keys.get(currency, ""), "Contact admin for address")
                 currency_name = currency_names.get(currency, currency)
                 user_data = self.db.get_user(user_id)
