@@ -4162,15 +4162,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Normalize score
         score = (1 if dice_value >= 4 else 0) if emoji in ["⚽", "🏀"] else dice_value
 
-        # Determine if this message is a reply to a bot message
-        is_reply = False
-        replied_to_id = None
-        if update.message.reply_to_message:
-            is_reply = True
-            replied_to_id = update.message.reply_to_message.message_id
-
         # Check for matching game
         logger.info(f"handle_emoji_response: user={user_id}, chat={chat_id}, emoji={emoji}, value={dice_value}, pending_games={len(self.pending_pvp)}")
+        self.pending_pvp = self.db.data.get('pending_pvp', {})
         for cid, challenge in list(self.pending_pvp.items()):
             if (cid.startswith("v2_bot_") or cid.startswith("v2_pvp_")):
                 # Basic criteria: same chat, same emoji
@@ -5017,8 +5011,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 chat_id=chat_id, 
                 text=msg_text, 
                 reply_markup=InlineKeyboardMarkup(kb) if kb else None, 
-                parse_mode="HTML",
-                reply_to_message_id=query.message.message_id
+                parse_mode="HTML"
             )
             # Register ownership for the NEW message
             self.button_ownership[(chat_id, sent_msg.message_id)] = user_id
@@ -5213,6 +5206,15 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             f"Player 2: <b>{p2_name}</b>\n\n"
             f"<b>{p1_name}</b>, your turn!"
         )
+
+        sent_msg = await context.bot.send_message(
+            chat_id=challenge['chat_id'],
+            text=msg_text,
+            parse_mode="HTML"
+        )
+        self.button_ownership[(challenge['chat_id'], sent_msg.message_id)] = p1_id
+        challenge['match_accepted_msg_id'] = sent_msg.message_id
+        self.db.update_pending_pvp(self.pending_pvp)
 
         # Remove "Waiting for opponent..." from original message
         try:
