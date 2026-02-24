@@ -6622,6 +6622,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             # --- Tip ---
             if data == "tip_cancel":
                 try:
+                    await query.answer("Tip cancelled.")
                     await query.message.delete()
                     if query.message.reply_to_message:
                         await query.message.reply_to_message.delete()
@@ -6647,6 +6648,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 if not recipient_data:
                     await query.answer("❌ Error: Recipient not found.", show_alert=True)
                     return
+
+                await query.answer("✅ Tip sent successfully!", show_alert=False)
 
                 recipient_display_name = recipient_data.get('username') or recipient_data.get('first_name') or f"User{recipient_id}"
 
