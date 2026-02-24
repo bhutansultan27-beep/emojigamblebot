@@ -4395,7 +4395,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     if len(challenge['p1_rolls']) >= challenge['rolls']:
                         challenge['waiting_p1'], challenge['waiting_p2'] = False, True
                         p2_data = self.db.get_user(challenge['opponent'])
-                        await update.message.reply_text(f"✅ @{p2_data['username']} turn!")
+                        await update.message.reply_text(f"✅ <b>{p2_data['username']}</b>, your turn!", parse_mode="HTML")
                     challenge['emoji_wait'] = datetime.now().isoformat()
                     return
                 if challenge.get('waiting_p2') and challenge['opponent'] == user_id:
@@ -5164,7 +5164,30 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         challenge['opponent'] = user_id
         challenge['p2_deducted'] = True
-        await context.bot.send_message(chat_id=query.message.chat_id, text="✅ Challenge Accepted! Starting...")
+
+        p1_id = challenge['challenger']
+        p1_data = self.db.get_user(p1_id)
+        p1_name = p1_data.get('username', f"User{p1_id}")
+        p2_name = user_data.get('username', f"User{user_id}")
+        emoji = challenge.get('emoji', '🎲')
+
+        msg_text = (
+            f"{emoji} <b>Match accepted!</b>\n\n"
+            f"Player 1: <b>{p1_name}</b>\n"
+            f"Player 2: <b>{p2_name}</b>\n\n"
+            f"<b>{p1_name}</b>, your turn!"
+        )
+
+        # Remove "Waiting for opponent..." from original message
+        try:
+            original_text = query.message.text_html
+            new_text = original_text.replace("\nWaiting for opponent...", "").replace("Waiting for opponent...", "")
+            await query.edit_message_text(text=new_text, reply_markup=None, parse_mode="HTML")
+        except Exception:
+            pass
+
+        sent_msg = await context.bot.send_message(chat_id=query.message.chat_id, text=msg_text, parse_mode="HTML")
+        self.button_ownership[(query.message.chat_id, sent_msg.message_id)] = user_id
         asyncio.create_task(self.generic_v2_pvp_loop(context, cid))
 
     async def generic_v2_pvp_loop(self, context: ContextTypes.DEFAULT_TYPE, cid: str):
@@ -5175,7 +5198,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         p1_data, p2_data = self.db.get_user(p1_id), self.db.get_user(p2_id)
 
         while challenge['p1_pts'] < challenge['pts'] and challenge['p2_pts'] < challenge['pts']:
-            await context.bot.send_message(chat_id=chat_id, text=f"Round Start! Score: {challenge['p1_pts']} - {challenge['p2_pts']}\n👉 @{p1_data['username']}, send your {challenge['rolls']} {challenge['emoji']} now!")
+            await context.bot.send_message(chat_id=chat_id, text=f"<b>Round Start!</b> Score: <b>{challenge['p1_pts']} - {challenge['p2_pts']}</b>\n<b>{p1_name}</b>, your turn!", parse_mode="HTML")
             challenge['p1_rolls'], challenge['p2_rolls'] = [], []
             challenge['waiting_p1'], challenge['waiting_p2'] = True, False
             challenge['emoji_wait'] = datetime.now().isoformat()
@@ -5244,11 +5267,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         while challenge['p1_points'] < challenge['pts'] and challenge['p2_points'] < challenge['pts']:
             # Round Start
+            p1_name = p1_data.get('username', f'User{p1_id}')
+            p2_name = p2_data.get('username', f'User{p2_id}')
             await context.bot.send_message(
                 chat_id=chat_id, 
-                text=f"⚽ **Round Start!**\nSeries Score: @{p1_data['username']} {challenge['p1_points']} - {challenge['p2_points']} @{p2_data['username']}\n"
-                     f"👉 @{p1_data['username']}, send your {challenge['rolls']} ⚽ emoji(s) now!",
-                parse_mode="Markdown"
+                text=f"⚽ <b>Round Start!</b>\nSeries Score: <b>{p1_name}</b> {challenge['p1_points']} - {challenge['p2_points']} <b>{p2_name}</b>\n"
+                     f"<b>{p1_name}</b>, your turn!",
+                parse_mode="HTML"
             )
 
             # Reset turn rolls
