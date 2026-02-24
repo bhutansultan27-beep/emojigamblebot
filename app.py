@@ -148,9 +148,10 @@ def play_game():
         # Add to weekly bonus pool (0.1% rakeback)
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in full name
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username.lower():
+        full_name = f"{user.first_name or ''} {user.last_name or ''}".strip().lower()
+        if '@davaulte' in full_name:
             bonus_percent = 0.0012  # 0.1% + 20% boost
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -186,9 +187,10 @@ def play_game():
         # Add to weekly bonus pool (0.1% rakeback)
         achievements = user.achievements or {}
         pool = achievements.get('weekly_bonus_pool', 0)
-        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
+        # Calculate bonus percentage: base 0.1% + 20% if @davaulte in full name
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username.lower():
+        full_name = f"{user.first_name or ''} {user.last_name or ''}".strip().lower()
+        if '@davaulte' in full_name:
             bonus_percent = 0.0012  # 0.1% + 20% boost
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)

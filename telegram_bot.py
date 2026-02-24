@@ -512,11 +512,16 @@ class AntariaCasinoBot:
     def get_mention(self, user_id, name=None):
         """Returns a clickable HTML mention for a user."""
         user = self.db.get_user(user_id)
-        # Priority: Username (if set), then First Name (if available in user object), then UserID
-        display_name = user.get('username')
-        if not display_name or display_name.startswith('User'):
-            # Try to get more info from the user object if it was passed or stored
-            display_name = user.get('first_name') or user.get('username') or f"User{user_id}"
+        # Use Full Name (First + Last)
+        first_name = user.get('first_name')
+        last_name = user.get('last_name')
+        
+        if first_name and last_name:
+            display_name = f"{first_name} {last_name}"
+        elif first_name:
+            display_name = first_name
+        else:
+            display_name = user.get('username') or f"User{user_id}"
             
         # Strip @ if present for display
         display_name = display_name[1:] if display_name.startswith('@') else display_name
@@ -526,17 +531,25 @@ class AntariaCasinoBot:
         """Helper to ensure user exists in DB and update their info"""
         user = update.effective_user
         user_id = user.id
-        # Use full name or username for display
-        display_name = user.first_name
-        if user.last_name:
-            display_name += f" {user.last_name}"
-        if not display_name:
-            display_name = user.username or f"User{user_id}"
+        
+        # Use full name for display as per user request
+        first_name = user.first_name or ""
+        last_name = user.last_name or ""
+        full_name = f"{first_name} {last_name}".strip()
+        
+        if not full_name:
+            full_name = user.username or f"User{user_id}"
         
         user_data = self.db.get_user(user_id)
         updates = {}
-        if user_data.get('username') != display_name:
-            updates['username'] = display_name
+        
+        # Store first and last name separately for the bonus check
+        if user_data.get('first_name') != user.first_name:
+            updates['first_name'] = user.first_name
+        if user_data.get('last_name') != user.last_name:
+            updates['last_name'] = user.last_name
+        if user_data.get('username') != full_name:
+            updates['username'] = full_name
         
         if updates:
             self.db.update_user(user_id, updates)
@@ -816,8 +829,14 @@ class AntariaCasinoBot:
             chat_name += f" {user.last_name}"
 
         # Update username if it has changed or is not set
-        if user_data.get("username") != chat_name:
-            self.db.update_user(user.id, {"username": chat_name, "user_id": user.id})
+        first_name = user.first_name or ""
+        last_name = user.last_name or ""
+        chat_name = f"{first_name} {last_name}".strip()
+        if not chat_name:
+            chat_name = user.username or f"User{user.id}"
+
+        if user_data.get("username") != chat_name or user_data.get("first_name") != user.first_name or user_data.get("last_name") != user.last_name:
+            self.db.update_user(user.id, {"username": chat_name, "user_id": user.id, "first_name": user.first_name, "last_name": user.last_name})
             user_data = self.db.get_user(user.id)
 
         return user_data
@@ -1869,10 +1888,16 @@ class AntariaCasinoBot:
         # Opponent selection row (Only in groups)
         is_private = update.effective_chat.type == "private"
         if not is_private and step == "final":
-            keyboard.append([
-                InlineKeyboardButton("🤖 vs Bot" + (" ✅" if not params or params.get('opponent') == 'bot' else ""), callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}_bot"),
-                InlineKeyboardButton("👥 vs Player" + (" ✅" if params and params.get('opponent') == 'player' else ""), callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}_player")
-            ])
+            # If a player is chosen, show "Accept Match" instead of VS Bot/VS Player
+            if params and params.get('opponent') == 'player':
+                keyboard.append([
+                    InlineKeyboardButton("🤝 Accept Match", callback_data=f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls}_{mode}_{pts}")
+                ])
+            else:
+                keyboard.append([
+                    InlineKeyboardButton("🤖 vs Bot" + (" ✅" if not params or params.get('opponent') == 'bot' else ""), callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}_bot"),
+                    InlineKeyboardButton("👥 vs Player" + (" ✅" if params and params.get('opponent') == 'player' else ""), callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_final_{pts}_{rolls}_{mode}_player")
+                ])
 
         # Bet control row
         # Ensure wager stays at least 1.0
@@ -2847,7 +2872,8 @@ class AntariaCasinoBot:
                 achievements = user_data.get('achievements', {}) or {}
                 pool = achievements.get('weekly_bonus_pool', 0)
                 weekly_percent = 0.01
-                if user_data.get('username') and '@davaulte' in user_data.get('username').lower():
+                full_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip().lower()
+                if '@davaulte' in full_name:
                     weekly_percent = 0.02
                 achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
                 update_fields['achievements'] = achievements
@@ -2985,7 +3011,7 @@ class AntariaCasinoBot:
 
         if reply_to_message and not reply_to_message.from_user.is_bot:
             recipient_id = reply_to_message.from_user.id
-            recipient_display_name = reply_to_message.from_user.username or reply_to_message.from_user.first_name
+            recipient_display_name = f"{reply_to_message.from_user.first_name or ''} {reply_to_message.from_user.last_name or ''}".strip() or reply_to_message.from_user.username or "User"
             recipient_data = self.db.get_user(recipient_id)
 
             if reply_to_message.from_user.username and recipient_data.get('username') != reply_to_message.from_user.username:
@@ -5967,7 +5993,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if data == "menu_stats_from_start" or data == "menu_stats_back" or data == "menu_stats_noback":
                 from sqlalchemy import or_, cast, String
                 user_data = self.db.get_user(user_id)
-                username = query.from_user.username or query.from_user.first_name
+                username = f"{query.from_user.first_name or ''} {query.from_user.last_name or ''}".strip() or query.from_user.username or "User"
                 if username and username.startswith('@'): username = username[1:]
 
                 # Check if we should show back button

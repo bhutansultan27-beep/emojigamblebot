@@ -136,6 +136,9 @@ async def handle_roll(bot_instance, update: Update, context: ContextTypes.DEFAUL
                 await context.bot.send_message(chat_id=chat_id, text="❌ Error sending dice. Please try again.")
                 return
         
+        # After first player (user) rolls, notify bot's turn
+        await context.bot.send_message(chat_id=chat_id, text="<b>Rukia</b>, your turn!", parse_mode="HTML")
+        
         await asyncio.sleep(4)
         
         # Check if challenge still exists after sleep
