@@ -210,7 +210,7 @@ class DatabaseManager:
                     val = game_display_data.get(key)
                     if isinstance(val, str):
                         lower_val = val.lower()
-                        if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"]:
+                        if lower_val in ["@davaulte", "davaulte", "emoji gamble bot", "emojigamblebot"] or "@davaulte" in lower_val:
                             game_display_data[key] = 'Bot'
 
                 user_games.append({**game_display_data, 'timestamp': g.timestamp.isoformat() if g.timestamp else None})
@@ -1090,7 +1090,7 @@ class AntariaCasinoBot:
         # Calculate weekly bonus
         weekly_bonus = user_data.get('achievements', {}).get('weekly_bonus_pool', 0)
 
-        boost_active = user_data.get('username') and '@davaulte' in user_data.get('username')
+        boost_active = user_data.get('username') and '@davaulte' in user_data.get('username').lower()
         boost_status = "✅ Active" if boost_active else "❌ Inactive"
 
         # Check if it's currently Friday 9PM EST or later
@@ -1099,12 +1099,10 @@ class AntariaCasinoBot:
         # However, the user specifically asked to see it but not roll/claim until Friday.
 
         can_claim = False
-        # Simple check: if weekday is Friday (4) and hour >= 21, Saturday (5), or Monday (0)
+        # Simple check: if weekday is Friday (4) and hour >= 21, or Saturday (5)
         if now_est.weekday() == 4 and now_est.hour >= 21:
             can_claim = True
         elif now_est.weekday() == 5: # Saturday
-            can_claim = True
-        elif now_est.weekday() == 0: # Monday
             can_claim = True
 
         if text_override:
@@ -2849,7 +2847,7 @@ class AntariaCasinoBot:
                 achievements = user_data.get('achievements', {}) or {}
                 pool = achievements.get('weekly_bonus_pool', 0)
                 weekly_percent = 0.01
-                if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                if user_data.get('username') and '@davaulte' in user_data.get('username').lower():
                     weekly_percent = 0.02
                 achievements['weekly_bonus_pool'] = round(pool + total_bet * weekly_percent, 2)
                 update_fields['achievements'] = achievements
@@ -3842,7 +3840,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         }
         self.db.data['pending_pvp'] = self.pending_pvp
 
-        keyboard = [[InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_dice_{challenge_id}")]]
+        keyboard = [
+            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_dice_{challenge_id}")],
+            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
@@ -3902,6 +3903,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.pending_pvp[challenge_id] = challenge
         self.db.data['pending_pvp'] = self.pending_pvp
 
+        # PvP UI matching bot game
+        challenger_username = challenger_user.get('username', f'User{challenger_id}')
+        acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
+        
+        await query.edit_message_text(
+            f"🎲 **Dice PvP Match Started!**\n\n"
+            f"**{challenger_username}** vs **{acceptor_username}**\n"
+            f"Wager: **${wager:,.2f}** each\n\n"
+            f"👉 **@{challenger_username}**, send your 🎲 now!",
+            parse_mode="Markdown"
+        )
+
     async def create_emoji_pvp_challenge(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float, game_type: str, emoji: str):
         """Create an emoji-based PvP challenge (darts, basketball, soccer)"""
         query = update.callback_query
@@ -3934,7 +3947,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         keyboard = [
             [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")],
-            [InlineKeyboardButton("🔙 Back / Refund", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -3997,6 +4010,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenge['emoji_wait_started'] = datetime.now().isoformat()
         self.pending_pvp[challenge_id] = challenge
         self.db.data['pending_pvp'] = self.pending_pvp
+
+        # PvP UI matching bot game
+        challenger_username = challenger_user.get('username', f'User{challenger_id}')
+        acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
+        
+        await query.edit_message_text(
+            f"🎲 **Dice PvP Match Started!**\n\n"
+            f"**{challenger_username}** vs **{acceptor_username}**\n"
+            f"Wager: **${wager:,.2f}** each\n\n"
+            f"👉 **@{challenger_username}**, send your 🎲 now!",
+            parse_mode="Markdown"
+        )
 
     def calculate_cashout(self, p_pts, b_pts, target_pts, wager):
         """
@@ -4085,7 +4110,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 pool = achievements.get('weekly_bonus_pool', 0)
                 weekly_percent = 0.01
                 # 2% with @davaulte in name
-                if user_data.get('username') and '@davaulte' in user_data.get('username'):
+                if user_data.get('username') and '@davaulte' in user_data.get('username').lower():
                     weekly_percent = 0.02
                 achievements['weekly_bonus_pool'] = round(pool + wager * weekly_percent, 2)
                 user_data['achievements'] = achievements
@@ -5089,7 +5114,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Build keyboard: Join Challenge button
         keyboard = [
             [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")],
-            [InlineKeyboardButton("🔙 Back / Refund", callback_data=f"v2_pvp_cancel_{cid}")]
+            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{cid}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5736,7 +5761,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 from datetime import datetime
                 est = pytz.timezone("US/Eastern")
                 now_est = datetime.now(est)
-                valid_day = (now_est.weekday() == 4 and now_est.hour >= 21) or now_est.weekday() == 5 or now_est.weekday() == 0
+                valid_day = (now_est.weekday() == 4 and now_est.hour >= 21) or now_est.weekday() == 5
                 if not valid_day:
                     await query.answer("❌ Weekly bonus can only be claimed on Fridays (EST)!", show_alert=True)
                     return

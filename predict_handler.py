@@ -202,7 +202,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             
             # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
             bonus_percent = 0.001
-            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            if user_data.get('username') and '@davaulte' in user_data.get('username').lower():
                 bonus_percent = 0.0012  # 0.1% + 20% boost
                 
             achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * bonus_percent, 2)
@@ -256,7 +256,7 @@ async def handle_predict(bot_instance, update: Update, context: ContextTypes.DEF
             
             # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
             bonus_percent = 0.001
-            if user_data.get('username') and '@davaulte' in user_data.get('username'):
+            if user_data.get('username') and '@davaulte' in user_data.get('username').lower():
                 bonus_percent = 0.0012  # 0.1% + 20% boost
                 
             achievements['weekly_bonus_pool'] = round(achievements.get('weekly_bonus_pool', 0) + wager * bonus_percent, 2)

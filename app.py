@@ -150,7 +150,7 @@ def play_game():
         pool = achievements.get('weekly_bonus_pool', 0)
         # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username:
+        if user.username and '@davaulte' in user.username.lower():
             bonus_percent = 0.0012  # 0.1% + 20% boost
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -188,7 +188,7 @@ def play_game():
         pool = achievements.get('weekly_bonus_pool', 0)
         # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username:
+        if user.username and '@davaulte' in user.username.lower():
             bonus_percent = 0.0012  # 0.1% + 20% boost
 
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -311,7 +311,7 @@ def mines_reveal():
         
         # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
         bonus_percent = 0.001
-        if user.username and '@davaulte' in user.username:
+        if user.username and '@davaulte' in user.username.lower():
             bonus_percent = 0.0012  # 0.1% + 20% boost
             
         achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -392,7 +392,7 @@ def mines_cashout():
     
     # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
     bonus_percent = 0.001
-    if user.username and '@davaulte' in user.username:
+    if user.username and '@davaulte' in user.username.lower():
         bonus_percent = 0.0012  # 0.1% + 20% boost
         
     achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
@@ -465,7 +465,7 @@ def game_result():
     
     # Calculate bonus percentage: base 0.1% + 20% if @davaulte in username
     bonus_percent = 0.001
-    if user.username and '@davaulte' in user.username:
+    if user.username and '@davaulte' in user.username.lower():
         bonus_percent = 0.0012  # 0.1% + 20% boost
         
     achievements['weekly_bonus_pool'] = round(pool + bet * bonus_percent, 2)
