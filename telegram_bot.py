@@ -1930,11 +1930,21 @@ class AntariaCasinoBot:
                 return f"emoji_setup_{target_game}_{wager:.2f}_mode"
             return f"emoji_setup_{target_game}_{wager:.2f}_{step}{suffix}"
 
-        keyboard.append([
-            InlineKeyboardButton("⬅️", callback_data=get_nav_callback(prev_game)),
-            InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
-            InlineKeyboardButton("➡️", callback_data=get_nav_callback(next_game))
-        ])
+        if step != "final":
+            keyboard.append([
+                InlineKeyboardButton("⬅️", callback_data=get_nav_callback(prev_game)),
+                InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
+                InlineKeyboardButton("➡️", callback_data=get_nav_callback(next_game))
+            ])
+        elif params and params.get('opponent') == 'player':
+             # Skip nav row when Accept Match is shown
+             pass
+        else:
+            keyboard.append([
+                InlineKeyboardButton("⬅️", callback_data=get_nav_callback(prev_game)),
+                InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
+                InlineKeyboardButton("➡️", callback_data=get_nav_callback(next_game))
+            ])
 
         # Back button
         back_button = None
@@ -1957,13 +1967,17 @@ class AntariaCasinoBot:
             mode_val = params.get("mode", "normal")
             opponent_val = params.get("opponent", "bot")
 
-            start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_{pts_val}_{rolls_val}_{mode_val}"
+            if opponent_val == "player" and not is_private:
+                # No bottom buttons when showing Accept Match
+                pass
+            else:
+                start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_{pts_val}_{rolls_val}_{mode_val}"
 
-            back_btn = InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{params.get('rolls', 1)}_{params.get('mode', 'normal')}")
-            keyboard.append([
-                back_btn,
-                InlineKeyboardButton("✅ Start", callback_data=start_callback)
-            ])
+                back_btn = InlineKeyboardButton("⬅️ Back", callback_data=f"emoji_setup_{game_mode}_{wager:.2f}_points_{params.get('rolls', 1)}_{params.get('mode', 'normal')}")
+                keyboard.append([
+                    back_btn,
+                    InlineKeyboardButton("✅ Start", callback_data=start_callback)
+                ])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -4189,6 +4203,71 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 # If we got here, it means the user sent a dice emoji directly.
                 logger.info(f"handle_emoji_response: MATCHED game {cid} for user {user_id}")
 
+                if cid.startswith("v2_pvp_"):
+                    # PvP logic
+                    if challenge['status'] != "active":
+                        continue
+                    
+                    is_p1 = (user_id == challenge['challenger'])
+                    is_p2 = (user_id == challenge['opponent'])
+                    
+                    if challenge['waiting_for'] == "p1" and not is_p1:
+                        await update.message.reply_text(f"❌ Wait for {challenge['challenger_username']} to roll!")
+                        return
+                    if challenge['waiting_for'] == "p2" and not is_p2:
+                        await update.message.reply_text(f"❌ Wait for {challenge['opponent_username']} to roll!")
+                        return
+
+                    if is_p1:
+                        challenge['challenger_rolls'].append(score)
+                        if len(challenge['challenger_rolls']) < challenge['rolls']:
+                            await update.message.reply_text(f"🎲 {challenge['challenger_username']}, roll again! ({len(challenge['challenger_rolls'])}/{challenge['rolls']})")
+                        else:
+                            challenge['waiting_for'] = "p2"
+                            await update.message.reply_text(f"🎲 {challenge['opponent_username']}, your turn!")
+                    else:
+                        challenge['opponent_rolls'].append(score)
+                        if len(challenge['opponent_rolls']) < challenge['rolls']:
+                            await update.message.reply_text(f"🎲 {challenge['opponent_username']}, roll again! ({len(challenge['opponent_rolls'])}/{challenge['rolls']})")
+                        else:
+                            # Both finished
+                            p1_score = sum(challenge['challenger_rolls'])
+                            p2_score = sum(challenge['opponent_rolls'])
+                            
+                            winner = None
+                            if challenge['mode'] == "normal":
+                                if p1_score > p2_score: winner = "p1"
+                                elif p2_score > p1_score: winner = "p2"
+                            else: # crazy
+                                if p1_score < p2_score: winner = "p1"
+                                elif p2_score < p1_score: winner = "p2"
+
+                            wager = challenge['wager']
+                            if winner == "p1":
+                                profit = wager * 0.95
+                                self.db.update_user(challenge['challenger'], {'balance': self.db.get_user(challenge['challenger'])['balance'] + (wager * 1.95)})
+                                result_text = f"🎉 <b>{challenge['challenger_username']}</b> won <b>${wager*1.95:,.2f}</b>!"
+                            elif winner == "p2":
+                                self.db.update_user(challenge['opponent'], {'balance': self.db.get_user(challenge['opponent'])['balance'] + (wager * 1.95)})
+                                result_text = f"🎉 <b>{challenge['opponent_username']}</b> won <b>${wager*1.95:,.2f}</b>!"
+                            else:
+                                # Draw
+                                self.db.update_user(challenge['challenger'], {'balance': self.db.get_user(challenge['challenger'])['balance'] + wager})
+                                self.db.update_user(challenge['opponent'], {'balance': self.db.get_user(challenge['opponent'])['balance'] + wager})
+                                result_text = "🤝 <b>It's a draw!</b> Wagers refunded."
+
+                            await update.message.reply_text(
+                                f"🏁 <b>Match Over!</b>\n\n"
+                                f"{challenge['challenger_username']}: <b>{p1_score}</b>\n"
+                                f"{challenge['opponent_username']}: <b>{p2_score}</b>\n\n"
+                                f"{result_text}",
+                                parse_mode="HTML"
+                            )
+                            del self.pending_pvp[cid]
+                    
+                    self.db.data['pending_pvp'] = self.pending_pvp
+                    return
+
                 # Delete Match Accepted message button if it exists
                 match_msg_id = challenge.get('match_accepted_msg_id')
                 if match_msg_id:
@@ -6262,6 +6341,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await self._show_emoji_game_setup(update, context, wager, "coinflip", "mode", {})
                 return
 
+        try:
             # --- Generic V2 bot games ---
             if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
                 parts = data.split("_")
@@ -6277,15 +6357,114 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 return
 
             # --- PvP ---
-            if data.startswith("v2_pvp_create_"):
-                parts = data.split("_")
-                game, wager, rolls, mode, pts = parts[3], float(parts[4]), int(parts[5]), parts[6], int(parts[7])
-                await self.start_generic_v2_pvp(update, context, game, wager, rolls, mode, pts)
-                return
+    async def v2_pvp_create(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Creates a pending PvP challenge from the v2 setup menu"""
+        query = update.callback_query
+        user_id = query.from_user.id
+        parts = query.data.split("_")
+        # v2_pvp_create_{game_mode}_{wager}_{rolls}_{mode}_{pts}
+        game_mode = parts[3]
+        wager = float(parts[4])
+        rolls = int(parts[5])
+        mode = parts[6]
+        pts = int(parts[7])
+
+        user_data = self.db.get_user(user_id)
+        if wager > user_data['balance']:
+            await query.answer("❌ Insufficient balance!", show_alert=True)
+            return
+
+        # Deduct wager
+        self.db.update_user(user_id, {'balance': user_data['balance'] - wager})
+
+        challenge_id = f"v2_pvp_{user_id}_{int(datetime.now().timestamp())}"
+        emoji_map = {"dice": "🎲", "basketball": "🏀", "soccer": "⚽", "darts": "🎯", "bowling": "🎳"}
+        emoji = emoji_map.get(game_mode, "🎲")
+
+        challenge = {
+            "type": game_mode,
+            "challenger": user_id,
+            "challenger_username": user_data.get('username', f'User{user_id}'),
+            "challenger_rolls": [],
+            "opponent": None,
+            "opponent_username": None,
+            "opponent_rolls": [],
+            "wager": wager,
+            "emoji": emoji,
+            "chat_id": query.message.chat_id,
+            "rolls": rolls,
+            "mode": mode,
+            "pts": pts,
+            "p1_pts": 0,
+            "p2_pts": 0,
+            "waiting_for": "p1", # Start with p1
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
+        }
+
+        self.pending_pvp[challenge_id] = challenge
+        self.db.data['pending_pvp'] = self.pending_pvp
+
+        keyboard = [
+            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{challenge_id}")],
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+        ]
+
+        text = (
+            f"{emoji} <b>Dice PvP</b>\n\n"
+            f"Challenger: <b>{challenge['challenger_username']}</b>\n"
+            f"• Mode: <b>{mode.capitalize()}</b>\n"
+            f"• Rolls: <b>{rolls}</b>\n"
+            f"• Points to win: <b>{pts}</b>\n"
+            f"• Bet: <b>${wager:,.2f}</b>"
+        )
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    async def v2_pvp_accept(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Accepts a v2 PvP challenge"""
+        query = update.callback_query
+        acceptor_id = query.from_user.id
+        parts = query.data.split("_")
+        challenge_id = "_".join(parts[3:])
+
+        challenge = self.pending_pvp.get(challenge_id)
+        if not challenge:
+            await query.answer("❌ Challenge not found!", show_alert=True)
+            return
+
+        if acceptor_id == challenge['challenger']:
+            await query.answer("❌ You cannot accept your own challenge!", show_alert=True)
+            return
+
+        user_data = self.db.get_user(acceptor_id)
+        if user_data['balance'] < challenge['wager']:
+            await query.answer("❌ Insufficient balance!", show_alert=True)
+            return
+
+        # Deduct wager
+        self.db.update_user(acceptor_id, {'balance': user_data['balance'] - challenge['wager']})
+
+        challenge['opponent'] = acceptor_id
+        challenge['opponent_username'] = user_data.get('username', f'User{acceptor_id}')
+        challenge['status'] = "active"
+        self.pending_pvp[challenge_id] = challenge
+        self.db.data['pending_pvp'] = self.pending_pvp
+
+        # NO EDITING OR DELETING as requested. Just send a new message.
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"🎲 <b>Dice PvP Match Started!</b>\n\n"
+                 f"<b>{challenge['challenger_username']}</b> vs <b>{challenge['opponent_username']}</b>\n"
+                 f"Wager: <b>${challenge['wager']:,.2f}</b> each\n\n"
+                 f"👉 <b>@{challenge['challenger_username']}</b>, your turn!",
+            parse_mode="HTML"
+        )
+        await query.answer("Match started!")
 
             if data.startswith("v2_pvp_accept_"):
                 cid = data.replace("v2_pvp_accept_", "")
-                await self.accept_generic_v2_pvp(update, context, cid)
+                await self.v2_pvp_accept(update, context)
                 return
 
             if data.startswith("v2_pvp_accept_confirm_"):
