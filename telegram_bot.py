@@ -5148,9 +5148,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
     async def accept_generic_v2_pvp(self, update: Update, context: ContextTypes.DEFAULT_TYPE, cid: str):
         query = update.callback_query
         user_id = query.from_user.id
+        # Sync with DB to avoid stale state
+        self.pending_pvp = self.db.data.get('pending_pvp', {})
         challenge = self.pending_pvp.get(cid)
-        if not challenge or challenge['challenger'] == user_id:
-            await query.answer("❌ Cannot join", show_alert=True)
+        
+        if not challenge:
+            await query.answer("❌ Challenge no longer exists!", show_alert=True)
+            return
+            
+        if challenge['challenger'] == user_id:
+            await query.answer("❌ You cannot join your own challenge!", show_alert=True)
             return
 
         user_data = self.db.get_user(user_id)
@@ -5164,6 +5171,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         challenge['opponent'] = user_id
         challenge['p2_deducted'] = True
+        
+        # Save updated challenge state back to DB to ensure persistence
+        self.db.update_pending_pvp(self.pending_pvp)
 
         p1_id = challenge['challenger']
         p1_data = self.db.get_user(p1_id)
@@ -6260,7 +6270,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     game_mode = challenge.get('game', 'dice')
                     await self._show_game_prediction_menu(update, context, wager, game_mode)
                 else:
-                    await self.main_menu(update, context)
+                    await self.start_command(update, context)
                 return
 
             if data.startswith("v2_pvp_cancel_"):
@@ -6285,11 +6295,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 
                 # Redirect to game menu instead of showing "Cancelled" message
                 if challenge['type'] == 'dice':
-                    await self.dice_menu(update, context)
+                    await self.dice_command(update, context)
                 elif challenge['type'] == 'emoji':
-                    await self.emoji_menu(update, context)
+                    await self.soccer_command(update, context)
                 else:
-                    await self.main_menu(update, context)
+                    await self.start_command(update, context)
                 return
 
             # --- PvP game creation ---
