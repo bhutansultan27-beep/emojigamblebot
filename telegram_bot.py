@@ -389,7 +389,7 @@ class AntariaCasinoBot:
         """Handle incoming text messages for betting, registration, and withdrawals"""
         user_id = update.effective_user.id
         text = update.effective_message.text.strip()
-        
+
         # Ensure user is registered
         user_data = self.ensure_user_registered(update)
 
@@ -400,15 +400,15 @@ class AntariaCasinoBot:
                 if amount < 0.01:
                     await update.message.reply_text("❌ Minimum withdrawal is $0.01")
                     return
-                
+
                 if amount > user_data['balance']:
                     await update.message.reply_text(f"❌ Insufficient balance. You have ${user_data['balance']:.2f}")
                     return
-                
+
                 context.user_data['wit_amount'] = amount
                 context.user_data['awaiting_wit_amount'] = False
                 context.user_data['awaiting_wit_address'] = True
-                
+
                 currency = context.user_data.get('wit_currency', 'LTC')
                 await update.message.reply_text(
                     f"✅ Amount set: <b>${amount:.2f}</b>\n"
@@ -466,7 +466,7 @@ class AntariaCasinoBot:
                     # Get Replit domain for callback
                     replit_domain = os.environ.get("REPLIT_DEV_DOMAIN") or os.environ.get("REPLIT_DOMAINS")
                     callback_url = f"https://{replit_domain}/plisio/webhook" if replit_domain else None
-                    
+
                     payload = {
                         'api_key': api_key, 
                         'address': address, 
@@ -483,9 +483,9 @@ class AntariaCasinoBot:
             user_data['balance'] -= amount
             self.db.update_user(user_id, user_data)
             self.db.add_transaction(user_id, "withdrawal", -amount, f"Withdrawal ({currency}) to {address}")
-            
+
             context.user_data['awaiting_wit_address'] = False
-            
+
             await update.message.reply_text(
                 f"✅ <b>Withdrawal Processed!</b>\n\n"
                 f"Amount: ${amount:.2f}\n"
@@ -515,14 +515,14 @@ class AntariaCasinoBot:
         # Use Full Name (First + Last)
         first_name = user.get('first_name')
         last_name = user.get('last_name')
-        
+
         if first_name and last_name:
             display_name = f"{first_name} {last_name}"
         elif first_name:
             display_name = first_name
         else:
             display_name = user.get('username') or f"User{user_id}"
-            
+
         # Strip @ if present for display
         display_name = display_name[1:] if display_name.startswith('@') else display_name
         return f'<a href="tg://user?id={user_id}">{display_name}</a>'
@@ -531,18 +531,18 @@ class AntariaCasinoBot:
         """Helper to ensure user exists in DB and update their info"""
         user = update.effective_user
         user_id = user.id
-        
+
         # Use full name for display as per user request
         first_name = user.first_name or ""
         last_name = user.last_name or ""
         full_name = f"{first_name} {last_name}".strip()
-        
+
         if not full_name:
             full_name = user.username or f"User{user_id}"
-        
+
         user_data = self.db.get_user(user_id)
         updates = {}
-        
+
         # Store first and last name separately for the bonus check
         if user_data.get('first_name') != user.first_name:
             updates['first_name'] = user.first_name
@@ -550,7 +550,7 @@ class AntariaCasinoBot:
             updates['last_name'] = user.last_name
         if user_data.get('username') != full_name:
             updates['username'] = full_name
-        
+
         if updates:
             self.db.update_user(user_id, updates)
             user_data.update(updates)
@@ -3070,7 +3070,7 @@ class AntariaCasinoBot:
                 user_obj = db.session.execute(select(User).filter_by(username=recipient_username)).scalar_one_or_none()
                 if user_obj:
                     recipient_data = self.db._user_to_dict(user_obj)
-            
+
             recipient_display_name = recipient_username
 
         if amount <= 0.01:
@@ -3884,8 +3884,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.data['pending_pvp'] = self.pending_pvp
 
         keyboard = [
-            [InlineKeyboardButton("✅ Accept Match", callback_data=f"accept_dice_{challenge_id}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("✅ Accept Match", callback_data=f"accept_dice_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -3949,7 +3948,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # PvP UI matching bot game
         challenger_username = challenger_user.get('username', f'User{challenger_id}')
         acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
-        
+
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=f"🎲 **Dice PvP Match Started!**\n\n"
@@ -3990,8 +3989,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.data['pending_pvp'] = self.pending_pvp
 
         keyboard = [
-            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -4058,7 +4056,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # PvP UI matching bot game
         challenger_username = challenger_user.get('username', f'User{challenger_id}')
         acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
-        
+
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=f"🎲 **Dice PvP Match Started!**\n\n"
@@ -4207,10 +4205,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     # PvP logic
                     if challenge['status'] != "active":
                         continue
-                    
+
                     is_p1 = (user_id == challenge['challenger'])
                     is_p2 = (user_id == challenge['opponent'])
-                    
+
                     if challenge['waiting_for'] == "p1" and not is_p1:
                         await update.message.reply_text(f"❌ Wait for {challenge['challenger_username']} to roll!")
                         return
@@ -4224,47 +4222,88 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                             await update.message.reply_text(f"🎲 {challenge['challenger_username']}, roll again! ({len(challenge['challenger_rolls'])}/{challenge['rolls']})")
                         else:
                             challenge['waiting_for'] = "p2"
-                            await update.message.reply_text(f"🎲 {challenge['opponent_username']}, your turn!")
+                            await update.message.reply_text(f"{challenge['opponent_username']}, your turn!")
                     else:
                         challenge['opponent_rolls'].append(score)
                         if len(challenge['opponent_rolls']) < challenge['rolls']:
                             await update.message.reply_text(f"🎲 {challenge['opponent_username']}, roll again! ({len(challenge['opponent_rolls'])}/{challenge['rolls']})")
                         else:
-                            # Both finished
+                            # Both players finished rolling for this round
                             p1_score = sum(challenge['challenger_rolls'])
                             p2_score = sum(challenge['opponent_rolls'])
-                            
-                            winner = None
-                            if challenge['mode'] == "normal":
-                                if p1_score > p2_score: winner = "p1"
-                                elif p2_score > p1_score: winner = "p2"
-                            else: # crazy
-                                if p1_score < p2_score: winner = "p1"
-                                elif p2_score < p1_score: winner = "p2"
 
-                            wager = challenge['wager']
-                            if winner == "p1":
-                                profit = wager * 0.95
-                                self.db.update_user(challenge['challenger'], {'balance': self.db.get_user(challenge['challenger'])['balance'] + (wager * 1.95)})
-                                result_text = f"🎉 <b>{challenge['challenger_username']}</b> won <b>${wager*1.95:,.2f}</b>!"
-                            elif winner == "p2":
-                                self.db.update_user(challenge['opponent'], {'balance': self.db.get_user(challenge['opponent'])['balance'] + (wager * 1.95)})
-                                result_text = f"🎉 <b>{challenge['opponent_username']}</b> won <b>${wager*1.95:,.2f}</b>!"
+                            # Determine round winner based on mode
+                            round_winner = None
+                            game_mode_type = str(challenge.get('mode', 'normal')).strip().lower()
+                            is_crazy = game_mode_type in ["crazy", "inverted"]
+
+                            if is_crazy:
+                                if p1_score < p2_score: round_winner = "p1"
+                                elif p2_score < p1_score: round_winner = "p2"
                             else:
-                                # Draw
-                                self.db.update_user(challenge['challenger'], {'balance': self.db.get_user(challenge['challenger'])['balance'] + wager})
-                                self.db.update_user(challenge['opponent'], {'balance': self.db.get_user(challenge['opponent'])['balance'] + wager})
-                                result_text = "🤝 <b>It's a draw!</b> Wagers refunded."
+                                if p1_score > p2_score: round_winner = "p1"
+                                elif p2_score > p1_score: round_winner = "p2"
 
-                            await update.message.reply_text(
-                                f"🏁 <b>Match Over!</b>\n\n"
-                                f"{challenge['challenger_username']}: <b>{p1_score}</b>\n"
-                                f"{challenge['opponent_username']}: <b>{p2_score}</b>\n\n"
-                                f"{result_text}",
-                                parse_mode="HTML"
-                            )
-                            del self.pending_pvp[cid]
-                    
+                            target_pts = challenge.get('pts', 1)
+                            wager = challenge['wager']
+
+                            if round_winner == "p1":
+                                challenge['p1_pts'] = challenge.get('p1_pts', 0) + 1
+                            elif round_winner == "p2":
+                                challenge['p2_pts'] = challenge.get('p2_pts', 0) + 1
+                            else:
+                                # Draw round - redo
+                                challenge['challenger_rolls'] = []
+                                challenge['opponent_rolls'] = []
+                                challenge['waiting_for'] = "p1"
+                                self.db.data['pending_pvp'] = self.pending_pvp
+                                await update.message.reply_text(
+                                    f"🤝 <b>Draw!</b> ({p1_score} vs {p2_score})\n\n"
+                                    f"{challenge['challenger_username']}, your turn!",
+                                    parse_mode="HTML"
+                                )
+                                return
+
+                            p1_pts = challenge.get('p1_pts', 0)
+                            p2_pts = challenge.get('p2_pts', 0)
+
+                            # Check if someone won the series
+                            if p1_pts >= target_pts or p2_pts >= target_pts:
+                                if p1_pts >= target_pts:
+                                    winner_id = challenge['challenger']
+                                    winner_name = challenge['challenger_username']
+                                else:
+                                    winner_id = challenge['opponent']
+                                    winner_name = challenge['opponent_username']
+
+                                payout = wager * 1.95
+                                self.db.update_user(winner_id, {'balance': self.db.get_user(winner_id)['balance'] + payout})
+                                self.db.update_house_balance(wager * 2 - payout)
+
+                                await update.message.reply_text(
+                                    f"🏆 <b>Game over!</b>\n\n"
+                                    f"<b>{challenge['challenger_username']}</b> • {p1_pts}\n"
+                                    f"<b>{challenge['opponent_username']}</b> • {p2_pts}\n\n"
+                                    f"✅ <b>{winner_name}</b> won <b>${payout:,.2f}</b>!",
+                                    parse_mode="HTML"
+                                )
+                                del self.pending_pvp[cid]
+                            else:
+                                # More rounds needed
+                                challenge['challenger_rolls'] = []
+                                challenge['opponent_rolls'] = []
+                                challenge['waiting_for'] = "p1"
+
+                                round_winner_name = challenge['challenger_username'] if round_winner == "p1" else challenge['opponent_username']
+                                await update.message.reply_text(
+                                    f"✅ <b>{round_winner_name}</b> wins the round! ({p1_score} vs {p2_score})\n\n"
+                                    f"<b>Score</b>\n"
+                                    f"{challenge['challenger_username']}: {p1_pts}\n"
+                                    f"{challenge['opponent_username']}: {p2_pts}\n\n"
+                                    f"{challenge['challenger_username']}, your turn!",
+                                    parse_mode="HTML"
+                                )
+
                     self.db.data['pending_pvp'] = self.pending_pvp
                     return
 
@@ -5215,8 +5254,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         # Build keyboard: Join Challenge button
         keyboard = [
-            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{cid}")]
+            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5234,7 +5272,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if cid in self.pending_pvp:
                 del self.pending_pvp[cid]
                 self.db.update_pending_pvp(self.pending_pvp)
-            
+
             # Fix: Ensure query.answer() is called if possible to clear the loading state
             if query:
                 try:
@@ -5251,11 +5289,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Sync with DB to avoid stale state
         self.pending_pvp = self.db.data.get('pending_pvp', {})
         challenge = self.pending_pvp.get(cid)
-        
+
         if not challenge:
             await query.answer("❌ Challenge no longer exists!", show_alert=True)
             return
-            
+
         if challenge['challenger'] == user_id:
             await query.answer("❌ You cannot join your own challenge!", show_alert=True)
             return
@@ -5271,7 +5309,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         challenge['opponent'] = user_id
         challenge['p2_deducted'] = True
-        
+
         # Save updated challenge state back to DB to ensure persistence
         self.db.update_pending_pvp(self.pending_pvp)
 
@@ -5529,18 +5567,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         p1_name = challenger_data.get('username', f"User{challenge['challenger']}")
         p2_name = user_data.get('username', f"User{user_id}")
 
-        emoji = self.game_emojis.get(game, "🎲")
-        msg_text = (
-            f"{emoji} <b>Match accepted!</b>\n\n"
-            f"Player 1: <b>{p1_name}</b>\n"
-            f"Player 2: <b>{p2_name}</b>\n\n"
-            f"<b>{p1_name}</b>, your turn!"
+        # Don't edit or delete the challenge message - just send a new message
+        await query.answer("Match started!")
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"{p1_name}, your turn!",
+            parse_mode="HTML"
         )
-
-        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data=f"v2_cancel_{cid}")]]
-
-        await query.answer()
-        await query.edit_message_text(text=msg_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     async def refcode_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Set a referral code"""
@@ -6157,7 +6190,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     f"Current balance: ${user_data['balance']:,.2f}"
                 )
                 context.user_data['awaiting_wit_amount'] = True
-                
+
                 # Check if in group
                 if query.message.chat.type in ['group', 'supergroup']:
                     try:
@@ -6341,6 +6374,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await self._show_emoji_game_setup(update, context, wager, "coinflip", "mode", {})
                 return
 
+        except Exception as e:
+            logger.error(f"Error in callback handler (setup section): {e}")
+            return
+
         try:
             # --- Generic V2 bot games ---
             if data.startswith("v2_bot_") or data.startswith("dice_bot_") or data.startswith("basketball_bot_") or data.startswith("soccer_bot_") or data.startswith("darts_bot_") or data.startswith("bowling_bot_"):
@@ -6355,6 +6392,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     pts = 1
                 await self.start_generic_v2_bot(update, context, game, wager, rolls, mode, pts)
                 return
+
+
+        except Exception as e:
+            logger.error(f"Error in callback handler (v2 bot section): {e}")
+            return
 
             # --- PvP ---
     async def v2_pvp_create(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6406,14 +6448,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.data['pending_pvp'] = self.pending_pvp
 
         keyboard = [
-            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{challenge_id}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{challenge_id}")]
         ]
 
         text = (
             f"{emoji} <b>Dice PvP</b>\n\n"
             f"Challenger: <b>{challenge['challenger_username']}</b>\n"
-            f"• Mode: <b>{mode.capitalize()}</b>\n"
+            f"• Mode: <b>{'High Roll' if mode == 'normal' else 'Low Roll'}</b>\n"
             f"• Rolls: <b>{rolls}</b>\n"
             f"• Points to win: <b>{pts}</b>\n"
             f"• Bet: <b>${wager:,.2f}</b>"
@@ -6448,20 +6489,20 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenge['opponent'] = acceptor_id
         challenge['opponent_username'] = user_data.get('username', f'User{acceptor_id}')
         challenge['status'] = "active"
+        challenge['waiting_for'] = "p1"
         self.pending_pvp[challenge_id] = challenge
         self.db.data['pending_pvp'] = self.pending_pvp
 
-        # NO EDITING OR DELETING as requested. Just send a new message.
+        # Don't edit or delete the challenge message - just send a new message
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=f"🎲 <b>Dice PvP Match Started!</b>\n\n"
-                 f"<b>{challenge['challenger_username']}</b> vs <b>{challenge['opponent_username']}</b>\n"
-                 f"Wager: <b>${challenge['wager']:,.2f}</b> each\n\n"
-                 f"👉 <b>@{challenge['challenger_username']}</b>, your turn!",
+            text=f"{challenge['challenger_username']}, your turn!",
             parse_mode="HTML"
         )
         await query.answer("Match started!")
 
+
+        try:
             if data.startswith("v2_pvp_accept_"):
                 cid = data.replace("v2_pvp_accept_", "")
                 await self.v2_pvp_accept(update, context)
@@ -6488,20 +6529,20 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 if not challenge:
                     await query.answer("❌ Challenge no longer exists!", show_alert=True)
                     return
-                
+
                 if challenge['challenger'] != user_id:
                     await query.answer("❌ Only the creator can cancel this challenge.", show_alert=True)
                     return
-                
+
                 # Refund challenger
                 wager = challenge['wager']
                 user_data = self.db.get_user(user_id)
                 self.db.update_user(user_id, {'balance': user_data['balance'] + wager})
                 self.db.add_transaction(user_id, "refund", wager, f"Refund for cancelled {challenge['type']} PvP")
-                
+
                 del self.pending_pvp[cid]
                 self.db.update_pending_pvp(self.pending_pvp)
-                
+
                 # Redirect to game menu instead of showing "Cancelled" message
                 if challenge['type'] == 'dice':
                     await self.dice_command(update, context)
