@@ -2253,13 +2253,13 @@ class AntariaCasinoBot:
         keyboard = []
         keyboard.extend(prediction_rows)
         keyboard.extend([
-            [InlineKeyboardButton("Half Bet", callback_data=f"setup_mode_predict_edit_{max(1.0, wager/2):.2f}_{game_mode}"),
+            [InlineKeyboardButton("½", callback_data=f"setup_mode_predict_edit_{max(1.0, wager/2):.2f}_{game_mode}"),
              InlineKeyboardButton(f"Bet: ${wager:,.2f}", callback_data="none"),
-             InlineKeyboardButton("Double Bet", callback_data=f"setup_mode_predict_edit_{wager*2:.2f}_{game_mode}")],
+             InlineKeyboardButton("2x", callback_data=f"setup_mode_predict_edit_{wager*2:.2f}_{game_mode}")],
             [InlineKeyboardButton("⬅️", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{prev_mode}"),
              InlineKeyboardButton(f"Mode: {current_emoji}", callback_data="none"),
              InlineKeyboardButton("➡️", callback_data=f"setup_mode_predict_edit_{wager:.2f}_{next_mode}")],
-            [InlineKeyboardButton("❌ Cancel", callback_data=f"setup_cancel_roll"),
+            [InlineKeyboardButton("❌ Clear", callback_data=f"setup_predict_clear_{wager:.2f}_{game_mode}"),
              InlineKeyboardButton("✅ Start", callback_data=f"predict_start_{wager:.2f}_{game_mode}")]
         ])
 
