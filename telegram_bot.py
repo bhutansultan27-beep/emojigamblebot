@@ -5543,6 +5543,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenge['p2_pts'] = 0
         challenge['cur_rolls'] = 0
         challenge['emoji_wait'] = datetime.now().isoformat()
+        self.pending_pvp[cid] = challenge
         self.db.update_pending_pvp(self.pending_pvp)
 
         challenger_data = self.db.get_user(challenge['challenger'])
