@@ -2933,10 +2933,16 @@ class AntariaCasinoBot:
         # Send or edit message
         logger.info(f"BJ display: sending message, game_over={state['game_over']}, msg_len={len(message)}")
         try:
-            if update.callback_query:
+            if not update.callback_query:
+                user_id = update.effective_user.id
+                sent = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
+                self.button_ownership[(sent.chat_id, sent.message_id)] = user_id
+            else:
+                user_id = update.effective_user.id # callback owner
                 try:
                     await update.callback_query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
-                    logger.info("BJ display: edit_message_text succeeded")
+                    # Update ownership for the edited message too
+                    self.button_ownership[(update.effective_chat.id, update.callback_query.message.message_id)] = user_id
                 except Exception as edit_err:
                     error_str = str(edit_err)
                     logger.error(f"BJ edit failed: {edit_err}")
@@ -2956,9 +2962,6 @@ class AntariaCasinoBot:
                             self.button_ownership[(sent.chat_id, sent.message_id)] = user_id
                         except Exception:
                             pass
-            else:
-                sent = await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
-                self.button_ownership[(sent.chat_id, sent.message_id)] = user_id
         except Exception as send_err:
             logger.error(f"BJ message send completely failed: {send_err}", exc_info=True)
 
@@ -3842,7 +3845,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         keyboard = [
             [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_dice_{challenge_id}")],
-            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -3947,7 +3950,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         keyboard = [
             [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")],
-            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5114,7 +5117,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         # Build keyboard: Join Challenge button
         keyboard = [
             [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")],
-            [InlineKeyboardButton("🔙 Back", callback_data=f"v2_pvp_cancel_{cid}")]
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{cid}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
