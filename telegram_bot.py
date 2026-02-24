@@ -3981,7 +3981,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.data['pending_pvp'] = self.pending_pvp
 
         keyboard = [
-            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")]
+            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_{game_type}_{challenge_id}")],
+            [InlineKeyboardButton("❌ Cancel Challenge", callback_data=f"v2_pvp_cancel_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -5236,7 +5237,8 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         # Build keyboard: Join Challenge button
         keyboard = [
-            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")]
+            [InlineKeyboardButton("⚔️ Join Challenge", callback_data=f"v2_pvp_accept_{cid}")],
+            [InlineKeyboardButton("❌ Cancel Match", callback_data=f"v2_pvp_cancel_{cid}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
