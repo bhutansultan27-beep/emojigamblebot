@@ -3870,7 +3870,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         self.db.data['pending_pvp'] = self.pending_pvp
 
         keyboard = [
-            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"accept_dice_{challenge_id}")],
+            [InlineKeyboardButton("✅ Accept Match", callback_data=f"accept_dice_{challenge_id}")],
             [InlineKeyboardButton("⬅️ Back", callback_data=f"v2_pvp_cancel_{challenge_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -3936,11 +3936,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenger_username = challenger_user.get('username', f'User{challenger_id}')
         acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
         
-        await query.edit_message_text(
-            f"🎲 **Dice PvP Match Started!**\n\n"
-            f"**{challenger_username}** vs **{acceptor_username}**\n"
-            f"Wager: **${wager:,.2f}** each\n\n"
-            f"👉 **@{challenger_username}**, send your 🎲 now!",
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"🎲 **Dice PvP Match Started!**\n\n"
+                 f"**{challenger_username}** vs **{acceptor_username}**\n"
+                 f"Wager: **${wager:,.2f}** each\n\n"
+                 f"👉 **@{challenger_username}**, send your 🎲 now!",
             parse_mode="Markdown"
         )
 
@@ -4044,11 +4045,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenger_username = challenger_user.get('username', f'User{challenger_id}')
         acceptor_username = acceptor_user.get('username', f'User{acceptor_id}')
         
-        await query.edit_message_text(
-            f"🎲 **Dice PvP Match Started!**\n\n"
-            f"**{challenger_username}** vs **{acceptor_username}**\n"
-            f"Wager: **${wager:,.2f}** each\n\n"
-            f"👉 **@{challenger_username}**, send your 🎲 now!",
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"🎲 **Dice PvP Match Started!**\n\n"
+                 f"**{challenger_username}** vs **{acceptor_username}**\n"
+                 f"Wager: **${wager:,.2f}** each\n\n"
+                 f"👉 **@{challenger_username}**, send your 🎲 now!",
             parse_mode="Markdown"
         )
 
