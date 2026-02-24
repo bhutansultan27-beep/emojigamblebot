@@ -3626,9 +3626,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"{emoji} **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"{emoji} <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=msg_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     async def darts_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
@@ -3671,9 +3671,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎯 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🎯 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     async def basketball_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
@@ -3716,9 +3716,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🏀 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🏀 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     async def soccer_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
@@ -3762,9 +3762,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"⚽ **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"⚽ <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     async def bowling_vs_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
@@ -3808,9 +3808,9 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎳 **Match accepted!**\n\nPlayer 1: {user_mention}\nPlayer 2: Bot\n\n**{user_mention}**, your turn!",
+            text=f"🎳 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     async def create_open_dice_challenge(self, update: Update, context: ContextTypes.DEFAULT_TYPE, wager: float):
@@ -5066,7 +5066,6 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             f"• Rolls: <b>{rolls}</b>\n"
             f"• Points to win: <b>{pts}</b>\n"
             f"• Bet: <b>${wager:,.2f}</b>\n"
-            f"\nWaiting for opponent..."
         )
 
         # Build keyboard: Accept button on top, then bet controls, nav, back/cancel
@@ -5388,10 +5387,10 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         emoji = self.game_emojis.get(game, "🎲")
         msg_text = (
-            f"{emoji} <b>PvP Match Started!</b>\n\n"
-            f"<b>{p1_name}</b> vs <b>{p2_name}</b>\n"
-            f"Wager: <b>${wager:,.2f}</b> each\n\n"
-            f"<b>{p1_name}</b>, send your {emoji} now!"
+            f"{emoji} <b>Match accepted!</b>\n\n"
+            f"Player 1: <b>{p1_name}</b>\n"
+            f"Player 2: <b>{p2_name}</b>\n\n"
+            f"<b>{p1_name}</b>, your turn!"
         )
 
         keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data=f"v2_cancel_{cid}")]]
@@ -6230,7 +6229,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             if data.startswith("v2_pvp_back_"):
                 cid = data.replace("v2_pvp_back_", "")
-                # ... existing logic ...
+                challenge = self.pending_pvp.get(cid)
+                if challenge:
+                    wager = challenge.get('wager', 1.0)
+                    game_mode = challenge.get('game', 'dice')
+                    await self._show_game_prediction_menu(update, context, wager, game_mode)
+                else:
+                    await self.main_menu(update, context)
                 return
 
             if data.startswith("v2_pvp_cancel_"):
