@@ -6635,28 +6635,46 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 amount = float(parts[3])
 
                 user_data = self.db.get_user(user_id)
+                if not user_data:
+                    await query.answer("❌ Error: User data not found.", show_alert=True)
+                    return
+                
                 if amount > user_data['balance']:
                     await query.answer("❌ Insufficient balance for this tip.", show_alert=True)
                     return
 
                 recipient_data = self.db.get_user(recipient_id)
+                if not recipient_data:
+                    await query.answer("❌ Error: Recipient not found.", show_alert=True)
+                    return
+
                 recipient_display_name = recipient_data.get('username') or recipient_data.get('first_name') or f"User{recipient_id}"
 
+                # Update balances
                 user_data['balance'] -= amount
-                self.db.update_user(user_id, user_data)
                 recipient_data['balance'] += amount
+                
+                # Save to database
+                self.db.update_user(user_id, user_data)
                 self.db.update_user(recipient_id, recipient_data)
 
+                # Log transactions
                 self.db.add_transaction(user_id, "tip_sent", -amount, f"Tip to {recipient_display_name}")
                 self.db.add_transaction(recipient_id, "tip_received", amount, f"Tip from {user_data.get('username', user_id)}")
 
                 mention = f'<a href="tg://user?id={recipient_id}">{recipient_display_name}</a>'
-                await query.message.delete()
+                
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                
                 await context.bot.send_message(
                     chat_id=chat_id,
                     text=f"🎉 Tip successful!! {mention} received <b>${amount:,.2f}</b>",
                     parse_mode="HTML"
                 )
+                
                 try:
                     sender_name = user_data.get('username') or user_data.get('first_name') or f"User{user_id}"
                     sender_mention = f'<a href="tg://user?id={user_id}">{sender_name}</a>'
