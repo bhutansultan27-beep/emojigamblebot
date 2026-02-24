@@ -1915,6 +1915,14 @@ class AntariaCasinoBot:
             if params.get('opponent'):
                 suffix += f"_{params['opponent']}"
 
+        # Show double/half buttons only if NOT showing "Accept Match"
+        if not (step == "final" and params.get('opponent') == 'player' and not is_private):
+            keyboard.append([
+                InlineKeyboardButton("½", callback_data=f"emoji_setup_{game_mode}_{half_wager:.2f}_{step}{suffix}"),
+                InlineKeyboardButton(f"Bet: ${wager:,.2f}", callback_data="none"),
+                InlineKeyboardButton("2x", callback_data=f"emoji_setup_{game_mode}_{double_wager:.2f}_{step}{suffix}")
+            ])
+
         # Navigation row
         next_game = self._get_next_game_mode(game_mode)
         prev_game = self._get_prev_game_mode(game_mode)
@@ -1962,8 +1970,12 @@ class AntariaCasinoBot:
             opponent_val = params.get("opponent", "bot")
 
             if opponent_val == "player" and not is_private:
-                # No bottom buttons when showing Accept Match
-                pass
+                # PvP challenge creation
+                start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}"
+                back_callback = f"emoji_setup_{game_mode}_{wager:.2f}_points_{rolls_val}_{mode_val}"
+                
+                keyboard.append([InlineKeyboardButton("🤝 Accept Match", callback_data=start_callback)])
+                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data=back_callback)])
             else:
                 start_callback = f"v2_pvp_create_{game_mode}_{wager:.2f}_{rolls_val}_{mode_val}_{pts_val}" if (opponent_val == "player" and not is_private) else f"emoji_setup_{game_mode}_{wager:.2f}_start_{pts_val}_{rolls_val}_{mode_val}"
 
