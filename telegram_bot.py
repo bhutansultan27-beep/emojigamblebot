@@ -6250,7 +6250,13 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 del self.pending_pvp[cid]
                 self.db.update_pending_pvp(self.pending_pvp)
                 
-                await query.edit_message_text(f"❌ Challenge cancelled and ${wager:.2f} refunded to {self.get_mention(user_id)}.", parse_mode="HTML")
+                # Redirect to game menu instead of showing "Cancelled" message
+                if challenge['type'] == 'dice':
+                    await self.dice_menu(update, context)
+                elif challenge['type'] == 'emoji':
+                    await self.emoji_menu(update, context)
+                else:
+                    await self.main_menu(update, context)
                 return
 
             # --- PvP game creation ---
