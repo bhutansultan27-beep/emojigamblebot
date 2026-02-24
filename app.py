@@ -21,7 +21,10 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db.init_app(app)
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        app.logger.warning(f"Database initialization warning: {e}")
 
 def get_house_balance():
     state = GlobalState.query.filter_by(key='house_balance').first()

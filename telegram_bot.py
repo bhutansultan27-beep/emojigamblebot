@@ -6484,13 +6484,18 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         challenge['opponent_username'] = user_data.get('username', f'User{acceptor_id}')
         challenge['status'] = "active"
         challenge['waiting_for'] = "p1"
+        challenge['challenger_rolls'] = []
+        challenge['opponent_rolls'] = []
+        challenge['p1_pts'] = 0
+        challenge['p2_pts'] = 0
+        challenge['cur_rolls'] = 0
         self.pending_pvp[challenge_id] = challenge
-        self.db.data['pending_pvp'] = self.pending_pvp
+        self.db.update_pending_pvp(self.pending_pvp)
 
         # Don't edit or delete the challenge message - just send a new message
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=f"{challenge['challenger_username']}, your turn!",
+            text=f"🎲 <b>Match Started!</b>\n\n{challenge['challenger_username']}, your turn!",
             parse_mode="HTML"
         )
         await query.answer("Match started!")
