@@ -3670,7 +3670,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"{emoji} <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
+            text=f"{emoji} <b>Dice battle!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=msg_id,
             parse_mode="HTML"
         )
@@ -3715,7 +3715,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎯 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
+            text=f"🎯 <b>Dice battle!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="HTML"
         )
@@ -3760,7 +3760,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🏀 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
+            text=f"🏀 <b>Dice battle!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="HTML"
         )
@@ -3806,7 +3806,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"⚽ <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
+            text=f"⚽ <b>Dice battle!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="HTML"
         )
@@ -3852,7 +3852,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         await query.answer()
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=f"🎳 <b>Match accepted!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
+            text=f"🎳 <b>Dice battle!</b>\n\nPlayer 1: <b>{user_mention}</b>\nPlayer 2: <b>Bot</b>\n\n<b>{user_mention}</b>, your turn!",
             reply_to_message_id=query.message.message_id,
             parse_mode="HTML"
         )
@@ -5120,7 +5120,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
         p1_name = user_data.get('username', f'User{user_id}')
         msg_text = (
-            f"{emoji} <b>Match accepted!</b>\n\n"
+            f"{emoji} <b>Dice battle!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>Bot</b>\n\n"
             f"<b>{p1_name}</b>, your turn!"
@@ -5316,7 +5316,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
         emoji = challenge.get('emoji', '🎲')
 
         msg_text = (
-            f"{emoji} <b>Match accepted!</b>\n\n"
+            f"{emoji} <b>Dice battle!</b>\n\n"
             f"Player 1: <b>{p1_name}</b>\n"
             f"Player 2: <b>{p2_name}</b>\n\n"
             f"<b>{p1_name}</b>, your turn!"
