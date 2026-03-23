@@ -6394,6 +6394,88 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     await self._show_emoji_game_setup(update, context, wager, "coinflip", "mode", {})
                 return
 
+            # --- Tip cancel ---
+            if data == "tip_cancel" or data.startswith("tip_cancel_"):
+                tipper_id = None
+                if data.startswith("tip_cancel_"):
+                    try:
+                        tipper_id = int(data.split("_")[2])
+                    except (IndexError, ValueError):
+                        pass
+                if tipper_id and user_id != tipper_id:
+                    await query.answer("❌ This is not your tip to cancel!", show_alert=True)
+                    return
+                try:
+                    await query.answer("Tip cancelled.")
+                    await query.message.delete()
+                    if query.message.reply_to_message:
+                        await query.message.reply_to_message.delete()
+                except Exception:
+                    pass
+                return
+
+            # --- Tip confirm ---
+            if data.startswith("tip_confirm_"):
+                logger.info(f"[TIP] tip_confirm_ reached for user {user_id}, data={data!r}")
+                parts = data.split("_")
+                # Format: tip_confirm_{tipper_id}_{recipient_id}_{amount}
+                if len(parts) == 5:
+                    tipper_id = int(parts[2])
+                    recipient_id = int(parts[3])
+                    amount = float(parts[4])
+                    if user_id != tipper_id:
+                        await query.answer("❌ This tip is not yours to confirm!", show_alert=True)
+                        return
+                else:
+                    # Legacy format: tip_confirm_{recipient_id}_{amount}
+                    recipient_id = int(parts[2])
+                    amount = float(parts[3])
+                logger.info(f"[TIP] recipient_id={recipient_id}, amount={amount}")
+
+                user_data = self.db.get_user(user_id)
+                if amount > user_data['balance']:
+                    await query.answer("❌ Insufficient balance for this tip.", show_alert=True)
+                    return
+
+                recipient_data = self.db.get_user(recipient_id)
+
+                await query.answer("✅ Tip sent successfully!", show_alert=False)
+
+                recipient_display_name = recipient_data.get('username') or recipient_data.get('first_name') or f"User{recipient_id}"
+
+                user_data['balance'] -= amount
+                recipient_data['balance'] += amount
+                self.db.update_user(user_id, user_data)
+                self.db.update_user(recipient_id, recipient_data)
+
+                self.db.add_transaction(user_id, "tip_sent", -amount, f"Tip to {recipient_display_name}")
+                self.db.add_transaction(recipient_id, "tip_received", amount, f"Tip from {user_data.get('username', user_id)}")
+
+                mention = f'<a href="tg://user?id={recipient_id}">{recipient_display_name}</a>'
+
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🎉 Tip successful! {mention} received <b>${amount:,.2f}</b>",
+                    parse_mode="HTML"
+                )
+
+                try:
+                    sender_name = user_data.get('username') or user_data.get('first_name') or f"User{user_id}"
+                    sender_mention = f'<a href="tg://user?id={user_id}">{sender_name}</a>'
+                    await context.bot.send_message(
+                        chat_id=recipient_id,
+                        text=f"🎁 You received a tip of <b>${amount:,.2f}</b> from {sender_mention}!",
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
+                return
+
         except Exception as e:
             logger.error(f"Error in callback handler (setup section): {e}")
             return
