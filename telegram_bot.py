@@ -3097,18 +3097,17 @@ class AntariaCasinoBot:
         mention = f'<a href="tg://user?id={recipient_data["user_id"]}">{recipient_display_name}</a>'
 
         keyboard = [
-            [InlineKeyboardButton("✅ Confirm", callback_data=f"tip_confirm_{recipient_data['user_id']}_{amount:.2f}"),
+            [InlineKeyboardButton("✅ Confirm", callback_data=f"tip_confirm_{user_id}_{recipient_data['user_id']}_{amount:.2f}"),
              InlineKeyboardButton("❌ Cancel", callback_data=f"tip_cancel_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        sent_tip_msg = await update.message.reply_text(
+        await update.message.reply_text(
             f"You want to tip {mention} with <b>${amount:,.2f}</b>. Is that correct?",
             reply_markup=reply_markup,
             parse_mode="HTML",
             reply_to_message_id=update.message.message_id
         )
-        self.button_ownership[(sent_tip_msg.chat_id, sent_tip_msg.message_id)] = user_id
 
     async def deposit_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show deposit currency selection menu."""
@@ -5848,12 +5847,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         # --- Public buttons: ownership check ---
-        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_"]
+        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_", "tip_confirm_", "tip_cancel_"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
         ownership_key = (chat_id, message_id)
+        logger.info(f"[OWN] is_public={is_public}, key={ownership_key}, in_dict={ownership_key in self.button_ownership}")
         if not is_public and ownership_key in self.button_ownership:
             owner_id = self.button_ownership[ownership_key]
+            logger.info(f"[OWN] owner_id={owner_id}, user_id={user_id}, match={owner_id == user_id}")
             if owner_id != user_id:
                 # Allow setup/game buttons through even without ownership match
                 setup_prefixes = [
@@ -5862,10 +5863,12 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                     "flip_bot_", "bj_", "setup_mode_normal_", "setup_mode_crazy_",
                 ]
                 is_setup = any(data.startswith(p) for p in setup_prefixes)
+                logger.info(f"[OWN] blocked! is_setup={is_setup}")
                 if not is_setup:
                     await query.answer("❌ This menu is not for you!", show_alert=True)
                     return
 
+        logger.info(f"[OWN] passed ownership check, entering try block")
         try:
             # --- Bonus/Rakeback ---
             if data == "bonus_weekly_menu":
@@ -6664,8 +6667,19 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             if data.startswith("tip_confirm_"):
                 logger.info(f"[TIP] tip_confirm_ reached for user {user_id}, data={data!r}")
                 parts = data.split("_")
-                recipient_id = int(parts[2])
-                amount = float(parts[3])
+                # New format: tip_confirm_{tipper_id}_{recipient_id}_{amount}
+                # Old format (fallback): tip_confirm_{recipient_id}_{amount}
+                if len(parts) == 5:
+                    tipper_id = int(parts[2])
+                    recipient_id = int(parts[3])
+                    amount = float(parts[4])
+                    if user_id != tipper_id:
+                        await query.answer("❌ This tip is not yours to confirm!", show_alert=True)
+                        return
+                else:
+                    # Legacy format — just extract what we have
+                    recipient_id = int(parts[2])
+                    amount = float(parts[3])
                 logger.info(f"[TIP] recipient_id={recipient_id}, amount={amount}")
 
                 user_data = self.db.get_user(user_id)
