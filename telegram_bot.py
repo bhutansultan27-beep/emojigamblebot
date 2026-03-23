@@ -5682,6 +5682,14 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle all button interactions"""
         query = update.callback_query
+        logger.info(f"[BTN] callback fired: data={query.data!r} from={query.from_user.id if query.from_user else None} msg={query.message is not None}")
+        if query.message is None:
+            logger.warning("[BTN] query.message is None – cannot process callback")
+            try:
+                await query.answer("❌ Message no longer available.", show_alert=True)
+            except Exception:
+                pass
+            return
         user_id = query.from_user.id
         chat_id = query.message.chat_id
         message_id = query.message.message_id
@@ -6654,9 +6662,11 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
                 return
 
             if data.startswith("tip_confirm_"):
+                logger.info(f"[TIP] tip_confirm_ reached for user {user_id}, data={data!r}")
                 parts = data.split("_")
                 recipient_id = int(parts[2])
                 amount = float(parts[3])
+                logger.info(f"[TIP] recipient_id={recipient_id}, amount={amount}")
 
                 user_data = self.db.get_user(user_id)
                 if not user_data:
