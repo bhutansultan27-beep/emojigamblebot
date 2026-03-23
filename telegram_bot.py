@@ -3098,16 +3098,17 @@ class AntariaCasinoBot:
 
         keyboard = [
             [InlineKeyboardButton("✅ Confirm", callback_data=f"tip_confirm_{recipient_data['user_id']}_{amount:.2f}"),
-             InlineKeyboardButton("❌ Cancel", callback_data="tip_cancel")]
+             InlineKeyboardButton("❌ Cancel", callback_data=f"tip_cancel_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(
+        sent_tip_msg = await update.message.reply_text(
             f"You want to tip {mention} with <b>${amount:,.2f}</b>. Is that correct?",
             reply_markup=reply_markup,
             parse_mode="HTML",
             reply_to_message_id=update.message.message_id
         )
+        self.button_ownership[(sent_tip_msg.chat_id, sent_tip_msg.message_id)] = user_id
 
     async def deposit_submenu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show deposit currency selection menu."""
@@ -5839,7 +5840,7 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
             return
 
         # --- Public buttons: ownership check ---
-        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_", "transactions_history", "deposit_mock", "withdraw_mock", "deposit_from_bal", "withdraw_from_bal", "dep_", "bonus_", "rakeback_", "weekly_", "referral_claim_", "referral_double_", "menu_bonus", "matches_page_", "menu_stats", "tip_confirm_", "tip_cancel"]
+        public_buttons = ["v2_accept_", "v2_pvp_accept_confirm_"]
         is_public = any(data.startswith(prefix) for prefix in public_buttons)
 
         ownership_key = (chat_id, message_id)
@@ -6633,7 +6634,16 @@ Best Win Streak: {target_user.get('best_win_streak', 0)}
 
             # --- Leaderboard ---
             # --- Tip ---
-            if data == "tip_cancel":
+            if data == "tip_cancel" or data.startswith("tip_cancel_"):
+                tipper_id = None
+                if data.startswith("tip_cancel_"):
+                    try:
+                        tipper_id = int(data.split("_")[2])
+                    except (IndexError, ValueError):
+                        pass
+                if tipper_id and user_id != tipper_id:
+                    await query.answer("❌ This is not your tip to cancel!", show_alert=True)
+                    return
                 try:
                     await query.answer("Tip cancelled.")
                     await query.message.delete()
